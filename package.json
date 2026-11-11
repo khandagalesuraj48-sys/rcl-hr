@@ -1,0 +1,13 @@
+{
+  "name": "rcl-hr",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RCL ERP – HR module (HRMS & Attendance): signs in through the Portal; one database for every site (each row carries its site).",
+  "scripts": {
+    "dev": "node dev.js",
+    "test": "node --test test/unit.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
