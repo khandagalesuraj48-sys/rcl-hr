@@ -1,6 +1,6 @@
 <!doctype html>
-<!-- RCL ERP – HR module. THE FRAME ONLY (12-11-2026): no employee data, no table. Opened from the Portal (a ticket after "#sso=")
-     it says who the Portal sent; otherwise only that HR is being built. Every address is RELATIVE (it is also served as <main>/hr/). -->
+<!-- RCL ERP – HR module. Phase 1a (12-11-2026): HR's own sign-in through the Portal – no employee data yet. Every address is
+     RELATIVE (the page is also served as <main>/hr/, inside Mechanical's screen with ?embed=1). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -11,40 +11,118 @@
 <style>
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#F3F6FB;color:#0A1B44;font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Noto Sans Devanagari",Arial,sans-serif;padding:20px}
 .embed body{background:transparent;min-height:70vh}
-.card{width:100%;max-width:520px;background:#fff;border:1px solid #E3EAF6;border-radius:22px;padding:30px 28px;text-align:center;box-shadow:0 14px 34px rgba(16,56,140,.08)}
+.card{width:100%;max-width:560px;background:#fff;border:1px solid #E3EAF6;border-radius:22px;padding:30px 28px;text-align:center;box-shadow:0 14px 34px rgba(16,56,140,.08)}
 .ic{width:72px;height:72px;border-radius:22px;background:#E9F2FF;color:#1570EF;display:grid;place-items:center;margin:0 auto 14px}
 h1{font-size:24px;margin:0 0 6px}p{margin:6px 0;color:#566589;font-size:15.5px;line-height:1.5}
-.ok{margin-top:16px;background:#EAF7EE;color:#146C2E;border-radius:14px;padding:11px 14px;font-size:14.5px;text-align:left}
+.who{margin-top:16px;background:#EAF7EE;color:#146C2E;border-radius:14px;padding:12px 14px;font-size:15px;text-align:left}.who b{color:#0B4A1E}
 .bad{margin-top:16px;background:#FDECEC;color:#B42318;border-radius:14px;padding:11px 14px;font-size:14.5px;text-align:left}
 ul{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px;justify-content:center}li{font-size:13px;background:#F1F5FC;border-radius:999px;padding:6px 12px;color:#33456B}
+a.btn{display:inline-block;margin-top:14px;background:#1570EF;color:#fff;text-decoration:none;font-weight:600;border-radius:12px;padding:11px 18px}
 </style>
 </head>
 <body>
 <main class="card">
   <div class="ic" aria-hidden="true"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.8a3.2 3.2 0 0 1 0 6.4"/><path d="M18 14.3c1.8.8 3 2.6 3 4.7"/></svg></div>
   <h1>HR</h1>
-  <p>This module is being built. · हे module बनवले जात आहे. · यह module बनाया जा रहा है।</p>
+  <p id="state">Opening… · उघडत आहे…</p>
   <ul><li>Employees</li><li>Attendance</li><li>Leave</li><li>Payroll</li></ul>
-  <p class="ok" id="ok" hidden></p>
+  <p class="who" id="who" hidden></p>
   <p class="bad" id="bad" role="alert" hidden></p>
+  <p id="go" hidden><a class="btn" id="link" href="#">Open the Portal</a></p>
 </main>
 <script>
 (function () {
   'use strict';
+  var $ = function (id) { return document.getElementById(id); };
   var BASE = location.pathname.endsWith('/') ? location.pathname : location.pathname + '/';
   var EMBED = /[?&]embed=1(&|$)/.test(location.search) && (function () { try { return window.parent !== window && !!window.parent.document; } catch (e) { return false; } })();
   if (EMBED) document.documentElement.classList.add('embed');
-  // the Portal's ticket comes after "#sso=" (it never reaches a server log): it is taken out of the address at once
-  var m = /(?:^#|&)sso=([A-Za-z0-9_.-]+)/.exec(location.hash);
-  if (!m) return;
-  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* the page still works */ }
-  fetch(BASE + 'api/sso', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify({ ticket: m[1] }) })
-    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-    .then(function (x) {
-      if (x.ok && x.j && x.j.ok) { var e = document.getElementById('ok'); e.textContent = 'The Portal sign-in reaches HR: ' + x.j.user.name + ' – ' + x.j.siteName + ' (' + x.j.role + '). Nothing can be opened here yet.'; e.hidden = false; }
-      else { var b = document.getElementById('bad'); b.textContent = (x.j && x.j.error) || 'HR did not answer properly.'; b.hidden = false; }
-    })
-    .catch(function () { var b = document.getElementById('bad'); b.textContent = 'HR could not be reached – check the internet and open it again from the Portal.'; b.hidden = false; });
+  var S = { me: null }, PORTAL = '';
+  var BUILT = 'Signed in. The pages of HR are being built. · Sign-in झाले. HR ची pages बनवली जात आहेत. · Sign-in हो गया। HR के pages बनाए जा रहे हैं।';
+  function api(path, body) {
+    return fetch(BASE + path, body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return { error: 'HR did not answer properly (' + r.status + ').' }; }).then(function (j) { if (!r.ok || j.error) { var e = new Error(j.error || ('Error ' + r.status)); e.code = j.code; throw e; } return j; }); });
+  }
+  var lastSite = function () { try { return localStorage.getItem('rcl_hr_site') || ''; } catch (e) { return ''; } };
+  var hashArg = function (k) { var m = new RegExp('[#&]' + k + '=([^&]*)').exec(location.hash || ''); return m ? decodeURIComponent(m[1]) : ''; };
+  // a message instead of the page: English, Marathi, Hindi; with the way to the Portal when that helps
+  function msg(en, mr, hi, link) {
+    $('state').hidden = true; $('who').hidden = true; var b = $('bad'); b.textContent = '';
+    [en, mr, hi].forEach(function (t, i) { if (!t) return; if (i) b.appendChild(document.createElement('br')); b.appendChild(document.createTextNode(t)); });
+    b.hidden = false; $('go').hidden = !(link && PORTAL); $('link').href = PORTAL ? PORTAL + '/' : '#'; if (EMBED) $('link').target = '_top';
+  }
+  var ROLE = { super: 'Super Admin', admin: 'HR Admin', user: 'HR User' };
+  function show(me) {
+    S.me = me; PORTAL = me.portal || PORTAL; try { localStorage.setItem('rcl_hr_site', me.site); sessionStorage.removeItem('rcl_hr_hops'); } catch (e) { /* asked again next time */ }
+    $('bad').hidden = true; $('go').hidden = true; $('state').hidden = false; $('state').textContent = BUILT;
+    var w = $('who'); w.textContent = ''; var b = document.createElement('b'); b.textContent = me.user.name; w.appendChild(b);
+    w.appendChild(document.createTextNode(' · ' + (me.siteName || me.site) + ' · ' + (ROLE[me.user.role] || me.user.role))); w.hidden = false;
+    renewStart();
+  }
+  function toPortal(path) {
+    if (!PORTAL) return msg('HR is not linked to the Portal yet (PORTAL_URL in Vercel).', 'HR अजून Portal ला जोडलेले नाही.', 'HR अभी Portal से जुड़ा नहीं है।', false);
+    var hops = []; try { hops = JSON.parse(sessionStorage.getItem('rcl_hr_hops') || '[]').filter(function (t) { return Date.now() - t < 120000; }); } catch (e) { hops = []; }
+    if (hops.length >= 3) return msg('The Portal could not sign you in here (several tries in a row). Open the Portal and choose HR again.', 'Portal मधून इथे sign in झाले नाही. Portal उघडा आणि HR पुन्हा निवडा.', 'Portal से यहाँ sign in नहीं हुआ। Portal खोलें और HR फिर चुनें।', true);
+    hops.push(Date.now()); try { sessionStorage.setItem('rcl_hr_hops', JSON.stringify(hops)); } catch (e) { /* no guard without storage */ }
+    (EMBED ? window.top : window).location.href = PORTAL + path;
+  }
+  var NOACC = ['You do not have HR on this site – ask the Super Admin.', 'या site वर तुम्हाला HR दिलेले नाही – Super Admin ला विचारा.', 'इस site पर आपको HR नहीं दिया गया है – Super Admin से पूछें।'];
+  var ENDED = ['Your sign-in on the Portal has ended – sign in again.', 'Portal चा login संपला आहे – पुन्हा sign in करा.', 'Portal का login खत्म हो गया है – फिर sign in करें।'];
+  var NONET = ['No connection – check the internet and open the page again.', 'Internet तपासा आणि पान पुन्हा उघडा.', 'Internet जाँचें और page फिर खोलें।'];
+  // a ticket of the Portal for this site, asked from the open page (the Portal's own sign-in decides – nothing is typed)
+  function ticketFor(site, renew) {
+    return fetch(PORTAL + '/api/go?module=hr&site=' + encodeURIComponent(site) + '&json=1' + (renew ? '&renew=1' : ''), { credentials: 'same-origin', headers: { 'X-RCL': '1' } })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); });
+  }
+  function signIn(site, who) {
+    if (!PORTAL || !site) return msg('HR could not be opened here.', 'HR इथे उघडता आले नाही.', 'HR यहाँ खुल नहीं सका।', !!PORTAL);
+    return ticketFor(site, false).then(function (x) {
+      if (!x.ok || !x.j.ticket) {
+        if (x.j.code === 'signin') return msg(ENDED[0], ENDED[1], ENDED[2], true);
+        if (x.j.code === 'noaccess') return msg(NOACC[0], NOACC[1], NOACC[2], false);
+        return msg(x.j.error || 'HR could not be opened here.', 'HR इथे उघडता आले नाही.', 'HR यहाँ खुल नहीं सका।', true);
+      }
+      return api('api/sso', { ticket: x.j.ticket }).then(function (r) {
+        if (who && String(r.user.email).toLowerCase() !== who) return api('api/logout', {}).catch(function () {}).then(function () { msg('The Portal is signed in as another person on this computer – sign out and sign in again.', 'या computer वर Portal मध्ये दुसरी व्यक्ती आहे – sign out करून पुन्हा sign in करा.', 'इस computer पर Portal में दूसरा व्यक्ति है – sign out करके फिर sign in करें।', true); });
+        show(r);
+      }, function (e) { msg(e.message, 'HR उघडता आले नाही.', 'HR खुल नहीं सका।', true); });
+    }, function () { msg(NONET[0], NONET[1], NONET[2], false); });
+  }
+  /* THE SIGN-IN IS KEPT FRESH: an HR sign-in lasts 15 minutes. Every 10 minutes – and when the page comes back after a pause – the
+   * page asks the Portal for a fresh ticket and signs in again with it. Whom the Super Admin removed gets none: the sign-in ends
+   * and the page says so. A tab in the background does not renew. No answer: tried again in 2 minutes. */
+  var RENEW_MS = 10 * 60000, renewAt = 0, renewT = 0, renewing = false;
+  function renewStart() { renewAt = Date.now(); clearInterval(renewT); renewT = setInterval(function () { if (!document.hidden && Date.now() - renewAt >= RENEW_MS) renew(); }, 30000); }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && S.me && renewT && Date.now() - renewAt >= RENEW_MS) renew(); });
+  function renew() {
+    if (renewing || !S.me || !PORTAL) return; renewing = true;
+    var later = function () { renewAt = Date.now() - RENEW_MS + 2 * 60000; }, done = function () { renewing = false; };
+    ticketFor(S.me.site, true).then(function (x) {
+      if (!x.ok || !x.j.ticket) {
+        if (x.j.code !== 'noaccess' && x.j.code !== 'signin') return later();
+        clearInterval(renewT); renewT = 0; S.me = null;
+        return api('api/logout', {}).catch(function () {}).then(function () { if (x.j.code === 'noaccess') msg('You no longer have HR on this site – ask the Super Admin.', 'या site वर तुम्हाला आता HR दिलेले नाही – Super Admin ला विचारा.', 'इस site पर अब आपको HR नहीं दिया गया है – Super Admin से पूछें।', false); else msg(ENDED[0], ENDED[1], ENDED[2], true); });
+      }
+      return api('api/sso', { ticket: x.j.ticket, renew: 1 }).then(function (r) { renewAt = Date.now(); if (!S.me) return; if (String(r.user.email).toLowerCase() !== String(S.me.user.email).toLowerCase()) { location.reload(); return; } show(r); });
+    }).catch(later).then(done, done);
+  }
+  function start() {
+    // 1. the Portal sent the person here with a ticket after "#sso=" (it never reaches a server log): taken out of the address at once
+    var m = /(?:^#|&)sso=([A-Za-z0-9_.-]+)/.exec(location.hash);
+    if (m) {
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* the page still works */ }
+      return api('api/sso', { ticket: m[1] }).then(show, function (e) { return api('api/me').then(function (me) { PORTAL = me.portal || ''; if (me.signedIn) return show(me); msg(e.message, 'HR उघडता आले नाही.', 'HR खुल नहीं सका।', true); }, function () { msg(e.message, 'HR उघडता आले नाही.', 'HR खुल नहीं सका।', false); }); });
+    }
+    // 2. inside Mechanical's screen (#site=…&u=…) or opened by itself: the sign-in HR has, else a ticket of the Portal
+    var site = hashArg('site').toUpperCase(), who = hashArg('u').toLowerCase();
+    return api('api/me').then(function (me) {
+      PORTAL = me.portal || '';
+      if (me.signedIn && (!site || site === me.site) && (!who || who === String(me.user.email).toLowerCase())) return show(me);
+      var next = function () { var s = site || (me.signedIn ? me.site : '') || lastSite(); if (EMBED || s) return signIn(s, who); toPortal('/'); };
+      return me.signedIn ? api('api/logout', {}).catch(function () {}).then(next) : next();
+    }, function (e) { msg(e.message, '', '', false); });
+  }
+  start();
 })();
 </script>
 </body>

@@ -29,8 +29,8 @@ Store, Engineering and Purchase; the short version:
   only the sites of the person's sign-in. Row Level Security on every table with no access given – only this server reaches it.
 * **One address:** `https://oneclicksolution.online/hr` (Mechanical's `vercel.json` sends `/hr/…` here), inside Mechanical's screen.
 * **The Portal** is the one sign-in and the one place access is given (HR Admin / HR User per site). HR trusts a Portal ticket
-  only after checking its ES256 signature with `/api/jwks`, its `aud` ("hr"), `exp`, and – from Phase 1, when its table exists –
-  that its `jti` is used once. The finer roles (Supervisor, Reporting Person, HR Head, Payroll) and the powers the Super Admin
+  only after checking its ES256 signature with `/api/jwks`, its `aud` ("hr"), `exp`, and that its `jti` is used once
+  (`hr_tickets`). The finer roles (Supervisor, Reporting Person, HR Head, Payroll) and the powers the Super Admin
   gives are kept in HR's own database.
 * **An employee is not a sign-in:** the Employee Master is HR's; an employee who uses the app is linked to a Portal user.
   Categories: Staff, Operator, Driver, Labour (not the designation). DOB and a verified e-mail (OTP by Resend) are compulsory
