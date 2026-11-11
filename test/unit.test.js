@@ -131,7 +131,8 @@ test('the SQL step: only adds, four tables, row level security on and nothing fo
 test('the menu, the page and the hosting: one page, nothing of an employee, never listed by a search engine, Mumbai', async () => {
   const menu = require('../api/menu'); const res = { h: {}, setHeader(k, v) { this.h[k] = v; }, end(b) { this.body = JSON.parse(b); } };
   await menu({ method: 'GET', headers: {} }, res);
-  assert.deepStrictEqual(res.body, { module: 'hr', name: 'HR', pages: [{ key: 'home', name: 'Home' }] });
+  assert.deepStrictEqual(res.body, { module: 'hr', name: 'HR', pages: [{ key: 'employees', name: 'Employees' }, { key: 'departments', name: 'Departments' }, { key: 'designations', name: 'Designations' }] }, 'nobody signed in here yet: every page is listed');
+  assert.ok(menu.mayOpen('all', 'user') && !menu.mayOpen('admin', 'user') && menu.mayOpen('admin', 'admin') && menu.mayOpen('admin', 'super'));
   const page = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   for (const m of page.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)) new Function(m[1]);
   assert.match(page, /<meta name="robots" content="noindex, nofollow">/);
@@ -141,6 +142,52 @@ test('the menu, the page and the hosting: one page, nothing of an employee, neve
   const all = v.headers.find(h => h.source === '/(.*)').headers, get = k => (all.find(h => h.key === k) || {}).value;
   assert.strictEqual(get('X-Robots-Tag'), 'noindex, nofollow'); assert.strictEqual(get('X-Frame-Options'), 'SAMEORIGIN');
   assert.match(get('Content-Security-Policy'), /frame-ancestors 'self'/);
+});
+
+test('the employee\'s details: four categories; mobile and e-mail made tidy; DOB and e-mail compulsory – without them INCOMPLETE; under 18 refused', () => {
+  const R = require('../lib/rules'), now = Date.UTC(2026, 10, 12, 6);
+  assert.deepStrictEqual(R.CATS, ['staff', 'operator', 'driver', 'labour']);
+  assert.deepStrictEqual(['+91 98765-43210', '09876543210', '919876543210', '9876543210', '', '12345', '5876543210', 'abc'].map(R.mobile), ['9876543210', '9876543210', '9876543210', '9876543210', '', null, null, null]);
+  assert.deepStrictEqual([' A@B.Co ', '', 'no-at', 'a@b'].map(R.email), ['a@b.co', '', null, null]);
+  assert.deepStrictEqual(['05-03-1990', '5/3/1990', '1990-03-05', 32937, '', '31-02-2000', 'soon'].map(R.date), ['1990-03-05', '1990-03-05', '1990-03-05', '1990-03-05', '', null, null]);
+  assert.strictEqual(R.today(Date.UTC(2026, 10, 11, 19, 0)), '2026-11-12', 'the day in India, not in UTC');
+  assert.strictEqual(R.age('2008-11-13', now), 17); assert.strictEqual(R.age('2008-11-12', now), 18);
+  let e = R.employee({ name: '  Test   Person ', category: 'Labor', mobile: '09876543210', email: 'T@X.in', dob: '12-11-2008', joined_on: '01-04-2026' }, now);
+  assert.deepStrictEqual(e, { row: { name: 'Test Person', category: 'labour', gender: '', mobile: '9876543210', email: 't@x.in', dob: '2008-11-12', joined_on: '2026-04-01' }, errors: [], missing: [] });
+  assert.strictEqual(R.statusOf(e.row, ''), 'pending', 'complete: waits for his own e-mail OTP – never active by itself');
+  e = R.employee({ name: 'Test Person', category: 'driver' }, now); assert.deepStrictEqual(e.errors, []); assert.deepStrictEqual(e.missing, ['Date of birth', 'E-mail', 'Mobile']); assert.strictEqual(R.statusOf(e.row, ''), 'incomplete');
+  assert.match(R.employee({ name: 'Test Person', category: 'staff', dob: '13-11-2008' }, now).errors.join(' '), /under 18/);
+  assert.match(R.employee({ name: 'T', category: 'manager', mobile: '12', email: 'x', dob: 'y' }, now).errors.join(' '), /Name: .*Category: .*Mobile: .*E-mail: .*Date of birth: /);
+  assert.strictEqual(R.statusOf(e.row, 'left'), 'left'); assert.strictEqual(R.statusOf(e.row, 'active'), 'active');
+});
+
+test('the pages\' script: the Excel / CSV columns are found by their usual names; a person\'s text is never put in as HTML', () => {
+  const src = fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8'), win = {}; new Function('window', 'document', src)(win, { getElementById: () => null });
+  const m = win.HR._mapRows([['Sr', 'Employee Name', 'Category', 'Mobile No', 'E-mail ID', 'Date of Birth', 'DOJ', 'Dept', 'Designation'], [1, 'A One', 'Staff', '9876543210', 'a@b.co', '01-01-1990', 45000, 'Accounts', 'Clerk'], ['', '', '', '', '', '', '', '', '']]);
+  assert.deepStrictEqual(m.rows, [{ name: 'A One', category: 'Staff', mobile: '9876543210', email: 'a@b.co', dob: '01-01-1990', joined_on: 45000, department: 'Accounts', designation: 'Clerk' }]);
+  assert.ok(m.hasName && m.hasCat); assert.ok(!win.HR._mapRows([['Naam', 'Kind'], ['x', 'y']]).hasName);
+  assert.deepStrictEqual(win.HR._csv('Name,Category\r\n"One, A","Staff"\n"Say ""hi""",Driver\n'), [['Name', 'Category'], ['One, A', 'Staff'], ['Say "hi"', 'Driver']]);
+  assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(src), 'only textContent');
+  const page = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), ids = [...new Set([...src.matchAll(/\$\('([a-z_0-9]+)'\)/g)].map(x => x[1]))];
+  ids.forEach(i => assert.ok(page.includes('id="' + i + '"'), 'the page has #' + i));
+});
+
+test('the actions: every one asks the sign-in first; the Admin\'s ones are refused to an HR User; nothing deletes an employee', () => {
+  const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
+  assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'empImport']);
+  assert.match(src, /const s = await ses\.need\(req\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
+  for (const a of ['masterSave', 'empTransfer', 'empExit']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
+  assert.ok(!/db\('DELETE'/.test(src), 'no row is ever deleted by an action');
+});
+
+test('SQL step 2: only adds; row level security; a mobile and an e-mail belong to one employee; no other database\'s table', () => {
+  const sql = fs.readFileSync(path.join(root, 'sql', 'hr_step2_employees.sql'), 'utf8').replace(/--.*$/gm, '');
+  assert.deepStrictEqual((sql.match(/create table if not exists public\.(\w+)/g) || []).map(x => x.split('.')[1]), ['hr_departments', 'hr_designations', 'hr_employees', 'hr_employment', 'hr_numbers']);
+  assert.ok(!/\b(drop |truncate|delete from)/i.test(sql));
+  assert.match(sql, /create unique index if not exists hr_employees_mobile on public\.hr_employees \(mobile\) where mobile <> ''/); assert.match(sql, /create unique index if not exists hr_employees_email on public\.hr_employees \(email\) where email <> ''/);
+  assert.match(sql, /check \(category in \('staff', 'operator', 'driver', 'labour'\)\)/); assert.match(sql, /check \(status in \('incomplete', 'pending', 'active', 'left'\)\)/);
+  assert.match(sql, /foreach t in array array\['hr_departments', 'hr_designations', 'hr_employees', 'hr_employment', 'hr_numbers'\] loop\s+execute format\('alter table public\.%I enable row level security', t\);\s+execute format\('revoke all on public\.%I from public, anon, authenticated', t\);/);
+  assert.match(sql, /revoke all on function public\.hr_next_no\(text, int\) from public, anon, authenticated;/);
 });
 
 test('no secret and no code of another HR product in any file', () => {
