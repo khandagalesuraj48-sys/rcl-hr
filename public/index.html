@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- RCL ERP – HR module. THE FRAME ONLY (12-11-2026): no employee data, no table. Opened from the Portal (a ticket after "#sso=")
+     it says who the Portal sent; otherwise only that HR is being built. Every address is RELATIVE (it is also served as <main>/hr/). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>HR – RCL ERP</title>
+<link rel="icon" href="favicon.png">
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#F3F6FB;color:#0A1B44;font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Noto Sans Devanagari",Arial,sans-serif;padding:20px}
+.embed body{background:transparent;min-height:70vh}
+.card{width:100%;max-width:520px;background:#fff;border:1px solid #E3EAF6;border-radius:22px;padding:30px 28px;text-align:center;box-shadow:0 14px 34px rgba(16,56,140,.08)}
+.ic{width:72px;height:72px;border-radius:22px;background:#E9F2FF;color:#1570EF;display:grid;place-items:center;margin:0 auto 14px}
+h1{font-size:24px;margin:0 0 6px}p{margin:6px 0;color:#566589;font-size:15.5px;line-height:1.5}
+.ok{margin-top:16px;background:#EAF7EE;color:#146C2E;border-radius:14px;padding:11px 14px;font-size:14.5px;text-align:left}
+.bad{margin-top:16px;background:#FDECEC;color:#B42318;border-radius:14px;padding:11px 14px;font-size:14.5px;text-align:left}
+ul{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px;justify-content:center}li{font-size:13px;background:#F1F5FC;border-radius:999px;padding:6px 12px;color:#33456B}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="ic" aria-hidden="true"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.8a3.2 3.2 0 0 1 0 6.4"/><path d="M18 14.3c1.8.8 3 2.6 3 4.7"/></svg></div>
+  <h1>HR</h1>
+  <p>This module is being built. · हे module बनवले जात आहे. · यह module बनाया जा रहा है।</p>
+  <ul><li>Employees</li><li>Attendance</li><li>Leave</li><li>Payroll</li></ul>
+  <p class="ok" id="ok" hidden></p>
+  <p class="bad" id="bad" role="alert" hidden></p>
+</main>
+<script>
+(function () {
+  'use strict';
+  var BASE = location.pathname.endsWith('/') ? location.pathname : location.pathname + '/';
+  var EMBED = /[?&]embed=1(&|$)/.test(location.search) && (function () { try { return window.parent !== window && !!window.parent.document; } catch (e) { return false; } })();
+  if (EMBED) document.documentElement.classList.add('embed');
+  // the Portal's ticket comes after "#sso=" (it never reaches a server log): it is taken out of the address at once
+  var m = /(?:^#|&)sso=([A-Za-z0-9_.-]+)/.exec(location.hash);
+  if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* the page still works */ }
+  fetch(BASE + 'api/sso', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify({ ticket: m[1] }) })
+    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+    .then(function (x) {
+      if (x.ok && x.j && x.j.ok) { var e = document.getElementById('ok'); e.textContent = 'The Portal sign-in reaches HR: ' + x.j.user.name + ' – ' + x.j.siteName + ' (' + x.j.role + '). Nothing can be opened here yet.'; e.hidden = false; }
+      else { var b = document.getElementById('bad'); b.textContent = (x.j && x.j.error) || 'HR did not answer properly.'; b.hidden = false; }
+    })
+    .catch(function () { var b = document.getElementById('bad'); b.textContent = 'HR could not be reached – check the internet and open it again from the Portal.'; b.hidden = false; });
+})();
+</script>
+</body>
+</html>
