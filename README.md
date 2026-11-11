@@ -3,21 +3,26 @@
 HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the owner's decisions: the Project doc
 `architecture/RCL_ERP_HRMS_Plan.md` and `CLAUDE.md`.
 
-## What is here today (12-11-2026 – the frame only)
-* `public/index.html` – "HR – being built". Opened from the Portal (a ticket after `#sso=`) it says who the Portal sent.
-* `api/sso.js` – checks the Portal's ticket (`lib/portal.js`: ES256 signature with `<PORTAL_URL>/api/jwks`, `iss`, `aud` = "hr",
-  the time). **No sign-in is started and nothing is written**: there is no table yet. That a ticket is used once is checked
-  from Phase 1 on, when its table exists – until then a ticket opens nothing but this notice.
+## What is here today (12-11-2026 – Phase 1a: HR's own sign-in)
+* `sql/hr_step1_base.sql` – **run once by the owner in the rcl-hr Supabase**: `hr_people`, `hr_sessions`, `hr_tickets`,
+  `hr_audit`. Only adds; row level security on, nothing for anon / authenticated; no employee data.
+* `api/sso.js` – the Portal's ticket is checked (`lib/portal.js`: ES256 signature with `<PORTAL_URL>/api/jwks`, `iss`, `aud` =
+  "hr", the time), **used once** (`hr_tickets`), and HR's own sign-in starts (`lib/session.js`: a cookie page scripts cannot
+  read; the database keeps only its fingerprint; 15 minutes, renewed by the open page every 10). `api/me.js`, `api/logout.js`.
+* `public/index.html` – signs in through the Portal (inside Mechanical's screen: a ticket asked from the Portal; by itself: the
+  Portal's `#sso=`), then says who is signed in. The pages of HR come phase by phase.
 * `api/menu.js` – the module's pages for Mechanical's dark menu (one page: Home).
-* **No table, no SQL, no employee data.**
+* Before the SQL step is run the page says so ("The HR database is not set up yet…") – nothing else happens.
+* A Preview (a branch's test deployment) works only with a database marked as a test database (`lib/preview.js`) – never the live one.
 
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
 | Name | What |
 |---|---|
 | `PORTAL_URL` | the Portal's address: `https://oneclicksolution.online/portal` (an address, not a secret) |
 | `PUBLIC_URL` | this module under the one address: `https://oneclicksolution.online/hr` (an address, not a secret) |
-| `SUPABASE_URL` | the HR Supabase project's address (used from Phase 1) |
-| `SUPABASE_SECRET_KEY` | its secret key (used from Phase 1) – only in Vercel |
+| `SUPABASE_URL` | the HR Supabase project's address |
+| `SUPABASE_SECRET_KEY` | its secret key – only in Vercel |
 
 ## Tests
-`timeout 120 node --test test/unit.test.js` – no database, no network (the Portal's key is made in the test).
+`timeout 120 node --test test/unit.test.js` – no real database, no network (the Portal's key and a stand-in of the database are
+made in the test). The SQL step was run twice on a scratch database of the local test rig (never a live one).
