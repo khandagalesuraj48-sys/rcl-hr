@@ -268,6 +268,18 @@ const ACT = {
     await audit(s.site, s.email, 'Paper opened', e.code, { kind: d.kind, doc: d.id });
     return { url: url };
   },
+  /* (12-11-2026, asked: "user swatacha photo pn set karu shakel profile picture") THE FACES OF THE LIST: the newest paper of the
+   * kind "Photo" (a picture, not a PDF) of each employee asked for – of this site only – as links that work 10 minutes. The photo
+   * is the employee's own paper: he sets it in the app (Me), or the office attaches it under Documents. Nothing new is kept. */
+  async empPhotos(s, x) {
+    if (s.role === 'self') throw fail(403, 'This is for the HR office only.', 'role');
+    const ids = [...new Set((Array.isArray(x.ids) ? x.ids : []).map(id).filter(Boolean))].slice(0, 200); if (!ids.length) return { photos: {} };
+    const mine = ((await db('GET', 'hr_employees?select=id&site=eq.' + enc(s.site) + '&id=in.(' + ids.join(',') + ')')) || []).map(e => e.id); if (!mine.length) return { photos: {} };
+    const docs = (await db('GET', 'hr_employee_docs?select=employee_id,path,mime,created_at&kind=eq.photo&active=is.true&mime=like.image*&employee_id=in.(' + mine.join(',') + ')&order=created_at.desc')) || [], first = {};
+    docs.forEach(d => { if (!first[d.employee_id]) first[d.employee_id] = d.path; });
+    const got = await store.links(Object.keys(first).map(k => first[k]), 600), photos = {}; Object.keys(first).forEach(k => { if (got[first[k]]) photos[k] = got[first[k]]; });
+    return { photos: photos };
+  },
   async docRemove(s, x) {
     needAdmin(s); const d = ((await db('GET', 'hr_employee_docs?select=id,employee_id,kind,active&id=eq.' + id(x.doc))) || [])[0]; if (!d || !d.active) throw fail(404, 'This paper was not found.', 'notfound');
     const e = await one(s, d.employee_id), reason = R.str(x.reason, 200); if (reason.length < 3) throw fail(400, 'Reason: please write why it is removed.', 'reason');

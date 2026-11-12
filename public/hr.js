@@ -45,6 +45,17 @@
   }
 
   // ---------- Employees: the list ----------
+  /* (12-11-2026, asked: "user swatacha photo pn set karu shakel profile picture") THE FACES: where an employee has a photo (he
+   * sets it in the app, or the office attaches the paper "Photo") it is shown instead of his letters – in the list and on his
+   * page. The links are asked once for the rows shown and kept in the page's memory only, 8 minutes (they work for 10). */
+  function pic(span, url) { if (!url) return; var im = document.createElement('img'); im.alt = ''; im.onload = function () { span.textContent = ''; span.appendChild(im); }; im.src = url; }
+  function faces() {
+    if (!S.photos || Date.now() - S.photosAt > 8 * 60000) { S.photos = {}; S.photosAt = Date.now(); }
+    var paint = function () { Array.prototype.forEach.call(document.querySelectorAll('#emp_rows [data-face]'), function (f) { pic(f, S.photos[f.dataset.face]); }); if (S.open && !$('dlg_emp').hidden) pic($('d_face'), S.photos[S.open.employee.id]); };
+    var ask = S.rows.map(function (r) { return r.id; }).filter(function (i) { return !(i in S.photos); });
+    if (!ask.length) return paint();
+    api('empPhotos', { ids: ask }).then(function (r) { ask.forEach(function (i) { S.photos[i] = r.photos[i] || ''; }); paint(); }, function () { /* the letters stay */ });
+  }
   function list() {
     api('empList', { q: S.q, status: S.status, category: S.category }).then(function (r) {
       S.rows = r.rows; var c = r.counts, chips = $('chips'); chips.textContent = '';
@@ -54,14 +65,14 @@
       var tb = $('emp_rows'); tb.textContent = '';
       r.rows.forEach(function (e) {
         var tr = el('tr'); tr.tabIndex = 0;
-        var nm = el('td', 'nm pwho'), box = el('div'); box.appendChild(el('b', '', e.name)); box.appendChild(el('small', '', e.code)); nm.appendChild(box); if (window.HRDASH && window.HRDASH.face) nm.insertBefore(window.HRDASH.face(e.name, e.id), box); tr.appendChild(nm);
+        var nm = el('td', 'nm pwho'), box = el('div'); box.appendChild(el('b', '', e.name)); box.appendChild(el('small', '', e.code)); nm.appendChild(box); if (window.HRDASH && window.HRDASH.face) { var fa = window.HRDASH.face(e.name, e.id); fa.dataset.face = e.id; nm.insertBefore(fa, box); } tr.appendChild(nm);
         [CAT[e.category] || e.category, nameOf(S.init.designations, e.designation_id), nameOf(S.init.departments, e.department_id), e.mobile, dmy(e.joined_on), dmy(e.left_on)].forEach(function (v) { tr.appendChild(el('td', '', v || '–')); });
         var td = el('td'); td.appendChild(el('span', 'st s-' + e.status, STATUS[e.status])); tr.appendChild(td);
         tr.onclick = function () { openEmp(e.id); }; tr.onkeydown = function (ev) { if (ev.key === 'Enter') openEmp(e.id); };
         tb.appendChild(tr);
       });
       $('emp_none').hidden = r.rows.length > 0; $('emp_none').textContent = S.q || S.status || S.category ? 'Nobody matches.' : 'No employee yet – add one, or import the Excel list.';
-      $('emp_more').hidden = !r.more;
+      $('emp_more').hidden = !r.more; faces();
     }, fail);
   }
 
@@ -99,7 +110,7 @@
   }
   function drawEmp(r, full) {
       var e = r.employee; S.open = r; $('d_title').textContent = e.name; $('d_code').textContent = e.code + ' · ' + (CAT[e.category] || '');
-      var fc = $('d_face'), st = $('d_st'); fc.textContent = e.name.trim().split(/\s+/).map(function (w) { return w.charAt(0); }).slice(0, 2).join('').toUpperCase(); st.className = 'st ep-st s-' + e.status; st.textContent = STATUS[e.status];
+      var fc = $('d_face'), st = $('d_st'); fc.textContent = e.name.trim().split(/\s+/).map(function (w) { return w.charAt(0); }).slice(0, 2).join('').toUpperCase(); st.className = 'st ep-st s-' + e.status; st.textContent = STATUS[e.status]; pic(fc, S.photos && S.photos[e.id]);
       var dl = $('d_list'), dl2 = $('d_list2'); dl.textContent = ''; dl2.textContent = '';
       row(dl, 'Site', siteName(e.site)); row(dl, 'Designation', nameOf(S.init.designations, e.designation_id)); row(dl, 'Department', nameOf(S.init.departments, e.department_id));
       row(dl, 'Reports to', r.boss ? r.boss.name + ' (' + r.boss.code + ')' : !full && e.reports_to ? '…' : ''); row(dl, 'Active from', dmy(e.joined_on)); row(dl, 'Relieving date', e.status === 'left' ? dmy(e.left_on) : ''); if (e.status === 'left') row(dl, 'Reason', e.left_reason);
