@@ -319,3 +319,24 @@ test('a request to set an old day right: himself, a day gone, one waiting a day;
   r = await ACT.regAsk(s2, { day: ago(5), in_time: '09:00', out_time: '18:00', reason: 'Forgot the phone' }); await no(ACT.teamRegDecide(s1, { id: r.rows[0].id, decision: 'refused' }), /write why/);
   await ACT.teamRegDecide(s1, { id: r.rows[0].id, decision: 'refused', note: 'He was not there' }); assert.strictEqual((await ACT.myRegs(s2)).rows[0].status, 'refused'); assert.strictEqual((await ACT.dayGet(user, { id: E2.id, day: ago(5) })).day.src, '');
 });
+
+/* ───────────── the employee's site in his form; everything of attendance on his page ───────────── */
+test('an employee\'s site: a new one is put on a site of the sign-in; another site for an employee of today = a transfer from today (HR Admin)', async () => {
+  await no(ACT.empSave(user, { name: 'Site Pick', category: 'staff', mobile: mob(), email: mail('sp'), dob: '1990-03-03', site: 'NOWHERE' }), /choose a site where you have HR/, 403);
+  const n = await ACT.empSave(user, { name: 'Site Pick', category: 'staff', mobile: mob(), email: mail('sp'), dob: '1990-03-03', site: SITE2.toLowerCase() }); assert.strictEqual(n.site, SITE2);
+  await no(ACT.empGet(user, { id: n.id }), /not found on this site/, 404); const there = await ACT.empGet(ses('user', SITE2), { id: n.id });
+  assert.deepStrictEqual([there.employee.site, there.history.length, there.history[0].site, there.history[0].note], [SITE2, 1, SITE2, 'Joined']);
+  // an employee of today: the HR User cannot move him; the HR Admin does – from today, the history keeps the old site
+  const e = there.employee, same = { id: e.id, name: e.name, category: e.category, mobile: e.mobile, email: e.email, dob: e.dob };
+  await no(ACT.empSave(ses('user', SITE2), Object.assign({ site: SITE }, same)), /Only the HR Admin/, 403);
+  const kept = await ACT.empSave(ses('user', SITE2), same); assert.strictEqual(kept.site, SITE2, 'no site sent: he stays');
+  const mv = await ACT.empSave(ses('admin', SITE2), Object.assign({ site: SITE }, same)); assert.strictEqual(mv.site, SITE);
+  const here = await ACT.empGet(user, { id: e.id }); assert.deepStrictEqual([here.employee.site, here.history.map(h => h.site + ':' + h.note + ':' + (h.valid_to ? 'closed' : 'open'))], [SITE, [SITE + ':Transfer:open', SITE2 + ':Joined:closed']]);
+});
+
+test('the employee\'s page: his work places, shift, phone, today, this month, what waits', async () => {
+  const a = await ACT.empAround(user, { id: E1.id });
+  assert.ok(a.places.some(p => p.name === 'Office ' + tag) && !a.places.some(p => /^Yard/.test(p.name))); assert.strictEqual(a.shift, 'General ' + tag);
+  assert.deepStrictEqual([a.phone.model, a.today.code, a.month, a.total.P >= 1, a.total.late >= 1, a.requests_waiting], ['Other Phone', 'IN', TODAY.slice(0, 7), true, true, 0]);
+  await no(ACT.empAround(self(mail1), { id: E1.id }), /HR office only/, 403); await no(ACT.empAround(ses('user', SITE2), { id: E1.id }), /not found on this site/, 404);
+});
