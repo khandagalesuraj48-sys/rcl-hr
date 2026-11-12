@@ -131,7 +131,7 @@ test('the SQL step: only adds, four tables, row level security on and nothing fo
 test('the menu, the page and the hosting: one page, nothing of an employee, never listed by a search engine, Mumbai', async () => {
   const menu = require('../api/menu'); const res = { h: {}, setHeader(k, v) { this.h[k] = v; }, end(b) { this.body = JSON.parse(b); } };
   await menu({ method: 'GET', headers: {} }, res);
-  assert.deepStrictEqual(res.body, { module: 'hr', name: 'HR', pages: [{ key: 'dashboard', name: 'Dashboard' }, { key: 'employees', name: 'Employees' }, { key: 'attendance', name: 'Attendance' }, { key: 'places', name: 'Work places' }, { key: 'muster', name: 'Muster' }, { key: 'requests', name: 'Requests' }, { key: 'phones', name: 'Phones' }, { key: 'rules', name: 'Shifts & rules' }, { key: 'departments', name: 'Departments' }, { key: 'designations', name: 'Designations' }] }, 'nobody signed in here yet: every page is listed');
+  assert.deepStrictEqual(res.body, { module: 'hr', name: 'HR', pages: [{ key: 'dashboard', name: 'Dashboard' }, { key: 'employees', name: 'Employees' }, { key: 'attendance', name: 'Attendance' }, { key: 'places', name: 'Work places' }, { key: 'muster', name: 'Muster' }, { key: 'requests', name: 'Requests' }, { key: 'phones', name: 'Phones' }, { key: 'rules', name: 'Shifts & rules' }, { key: 'lists', name: 'Lists' }, { key: 'departments', name: 'Departments' }, { key: 'designations', name: 'Designations' }] }, 'nobody signed in here yet: every page is listed');
   assert.ok(menu.mayOpen('all', 'user') && !menu.mayOpen('admin', 'user') && menu.mayOpen('admin', 'admin') && menu.mayOpen('admin', 'super'));
   const page = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   for (const m of page.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)) new Function(m[1]);
@@ -176,7 +176,7 @@ test('the actions: every one asks the sign-in first; the Admin\'s ones are refus
   const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
   assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'empDelete', 'empExport', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'docRemove', 'empImport',
     'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'selfieUrl', 'punch',
-    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash']);
+    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave']);
   assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n[^\n]+\n  if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'empDelete', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   // (12-11-2026) ONE action deletes: empDelete – an employee added by mistake, after the check that nothing hangs on him, with the reason, written in the audit
@@ -291,7 +291,7 @@ test('the attendance pages: the script runs; three pages; a person\'s text only 
   assert.strictEqual(win.HRATT._size({ shape: 'corridor', radius_m: 60 }), '60 m each side of the road');
   assert.strictEqual(win.HRATT._whom({ scope: 'category', scope_values: ['labour', 'driver'] }, { departments: [] }), 'Labour, Driver');
   const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'); for (const id of src.match(/\$\('([a-z_0-9]+)'\)/g).map(x => x.slice(3, -2))) assert.ok(html.indexOf('id="' + id + '"') > -1, 'the page has #' + id);
-  const M = require('../api/menu'); assert.deepStrictEqual(M.PAGES.map(p => p.key), ['dashboard', 'employees', 'attendance', 'places', 'muster', 'requests', 'phones', 'rules', 'departments', 'designations']);
+  const M = require('../api/menu'); assert.deepStrictEqual(M.PAGES.map(p => p.key), ['dashboard', 'employees', 'attendance', 'places', 'muster', 'requests', 'phones', 'rules', 'lists', 'departments', 'designations']);
   assert.deepStrictEqual([M.mayOpen('all', 'user'), M.mayOpen('admin', 'user'), M.mayOpen('all', 'self'), M.mayOpen('admin', 'super')], [true, false, false, true]);
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')).headers[0].headers.find(h => h.key === 'Content-Security-Policy').value;
   assert.match(v, /img-src 'self' data: https:\/\/tile\.openstreetmap\.org https:\/\/\*\.supabase\.co;/); assert.match(v, /script-src 'self' 'unsafe-inline';/);
@@ -361,4 +361,28 @@ test('the attendance dashboard: the HR office only; it only reads; the page puts
   // the muster: the day's panel uses the same actions as before – a correction and a request's decision are the server's
   for (const a of ["api('dayGet', { id: w.id, day: d })", "api('daySet', Object.assign({ id: w.id, day: d, reason: why.value }, body))", "api('regDecide', { id: q.id, decision: dec, note: note.value })"]) assert.ok(mus.indexOf(a) > -1, a);
   assert.match(String(ACT.dayGet), /place: pl\[p\.place_id\] \|\| ''/);
+});
+
+test('the full profile (step 6): the checks of every kind of detail; nothing fixed – lists and what is compulsory; numbers masked; SQL only adds', () => {
+  const P = require('../lib/act_profile'), { ACT, SELF } = require('../api/hr'), L = { prefix: { 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa': { active: true }, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb': { active: false } } };
+  const g = P.GROUPS, A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  assert.deepStrictEqual(P.clean(g.secret.fields, { uan: '1234 5678 9012', bank_ifsc: 'sbin0001234', bank_account: '000123456789', pf_join: '01-04-2024', esic_no: '' }, {}, {}), { row: { uan: '123456789012', pf_join: '2024-04-01', bank_ifsc: 'SBIN0001234', bank_account: '000123456789' }, errors: [] });
+  assert.deepStrictEqual(P.clean(g.secret.fields, { uan: '123', bank_ifsc: 'SBIN1001234', bank_account: '12ab' }, {}, {}).errors, ['UAN number: 12 digits.', 'Bank IFSC code: 11 letters and digits, the fifth is 0 (for example SBIN0001234).', 'Bank account number: 6 to 18 digits.']);
+  assert.deepStrictEqual(P.clean(g.profile.fields, { prefix: A, official_email: 'A@B.co', cug: '+91 98765 43210', disability: '' }, L, {}).row, { prefix: A, official_email: 'a@b.co', cug: '9876543210' });
+  assert.deepStrictEqual(P.clean(g.profile.fields, { prefix: B }, L, {}).errors, ['Prefix: choose a value of the list.'], 'a value switched off is not offered');
+  assert.deepStrictEqual(P.clean(g.profile.fields, { prefix: B }, L, { prefix: B }).row, { prefix: B }, 'but it stays where it already is');
+  assert.deepStrictEqual(P.clean(g.job.fields, { notice_days: '30', retirement_age: '20', overtime: 'yes', probation_end: 'x' }, {}, {}), { row: { notice_days: 30, overtime: true }, errors: ['Probation ends on: a date as DD-MM-YYYY.', 'Retirement age (years): a whole number, 40 to 80.'] });
+  assert.deepStrictEqual(P.clean(P.ROWS.family.fields, { relation: '' }, {}, {}).errors, ['Name: needed.']);
+  const e = { dob: '1990-01-01', mobile: '9', email: '', gender: '', joined_on: '', department_id: null, designation_id: null }, c = P.complete(e, { data: { prefix: A }, secret: { uan: '1' } }, { family: [{}], education: [], experience: [], skill: [] }, ['emp.email', 'secret.uan', 'rows.education']);
+  assert.deepStrictEqual([c.filled, c.of, c.missing], [5, P.ITEMS.length, ['E-mail', 'Education (at least one)']]); assert.strictEqual(P.mask('000123456789'), 'XXXX6789');
+  for (const a of ['profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll']) assert.match(String(ACT[a]), /needOffice\(s\)/, a); for (const a of ['listSave', 'profRequiredSave']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
+  for (const a of Object.keys(P.ACT)) assert.ok(SELF.indexOf(a) < 0, a + ' is not for "My HR"');
+  const act = fs.readFileSync(path.join(root, 'lib', 'act_profile.js'), 'utf8'); assert.ok(!/db\('DELETE'/.test(act), 'nothing of the profile is deleted'); assert.match(act, /diff\[k\] = g === 'secret' \? 'changed'/, 'the audit never holds a number');
+  const q = fs.readFileSync(path.join(root, 'sql', 'hr_step6_profile.sql'), 'utf8').split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
+  assert.ok(!/\b(drop|truncate|delete\s+from|alter\s+table\s+public\.\w+\s+(drop|rename))\b/i.test(q), 'step 6 only adds'); assert.ok(!/update\s+public\./i.test(q));
+  assert.match(q, /foreach t in array array\['hr_lists', 'hr_employee_profile', 'hr_employee_rows', 'hr_settings'\] loop\s+execute format\('alter table public\.%I enable row level security', t\);\s+execute format\('revoke all on public\.%I from public, anon, authenticated', t\);\s+execute format\('grant select, insert, update on public\.%I to service_role', t\);/);
+  const src = fs.readFileSync(path.join(root, 'public', 'prof.js'), 'utf8'), win = {}; new Function('window', 'document', src)(win, { getElementById: () => null });
+  assert.deepStrictEqual(win.HRPROF.pages, [['lists', 'Lists']]); assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|\b(alert|confirm|prompt)\(/.test(src), 'only textContent, no browser dialog');
+  const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'); for (const id of src.match(/\$\('([a-z_0-9]+)'\)/g).map(x => x.slice(3, -2))) assert.ok(html.indexOf('id="' + id + '"') > -1, 'the page has #' + id);
+  assert.strictEqual(win.HRPROF._show({ type: 'list', list: 'prefix' }, 'x', { prefix: [{ id: 'x', name: 'Mr.' }] }), 'Mr.'); assert.strictEqual(win.HRPROF._show({ type: 'yesno' }, false, {}), 'No');
 });

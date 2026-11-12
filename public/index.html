@@ -124,6 +124,11 @@ body.in .who2{background:#fff;border-radius:14px;padding:8px 12px;box-shadow:0 2
 .sheet input:disabled{background:#F3F5FA;color:#7b839c}td.nm.pwho{display:flex;align-items:center}td.nm.pwho small{display:block;font-weight:500;color:#7b839c;font-size:12px}
 body.in .sheet{overflow-x:hidden}
 @media(max-width:760px){.ep-grid{grid-template-columns:1fr}.sheet .grid.g3{grid-template-columns:1fr}.sheet .grid.g3 .two{grid-column:auto}}
+.pf-pct{margin-left:auto;display:flex;flex-direction:column;align-items:center;gap:2px}.pf-ring{width:64px;height:64px}.pf-pct small{font-size:11.5px;color:#C9D4EA}
+.pf-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}.sheet.pf{max-width:1040px}.pf .tab{background:#F3F5FA;box-shadow:none!important}.pf .tab.on{background:#0F1F3D}
+.pf-row{display:flex;gap:10px;align-items:center;background:#F6F8FC;border-radius:14px;padding:10px 12px;margin-bottom:8px}.pf-row>div{flex:1;min-width:0}.pf-row b{display:block}.pf-row small{color:#66708c;font-size:13px}.pf-row input{max-width:220px;height:38px!important}
+.pf-two{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}.pf-g{margin:12px 0 6px;font-weight:800;color:#0F1F3D}.pf-two .ck{display:flex;margin:0 0 6px}.pf-two select.dz-pill{background:#F3F5FA;box-shadow:none;max-width:100%}
+@media(max-width:900px){.pf-two{grid-template-columns:1fr}}
 #ph_img{max-width:100%;max-height:70vh;border-radius:14px;display:block;margin:0 auto}
 @media(max-width:640px){body.in{padding:12px}.grid{grid-template-columns:1fr}dl{grid-template-columns:110px 1fr}.who2{display:none}}
 </style>
@@ -153,6 +158,7 @@ body.in .sheet{overflow-x:hidden}
       <p class="none" id="emp_none" hidden></p><p class="none muted" id="emp_more" hidden>Only the first 500 are shown – search to find the others.</p></div>
   </section>
   <section id="p_dash" hidden></section>
+  <section id="p_prof" hidden></section>
   <section id="p_att" hidden></section>
   <section id="p_mus" hidden></section>
   <section id="p_mast" hidden>
@@ -171,7 +177,7 @@ body.in .sheet{overflow-x:hidden}
     <div class="ep-card full" id="d_att_lab" hidden><h4>Attendance · हजेरी</h4><dl id="d_att" hidden></dl></div>
     <div class="ep-card full"><h4>History · इतिहास</h4><ul class="hist" id="d_hist"></ul></div>
   </div>
-  <div class="acts ep-acts"><button class="sec" id="d_kyc" type="button">Personal details &amp; KYC</button><button class="sec" id="d_docs" type="button">Documents</button><span style="flex:1"></span>
+  <div class="acts ep-acts"><button class="pri" id="d_prof" type="button">Full profile</button><button class="sec" id="d_kyc" type="button">Personal details &amp; KYC</button><button class="sec" id="d_docs" type="button">Documents</button><span style="flex:1"></span>
     <button class="danger" id="d_del" type="button">Delete…</button><button class="danger" id="d_exit" type="button">Relieve…</button><button class="sec" id="d_tr" type="button">Transfer…</button><button class="sec" id="d_edit" type="button">Change</button><button class="pri" type="button" data-close="dlg_emp">Close</button></div>
 </div></div>
 
@@ -200,7 +206,7 @@ body.in .sheet{overflow-x:hidden}
 </form></div>
 
 <div class="dlg" id="dlg_del" hidden><form class="sheet" id="del_form" role="dialog" aria-modal="true" aria-labelledby="del_title" novalidate>
-  <h2 id="del_title"></h2><p class="sub">Only for an employee added by mistake. He is deleted for ever and cannot be brought back. If he has attendance, a phone, papers, personal details (KYC) or people reporting to him, he is not deleted – relieve him instead.</p>
+  <h2 id="del_title"></h2><p class="sub">Only for an employee added by mistake. He is deleted for ever and cannot be brought back. If he has attendance, a phone, papers, personal details (KYC / profile) or people reporting to him, he is not deleted – relieve him instead.</p>
   <div class="grid"><div class="full"><label for="del_reason">Reason *</label><textarea id="del_reason" maxlength="200"></textarea></div></div>
   <p class="err" id="del_err" role="alert" hidden></p>
   <div class="acts"><button class="sec" type="button" data-close="dlg_del">Cancel</button><button class="danger" id="del_save" type="submit">Delete for ever</button></div>
@@ -328,6 +334,7 @@ body.in .sheet{overflow-x:hidden}
 <p id="toast" role="status" hidden></p>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="dash.js"></script>
+<script src="prof.js"></script>
 <script src="att.js"></script>
 <script src="mus.js"></script>
 <script src="hr.js"></script>

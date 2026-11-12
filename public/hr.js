@@ -20,10 +20,10 @@
   function face(td, key) { if (window.HRDASH && window.HRDASH.face) td.insertBefore(window.HRDASH.face(td.textContent, key), td.firstChild); return td; }      // the letters of his name before it
   var PAGE_HEAD = { employees: ['Employees · कर्मचारी', 'The Employee Master of this site – press a person to open his page.'], attendance: ['Attendance · आजची हजेरी', 'Every punch of a day as it was taken – and the doubtful ones to be looked at.'], places: ['Work places · कामाच्या जागा', 'Where attendance can be marked: the place, how many metres, for whom.'],
     phones: ['Phones · फोन', 'One phone a person – only attendance is tied to it.'], requests: ['Requests · विनंत्या', 'People ask to set an old day right – it counts only when approved.'], rules: ['Shifts & rules · शिफ्ट व नियम', 'Shifts, holidays and the rules of the muster – each with its date.'],
-    departments: ['Departments · विभाग', 'The list offered in an employee\'s form.'], designations: ['Designations · पदे', 'The list offered in an employee\'s form.'] };
+    departments: ['Departments · विभाग', 'The list offered in an employee\'s form.'], designations: ['Designations · पदे', 'The list offered in an employee\'s form.'], lists: ['Lists · याद्या', 'Every pick-list of the profile, and which details are compulsory – yours to change.'] };
   function tabs() {
     var t = $('tabs'); t.textContent = '';
-    (window.HRDASH ? window.HRDASH.pages.map(function (p) { return [p[0], p[1], true]; }) : []).concat([['employees', 'Employees', true]]).concat((window.HRATT ? window.HRATT.pages : []).concat(window.HRMUS ? window.HRMUS.pages : []).map(function (p) { return [p[0], p[1], true]; }), [['departments', 'Departments', isAdmin()], ['designations', 'Designations', isAdmin()]]).forEach(function (p) {
+    (window.HRDASH ? window.HRDASH.pages.map(function (p) { return [p[0], p[1], true]; }) : []).concat([['employees', 'Employees', true]]).concat((window.HRATT ? window.HRATT.pages : []).concat(window.HRMUS ? window.HRMUS.pages : []).map(function (p) { return [p[0], p[1], true]; }), (window.HRPROF ? window.HRPROF.pages : []).map(function (p) { return [p[0], p[1], isAdmin()]; }), [['departments', 'Departments', isAdmin()], ['designations', 'Designations', isAdmin()]]).forEach(function (p) {
       if (!p[2]) return; var b = el('button', 'tab' + (S.page === p[0] ? ' on' : ''), p[1]); b.type = 'button'; b.onclick = function () { go(p[0]); }; t.appendChild(b);
     });
   }
@@ -31,15 +31,16 @@
   function head(title, sub, nodes) { $('p_title').textContent = title; $('p_sub').textContent = sub || ''; var t = $('p_tools'); t.textContent = ''; (nodes || []).forEach(function (n) { t.appendChild(n); }); }
   window.HRHEAD = { set: head };
   function go(page) {
-    if ((page === 'departments' || page === 'designations') && !isAdmin()) page = 'employees';
+    if ((page === 'departments' || page === 'designations' || page === 'lists') && !isAdmin()) page = 'employees';
     var att = !!window.HRATT && window.HRATT.has(page);      // (step 4) Attendance, Work places, Phones – att.js
     var mus = !!window.HRMUS && window.HRMUS.has(page);      // (step 5) Muster, Requests, Shifts & rules – mus.js
     var dash = !!window.HRDASH && window.HRDASH.has(page);      // the attendance dashboard – dash.js
-    S.page = att || mus || dash || page === 'departments' || page === 'designations' ? page : 'employees'; tabs();
-    $('p_emp').hidden = S.page !== 'employees'; $('p_att').hidden = !att; $('p_mus').hidden = !mus; $('p_dash').hidden = !dash; $('p_mast').hidden = att || mus || dash || S.page === 'employees';
+    var prof = !!window.HRPROF && window.HRPROF.has(page);      // (step 6) the lists of the profile – prof.js
+    S.page = att || mus || dash || prof || page === 'departments' || page === 'designations' ? page : 'employees'; tabs();
+    $('p_emp').hidden = S.page !== 'employees'; $('p_att').hidden = !att; $('p_mus').hidden = !mus; $('p_dash').hidden = !dash; $('p_prof').hidden = !prof; $('p_mast').hidden = att || mus || dash || prof || S.page === 'employees';
     var hd = PAGE_HEAD[S.page]; if (hd) head(hd[0], hd[1], []);      // the dashboard and the muster fill the head themselves (HRHEAD.set)
     try { history.replaceState(null, '', location.pathname + location.search + '#page=' + S.page); } catch (e) { /* the page still works */ }
-    if (dash) window.HRDASH.open(S.me, go); else if (att) window.HRATT.open(S.page, S.me, S.init); else if (mus) window.HRMUS.open(S.page, S.me, S.init); else if (S.page === 'employees') list(); else masters();
+    if (dash) window.HRDASH.open(S.me, go); else if (prof) window.HRPROF.open(S.page, S.me); else if (att) window.HRATT.open(S.page, S.me, S.init); else if (mus) window.HRMUS.open(S.page, S.me, S.init); else if (S.page === 'employees') list(); else masters();
   }
 
   // ---------- Employees: the list ----------
@@ -273,7 +274,7 @@
         var t; $('q').oninput = function () { clearTimeout(t); t = setTimeout(function () { S.q = $('q').value; list(); }, 300); };
         $('cat').onchange = function () { S.category = $('cat').value; list(); };
         $('b_add').onclick = function () { form(null, null); }; $('b_imp').onclick = function () { $('i_file').value = ''; $('i_err').hidden = true; $('i_res').hidden = true; $('i_save').hidden = true; show('dlg_imp'); };
-        $('d_edit').onclick = function () { form(S.open.employee, S.open.boss); }; $('d_tr').onclick = transfer; $('d_exit').onclick = exit; $('d_del').onclick = del; $('del_form').onsubmit = delSave; $('b_exp').onclick = exportList;
+        $('d_edit').onclick = function () { form(S.open.employee, S.open.boss); }; $('d_tr').onclick = transfer; $('d_exit').onclick = exit; $('d_del').onclick = del; $('d_prof').onclick = function () { var id = S.open.employee.id; hide('dlg_emp'); if (window.HRPROF) window.HRPROF.profile(id, function () { openEmp(id); }); }; $('del_form').onsubmit = delSave; $('b_exp').onclick = exportList;
         $('d_kyc').onclick = kyc; $('d_docs').onclick = docs; $('k_form').onsubmit = kycSave; $('o_add').onclick = docAdd;
         $('f_form').onsubmit = save; $('t_form').onsubmit = transferSave; $('x_form').onsubmit = exitSave;
         var bt; $('f_boss').oninput = function () { clearTimeout(bt); bt = setTimeout(pickBoss, 250); };

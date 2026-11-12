@@ -67,6 +67,14 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
   * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
     count, requests waiting.
+* **The employee's full profile (step 6, 12-11-2026)** – `sql/hr_step6_profile.sql` (run by the owner in rcl-hr, after step 5; four
+  new tables, nothing existing changed). Asked with pictures of a reference product, and "nothing fixed – the Super Admin and
+  the Admin change it". `lib/act_profile.js` describes every detail ONCE (`GROUPS`: Profile, Job, Statutory & bank; `ROWS`:
+  Family, Education, Experience, Skills) – the server checks with it and `public/prof.js` draws the forms from it. Every
+  pick-list is `hr_lists` (the **Lists** tab: add, rename, switch off; a value in use is never deleted); which details are
+  compulsory for "profile complete" is the site's setting (`hr_settings`). PF / UAN / ESIC / bank numbers: masked for an HR
+  User, never in a list, an export or the audit. A row is "removed" with who and why. Opened from an employee's page: **Full profile**.
+  Still to come (his yes first): policies per employee, leave, salary structure and payroll, letters and ID card; the app's own screens.
 * **One look on every page; the Employees tab, the employee's page and form; export; delete (12-11-2026)** – no SQL step.
   Every page has the same head (`HRHEAD.set` in `public/hr.js`: its name, one line, on the right its own controls and the site);
   the menu for Mechanical lists **Dashboard** first. Employees: the list shows **Active from** (joining) and **Relieving date**;
