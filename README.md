@@ -59,6 +59,14 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
   * `hr_punches`, `hr_punch_reviews`, `hr_device_tries`: the server's key may only read and add – never change or delete.
   * Not built yet: the removal of photos after 90 days, the check of the phone by Play Integrity; until the e-mail OTP is there
     an employee whose details are complete ("pending") may punch (`MAY_PUNCH` in `lib/act_attend.js`).
+* **The site is chosen in HR too; an employee's site; his page (12-11-2026: "HR MADHE PN SITE SELECT KARAYCHA OPTION DE …
+  EMPLOYEE LA SITE ASIGN KRTA YEIL … EMPLOYEE MASTER JAR OPEN KEL SAGLE KAHI ASEL")** – no SQL.
+  * The sites are the Portal's (HR makes none): the bar has a chooser of the sites where this person has HR – another site is a
+    new ticket of the Portal for it, then the page opens again (`sitePick` in `public/index.html`).
+  * The employee's form has **Site**: a new employee is put on the chosen site; another site for an employee of today is a
+    transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
+  * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
+    count, requests waiting.
 * **The muster, shifts, rules, requests (12-11-2026)** – `sql/hr_step5_muster.sql` (run by the owner in rcl-hr, after step 4):
   `hr_shifts`, `hr_shift_people`, `hr_holidays`, `hr_att_rules`, `hr_regularize`, `hr_day_entries`, `hr_admin_powers`.
   `lib/day.js` (one day → its code), `lib/powers.js`, `lib/act_muster.js` (the actions), `public/mus.js` (the pages).

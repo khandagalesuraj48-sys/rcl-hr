@@ -55,11 +55,26 @@
 
   // ---------- one employee ----------
   function row(dl, k, v) { dl.appendChild(el('dt', '', k)); dl.appendChild(el('dd', '', v || '–')); }
+  function sites() { return S.init.sites.length ? S.init.sites : [{ code: S.me.site, name: S.me.siteName }]; }
+  function siteName(code) { var x = sites().filter(function (y) { return y.code === code; })[0]; return x && x.name && x.name !== code ? x.name + ' (' + code + ')' : code; }
+  // his attendance at a glance: work places, shift, phone, this month, today, what waits (asked apart – the page opens at once)
+  function around(id) {
+    var dl = $('d_att'), lab = $('d_att_lab'); dl.textContent = ''; dl.hidden = true; lab.hidden = true;
+    api('empAround', { id: id }).then(function (a) {
+      if (!S.open || S.open.employee.id !== id) return; var t = a.total, d = a.today;
+      row(dl, 'Work places', a.places.length ? a.places.map(function (p) { return p.name; }).join(', ') : 'None is set for him – he cannot mark attendance');
+      row(dl, 'Shift', a.shift); row(dl, 'Phone', a.phone ? (a.phone.model || 'Phone') + (a.phone.os ? ' · ' + a.phone.os : '') + ' – since ' + dmy(String(a.phone.since).slice(0, 10)) : 'None tied yet');
+      row(dl, 'Today', d && d.code ? d.code + (d.in ? ' · IN ' + d.in : '') + (d.out ? ' · OUT ' + d.out : '') : 'Nothing yet');
+      row(dl, 'This month', 'Present ' + t.P + ' · Half day ' + t.HD + ' · Absent ' + t.A + ' · Late ' + t.late + ' · Days ' + t.paid + (t.MIS ? ' · IN without OUT ' + t.MIS : ''));
+      if (a.requests_waiting) row(dl, 'Requests waiting', a.requests_waiting);
+      dl.hidden = false; lab.hidden = false;
+    }, function () { /* attendance is not set up yet, or not his to see: the page stays as it is */ });
+  }
   function openEmp(id) {
     api('empGet', { id: id }).then(function (r) {
       var e = r.employee; S.open = r; $('d_title').textContent = e.name; $('d_code').textContent = e.code + ' · ' + (CAT[e.category] || '') + ' · ' + STATUS[e.status];
       var dl = $('d_list'); dl.textContent = '';
-      row(dl, 'Designation', nameOf(S.init.designations, e.designation_id)); row(dl, 'Department', nameOf(S.init.departments, e.department_id));
+      row(dl, 'Site', siteName(e.site)); row(dl, 'Designation', nameOf(S.init.designations, e.designation_id)); row(dl, 'Department', nameOf(S.init.departments, e.department_id));
       row(dl, 'Reports to', r.boss ? r.boss.name + ' (' + r.boss.code + ')' : ''); row(dl, 'Mobile', e.mobile); row(dl, 'E-mail', e.email + (e.email ? (e.email_verified_at ? ' ✓ verified' : ' – not verified yet') : ''));
       row(dl, 'Date of birth', dmy(e.dob)); row(dl, 'Gender', e.gender ? e.gender.charAt(0).toUpperCase() + e.gender.slice(1) : ''); row(dl, 'Joined', dmy(e.joined_on));
       if (e.status === 'left') { row(dl, 'Left on', dmy(e.left_on)); row(dl, 'Reason', e.left_reason); }
@@ -68,6 +83,7 @@
       var h = $('d_hist'); h.textContent = '';
       r.history.forEach(function (x) { var li = el('li'); li.appendChild(el('b', '', dmy(x.valid_from) + ' → ' + (x.valid_to ? dmy(x.valid_to) : 'today'))); li.appendChild(el('span', '', ' ' + x.site + ' · ' + (nameOf(S.init.designations, x.designation_id) || '–') + ' · ' + (nameOf(S.init.departments, x.department_id) || '–') + (x.note ? ' · ' + x.note : ''))); h.appendChild(li); });
       $('d_docs_miss').hidden = true; api('privGet', { id: e.id }).then(function (p) { S.open.priv = p; var m = p.docsMissing; $('d_docs_miss').hidden = !m.length || e.status === 'left'; $('d_docs_miss').textContent = 'Documents still to attach: ' + m.join(', ') + '.'; }, function () { /* the details are asked again when their page is opened */ });
+      around(e.id);
       var left = e.status === 'left'; $('d_edit').hidden = left; $('d_tr').hidden = left || !isAdmin(); $('d_exit').hidden = left || !isAdmin();
       show('dlg_emp');
     }, fail);
@@ -80,6 +96,8 @@
     $('f_name').value = e.name || ''; $('f_cat').value = e.category || ''; $('f_gender').value = e.gender || ''; $('f_mobile').value = e.mobile || ''; $('f_email').value = e.email || '';
     $('f_dob').value = e.dob || ''; $('f_join').value = e.joined_on || '';
     fill($('f_dep'), S.init.departments, e.department_id, '– none –'); fill($('f_des'), S.init.designations, e.designation_id, '– none –');
+    // his site: one of the sites where this person has HR; for an employee of today another site = a transfer from today (HR Admin)
+    var fs = $('f_site'); fs.textContent = ''; sites().forEach(function (x) { var o = el('option', '', (x.name || x.code) + (x.name && x.name !== x.code ? ' (' + x.code + ')' : '')); o.value = x.code; fs.appendChild(o); }); fs.value = e.site || S.me.site; fs.disabled = !!e.id && !isAdmin();
     $('f_boss').value = boss ? boss.name + ' (' + boss.code + ')' : ''; $('f_boss').dataset.id = boss ? boss.id : ''; $('f_err').hidden = true;
     hide('dlg_emp'); show('dlg_form'); $('f_name').focus();
   }
@@ -93,9 +111,9 @@
   function save(ev) {
     ev.preventDefault(); var b = $('f_save'); if ($('f_boss').value && !$('f_boss').dataset.id) { $('f_err').textContent = 'Reporting person: choose a name from the list, or leave it empty.'; $('f_err').hidden = false; return; }
     busy(b, true);
-    api('empSave', { id: $('f_id').value, name: $('f_name').value, category: $('f_cat').value, gender: $('f_gender').value, mobile: $('f_mobile').value, email: $('f_email').value, dob: $('f_dob').value, joined_on: $('f_join').value,
+    api('empSave', { id: $('f_id').value, name: $('f_name').value, category: $('f_cat').value, gender: $('f_gender').value, mobile: $('f_mobile').value, email: $('f_email').value, dob: $('f_dob').value, joined_on: $('f_join').value, site: $('f_site').value,
       department_id: $('f_dep').value, designation_id: $('f_des').value, reports_to: $('f_boss').dataset.id }).then(function (r) {
-      busy(b, false); hide('dlg_form'); toast(r.code + ' saved' + (r.missing.length ? ' – incomplete: ' + r.missing.join(', ') + ' still needed.' : '.')); list();
+      busy(b, false); hide('dlg_form'); toast(r.code + ' saved' + (r.site && r.site !== S.me.site ? ' at ' + siteName(r.site) + ' – choose that site (top right) to see him' : '') + (r.missing.length ? ' – incomplete: ' + r.missing.join(', ') + ' still needed.' : '.')); list();
     }, function (e) { busy(b, false); $('f_err').textContent = e.message; $('f_err').hidden = false; });
   }
 

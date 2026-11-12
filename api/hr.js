@@ -100,22 +100,27 @@ const ACT = {
     if (c.row.mobile && t.mobile[c.row.mobile]) throw fail(409, 'This mobile number already belongs to employee ' + t.mobile[c.row.mobile] + '.', 'mobile');
     if (c.row.email && t.email[c.row.email]) throw fail(409, 'This e-mail already belongs to employee ' + t.email[c.row.email] + '.', 'email');
     const links = await checkLinks(s, x, empId), now = new Date().toISOString();
+    // (12-11-2026: "EMPLOYEE LA SITE ASIGN KRTA YEIL") his site: one of the sites of this sign-in; a new employee is put there, an
+    // employee of today is moved there from today (the HR Admin's – it is a transfer, the history keeps the old site)
+    const site = R.str(x.site, 12).toUpperCase() || (was ? was.site : s.site);
+    if (sitesOf(s).indexOf(site) < 0) throw fail(403, 'Site: choose a site where you have HR.', 'site');
+    if (was && site !== was.site) needAdmin(s);
     if (was) {
       // the e-mail changed: it must be verified again (the activation step)
       const row = Object.assign({}, c.row, links, { status: R.statusOf(c.row, was.status === 'active' && c.row.email === was.email ? 'active' : ''), updated_by: s.email, updated_at: now });
       if (c.row.email !== was.email) row.email_verified_at = null;
-      const moved = ['department_id', 'designation_id', 'reports_to'].some(k => (row[k] || null) !== (was[k] || null));
+      row.site = site; const moved = site !== was.site || ['department_id', 'designation_id', 'reports_to'].some(k => (row[k] || null) !== (was[k] || null));
       await db('PATCH', 'hr_employees?id=eq.' + empId + '&site=eq.' + enc(s.site), row, 'return=minimal');
-      if (moved) { const d = R.today(); await db('PATCH', 'hr_employment?employee_id=eq.' + empId + '&valid_to=is.null', { valid_to: d }, 'return=minimal'); await db('POST', 'hr_employment', [Object.assign({ employee_id: empId, site: s.site, valid_from: d, note: 'Changed', created_by: s.email }, links)], 'return=minimal'); }
+      if (moved) { const d = R.today(); await db('PATCH', 'hr_employment?employee_id=eq.' + empId + '&valid_to=is.null', { valid_to: d }, 'return=minimal'); await db('POST', 'hr_employment', [Object.assign({ employee_id: empId, site: site, valid_from: d, note: site !== was.site ? 'Transfer' : 'Changed', created_by: s.email }, links)], 'return=minimal'); }
       const diff = {}; Object.keys(row).forEach(k => { if (['updated_by', 'updated_at'].indexOf(k) < 0 && String(row[k] === null ? '' : row[k]) !== String(was[k] === null || was[k] === undefined ? '' : was[k])) diff[k] = [was[k] === undefined ? null : was[k], row[k]]; });
       await audit(s.site, s.email, 'Employee changed', was.code, diff);
-      return { id: empId, code: was.code, status: row.status, missing: c.missing };
+      return { id: empId, code: was.code, status: row.status, missing: c.missing, site: site };
     }
-    const n = await db('POST', 'rpc/hr_next_no', { p_kind: 'emp', p_count: 1 }), row = Object.assign({ code: codeOf(n), site: s.site, status: R.statusOf(c.row, ''), created_by: s.email, updated_by: s.email }, c.row, links);
+    const n = await db('POST', 'rpc/hr_next_no', { p_kind: 'emp', p_count: 1 }), row = Object.assign({ code: codeOf(n), site: site, status: R.statusOf(c.row, ''), created_by: s.email, updated_by: s.email }, c.row, links);
     const made = (await db('POST', 'hr_employees', [row], 'return=representation'))[0];
-    await db('POST', 'hr_employment', [Object.assign({ employee_id: made.id, site: s.site, valid_from: row.joined_on || R.today(), note: 'Joined', created_by: s.email }, links)], 'return=minimal');
-    await audit(s.site, s.email, 'Employee added', made.code, { category: row.category, status: row.status });
-    return { id: made.id, code: made.code, status: row.status, missing: c.missing };
+    await db('POST', 'hr_employment', [Object.assign({ employee_id: made.id, site: site, valid_from: row.joined_on || R.today(), note: 'Joined', created_by: s.email }, links)], 'return=minimal');
+    await audit(s.site, s.email, 'Employee added', made.code, { category: row.category, status: row.status, site: site });
+    return { id: made.id, code: made.code, status: row.status, missing: c.missing, site: site };
   },
 
   // to another site of his sign-in, or another department / designation / reporting person, from a date – the history keeps the old

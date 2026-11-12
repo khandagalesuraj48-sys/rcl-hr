@@ -70,7 +70,7 @@ table.mus td:first-child,table.mus th:first-child{min-width:74px;max-width:74px}
   <p id="go" hidden><a class="btn" id="link" href="#">Open the Portal</a></p>
 </main>
 <div id="app" hidden>
-  <div class="bar"><div id="tabs" style="display:flex;gap:8px;flex-wrap:wrap"></div><span class="who2" id="who2"></span></div>
+  <div class="bar"><div id="tabs" style="display:flex;gap:8px;flex-wrap:wrap"></div><span style="display:flex;align-items:center;gap:10px;margin-left:auto"><select id="site_pick" aria-label="Site" hidden style="height:38px;border:1px solid #D7E0EF;border-radius:10px;padding:0 10px;background:#fff;font-weight:600;max-width:220px"></select><span class="who2" id="who2" style="margin-left:0"></span></span></div>
   <section id="p_emp">
     <div class="chips" id="chips"></div>
     <div class="tools">
@@ -92,7 +92,7 @@ table.mus td:first-child,table.mus th:first-child{min-width:74px;max-width:74px}
 
 <div class="dlg" id="dlg_emp" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="d_title">
   <h2 id="d_title"></h2><p class="sub" id="d_code"></p><p class="warn" id="d_miss" hidden></p>
-  <dl id="d_list"></dl><label>History</label><ul class="hist" id="d_hist"></ul>
+  <dl id="d_list"></dl><label id="d_att_lab" hidden>Attendance</label><dl id="d_att" hidden></dl><label>History</label><ul class="hist" id="d_hist"></ul>
   <p class="warn" id="d_docs_miss" hidden></p>
   <div class="acts" style="justify-content:flex-start;margin-top:0"><button class="sec" id="d_kyc" type="button">Personal details &amp; KYC</button><button class="sec" id="d_docs" type="button">Documents</button></div>
   <div class="acts"><button class="danger" id="d_exit" type="button">Has left…</button><button class="sec" id="d_tr" type="button">Transfer…</button><button class="sec" id="d_edit" type="button">Change</button><button class="pri" type="button" data-close="dlg_emp">Close</button></div>
@@ -103,6 +103,7 @@ table.mus td:first-child,table.mus th:first-child{min-width:74px;max-width:74px}
   <div class="grid">
     <div class="full"><label for="f_name">Name *</label><input id="f_name" maxlength="80" autocomplete="off"></div>
     <div><label for="f_cat">Category *</label><select id="f_cat"><option value="">– choose –</option><option value="staff">Staff</option><option value="operator">Operator</option><option value="driver">Driver</option><option value="labour">Labour</option></select></div>
+    <div><label for="f_site">Site</label><select id="f_site"></select></div>
     <div><label for="f_des">Designation</label><select id="f_des"></select></div>
     <div><label for="f_dep">Department</label><select id="f_dep"></select></div>
     <div class="pick"><label for="f_boss">Reports to</label><input id="f_boss" autocomplete="off" placeholder="Type a name"><div id="f_boss_list" hidden></div></div>
@@ -266,10 +267,30 @@ table.mus td:first-child,table.mus th:first-child{min-width:74px;max-width:74px}
   function show(me) {
     S.me = me; PORTAL = me.portal || PORTAL; try { localStorage.setItem('rcl_hr_site', me.site); sessionStorage.removeItem('rcl_hr_hops'); } catch (e) { /* asked again next time */ }
     $('bad').hidden = true; $('go').hidden = true; $('state').hidden = false; $('state').textContent = BUILT;
+    sitePick(me);
     if (window.HR) { $('start').hidden = true; document.body.classList.add('in'); $('who2').textContent = me.user.name + ' · ' + (me.siteName || me.site) + ' · ' + (ROLE[me.user.role] || me.user.role); window.HR.open(me, hashArg('page')); }
     var w = $('who'); w.textContent = ''; var b = document.createElement('b'); b.textContent = me.user.name; w.appendChild(b);
     w.appendChild(document.createTextNode(' · ' + (me.siteName || me.site) + ' · ' + (ROLE[me.user.role] || me.user.role))); w.hidden = false;
     renewStart();
+  }
+  /* THE SITE IS CHOSEN HERE TOO (12-11-2026: "HR MADHE PN SITE SELECT KARAYCHA OPTION DE"): the sites are the Portal's (VTR, HO,
+   * 18B …) – HR only chooses among those where this person has HR. Another site = a new ticket of the Portal for it, then the
+   * page opens again on that site. */
+  function sitePick(me) {
+    var sel = $('site_pick'), list = (me.sites || []).slice(); if (!list.some(function (x) { return x.code === me.site; })) list.unshift({ code: me.site, name: me.siteName || me.site });
+    sel.textContent = ''; list.forEach(function (x) { var o = document.createElement('option'); o.value = x.code; o.textContent = (x.name || x.code) + (x.name && x.name !== x.code ? ' (' + x.code + ')' : ''); sel.appendChild(o); });
+    sel.value = me.site; sel.hidden = list.length < 2;
+    sel.onchange = function () {
+      var code = sel.value; if (!code || !S.me || code === S.me.site) return; sel.disabled = true;
+      var back = function (t) { sel.disabled = false; sel.value = S.me ? S.me.site : code; var e = $('toast'); if (e) { e.textContent = t; e.className = 'bad'; e.hidden = false; setTimeout(function () { e.hidden = true; }, 8000); } };
+      ticketFor(code, false).then(function (x) {
+        if (!x.ok || !x.j.ticket) return back(x.j.code === 'noaccess' ? NOACC[0] : x.j.code === 'signin' ? ENDED[0] : (x.j.error || 'This site could not be opened.'));
+        return api('api/sso', { ticket: x.j.ticket }).then(function () {
+          try { localStorage.setItem('rcl_hr_site', code); var h = location.hash.replace(/((?:^#|&)site=)[^&]*/, '$1' + encodeURIComponent(code)); if (h !== location.hash) history.replaceState(null, '', location.pathname + location.search + h); } catch (e) { /* the page opens on the new sign-in anyway */ }
+          location.reload();
+        }, function (e) { back(e.message); });
+      }, function () { back(NONET[0]); });
+    };
   }
   function toPortal(path) {
     if (!PORTAL) return msg('HR is not linked to the Portal yet (PORTAL_URL in Vercel).', 'HR अजून Portal ला जोडलेले नाही.', 'HR अभी Portal से जुड़ा नहीं है।', false);
