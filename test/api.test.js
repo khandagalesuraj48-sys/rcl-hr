@@ -428,3 +428,47 @@ test('the full profile: lists are the office\'s (add, rename, switch off); detai
   await ACT.profRequiredSave(admin, { keys: [] });
   await no(ACT.empDelete(admin, { id: e.id, reason: 'try' }), /personal details \(KYC \/ profile\)/, 409);
 });
+
+test('leave: the policy with its date; the balance counted; asked – refused beyond the balance; the reporting person then the HR office; the muster reads L', async () => {
+  const site = tag + 'L', A = ses('admin', site), U = ses('user', site), S = ses('super', site), month = TODAY.slice(0, 7), first = month + '-01';
+  const sf = m => ({ site: site, email: m, name: 'Self', role: 'self', info: {} });
+  const mb = mail('lvboss'), mw = mail('lvwork'), boss = await ACT.empSave(U, { name: 'Leave Boss', category: 'staff', mobile: mob(), email: mb, dob: '1980-01-01', joined_on: '2026-01-01' });
+  const w = await ACT.empSave(U, { name: 'Leave Worker', category: 'labour', mobile: mob(), email: mw, dob: '1990-01-01', joined_on: '2026-01-01', reports_to: boss.id });
+  await no(ACT.leaveAsk(sf(mw), { from: TODAY, reason: 'Family function' }), /No leave policy is set/);
+  await no(ACT.leavePolicySave(U, { per_month: 4 }), /Only the HR Admin/, 403); await no(ACT.leavePolicySave(A, { per_month: 40 }), /0 to 31/);
+  await no(ACT.leavePolicySave(A, { per_month: 4, valid_from: ago(40) }), /only by the Super Admin/, 403);
+  let p = await ACT.leavePolicySave(S, { per_month: 4, valid_from: first }); assert.deepStrictEqual(p.policy, { valid_from: first, per_month: 4, carry: true, auto_absent: true, levels: 2 });
+  let me1 = await ACT.myLeave(sf(mw)); assert.deepStrictEqual([me1.balance, me1.available, me1.month.credit, me1.requests.length], [4, 4, 4, 0], 'no attendance at this site yet: nobody is absent');
+  await no(ACT.myLeave(U), /not in the Employee Master/, 403);
+  // the HR office adds to one balance – a new row with the reason
+  await no(ACT.leaveAdjust(U, { id: w.id, days: 2, reason: 'opening balance' }), /Only the HR Admin/, 403); await no(ACT.leaveAdjust(A, { id: w.id, days: 0, reason: 'x y z' }), /not 0/); await no(ACT.leaveAdjust(A, { id: w.id, days: 1, reason: '' }), /Reason/);
+  let bal = await ACT.leaveAdjust(A, { id: w.id, days: 1.5, reason: 'opening balance' }); assert.strictEqual(bal.rows.find(r => r.id === w.id).balance, 5.5); assert.strictEqual(bal.rows.find(r => r.id === boss.id).balance, 4);
+  // asking
+  await no(ACT.leaveAsk(sf(mw), { from: ago(1), reason: 'Family function' }), /today or a day to come/); await no(ACT.leaveAsk(sf(mw), { from: ago(-3), to: ago(-5), part: 'first', reason: 'abc' }), /half day is for one day/);
+  await no(ACT.leaveAsk(sf(mw), { from: ago(-3), to: ago(-9), reason: 'long' }), /Not enough leave: you ask 7, the balance is 5\.5/);
+  me1 = await ACT.leaveAsk(sf(mw), { from: ago(-3), to: ago(-4), reason: 'Family function' }); const rq = me1.requests[0];
+  assert.deepStrictEqual([rq.from, rq.to, rq.days, rq.status, rq.level, me1.pending, me1.available], [ago(-3), ago(-4), 2, 'pending', 1, 2, 3.5]);
+  await no(ACT.leaveAsk(sf(mw), { from: ago(-4), reason: 'again' }), /already there/, 409);
+  // level 1: the reporting person; then the HR office
+  await no(ACT.leaveDecide(A, { id: rq.id, decision: 'approved' }), /still waits for the reporting person/, 403);
+  let t = await ACT.teamLeaves(sf(mb)); assert.deepStrictEqual([t.team, t.rows.map(r => r.id)], [1, [rq.id]]); await no(ACT.teamLeaveDecide(sf(mw), { id: rq.id, decision: 'approved' }), /does not report to you/, 403);
+  t = await ACT.teamLeaveDecide(sf(mb), { id: rq.id, decision: 'approved' }); assert.strictEqual(t.rows.length, 0);
+  await no(ACT.leaveDecide(U, { id: rq.id, decision: 'approved' }), /Only the HR Admin/, 403); await no(ACT.leaveDecide(ses('admin'), { id: rq.id, decision: 'approved' }), /not found on this site/, 404);
+  let l = await ACT.leaveList(U, { status: 'pending' }); assert.deepStrictEqual(l.rows.map(r => [r.id, r.level, r.name]), [[rq.id, 2, 'Leave Worker']]);
+  await ACT.leaveDecide(A, { id: rq.id, decision: 'approved', note: 'ok' }); await no(ACT.leaveDecide(A, { id: rq.id, decision: 'refused', note: 'late' }), /already decided/, 409);
+  me1 = await ACT.myLeave(sf(mw)); assert.deepStrictEqual([me1.balance, me1.booked, me1.pending, me1.available, me1.requests[0].status], [5.5, 2, 0, 3.5, 'approved']);
+  // a half day; refused with the reason; taken back by himself
+  me1 = await ACT.leaveAsk(sf(mw), { from: ago(-10), part: 'second', reason: 'Bank work' }); const h = me1.requests[0]; assert.deepStrictEqual([h.days, h.part], [0.5, 'second']);
+  await ACT.teamLeaveDecide(sf(mb), { id: h.id, decision: 'approved' }); await no(ACT.leaveDecide(A, { id: h.id, decision: 'refused', note: '' }), /write why it is refused/);
+  await ACT.leaveDecide(A, { id: h.id, decision: 'refused', note: 'work at the plant' }); me1 = await ACT.myLeave(sf(mw)); assert.deepStrictEqual([me1.requests[0].status, me1.requests[0].note, me1.available], ['refused', 'work at the plant', 3.5]);
+  me1 = await ACT.leaveAsk(sf(mw), { from: ago(-20), reason: 'Village fair' }); const c = me1.requests[0]; await no(ACT.leaveCancel(sf(mb), { id: c.id }), /still waits/, 409);
+  me1 = await ACT.leaveCancel(sf(mw), { id: c.id }); assert.deepStrictEqual([me1.requests[0].status, me1.pending], ['cancelled', 0]);
+  // the boss has nobody above him: his own request goes straight to the HR office
+  const b1 = await ACT.leaveAsk(sf(mb), { from: ago(-2), reason: 'Personal work' }); assert.strictEqual(b1.requests[0].level, 2);
+  // the muster and his month read L on an approved leave day that is in this month
+  if (ago(-3).slice(0, 7) === month) {
+    const m = await ACT.muster(U, { month }), row = m.rows.find(r => r.id === w.id), i = m.days.indexOf(ago(-3)); assert.strictEqual(row.codes[i], 'L'); assert.ok(row.total.L >= 1);
+    const mm = await ACT.myMonth(sf(mw), { month }); assert.strictEqual(mm.all.find(d => d.day === ago(-3)).code, 'L');
+  }
+  assert.deepStrictEqual((await ACT.leavePolicy(ses('user', SITE2))).versions, [], 'another site has its own policy'); await no(ACT.empDelete(A, { id: w.id, reason: 'try' }), /leave/, 409);
+});
