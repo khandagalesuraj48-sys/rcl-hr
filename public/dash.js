@@ -51,7 +51,7 @@
     var live = btn('dz-pill dz-live', 'Live · ' + r.now, function () { load(false); }); live.title = 'Asked again every minute – press to ask now';
     if (window.HRHEAD && !$('p_dash').hidden) window.HRHEAD.set('Attendance Dashboard · हजेरी', 'Who is at work right now, today’s count and what waits for the office.', [el('span', 'dz-pill', dayText(r.today)), live]);
     root.appendChild(hero(r));
-    var grid = el('div', 'dz-grid'); grid.appendChild(who(r)); var mid = el('div', 'dz-col'); mid.appendChild(places(r)); mid.appendChild(week(r)); grid.appendChild(mid); grid.appendChild(needs(r)); root.appendChild(grid);
+    var grid = el('div', 'dz-grid'); grid.appendChild(who(r)); var mid = el('div', 'dz-col'); mid.appendChild(places(r)); mid.appendChild(week(r)); grid.appendChild(mid); var right = el('div', 'dz-col'); right.appendChild(needs(r)); var cm = coming(); right.appendChild(cm); grid.appendChild(right); root.appendChild(grid);
     if (!c.total) root.appendChild(el('p', 'muted', 'No employee on this site yet – add them in Employees.'));
   }
   function hero(r) {
@@ -113,6 +113,20 @@
       col.appendChild(el('span', d.day === r.today ? 'on' : '', WD[new Date(d.day + 'T00:00:00Z').getUTCDay()])); w.appendChild(col);
     });
     c.appendChild(w); var lg = el('div', 'dz-leg'); [['p', 'Present'], ['h', 'Half day'], ['a', 'Absent']].forEach(function (k) { var s = el('span'); s.appendChild(el('i', k[0])); s.appendChild(document.createTextNode(k[1])); lg.appendChild(s); }); c.appendChild(lg); return c;
+  }
+  /* (12-11-2026) what comes up on this site: papers whose date runs out (30 days, or run out already), birthdays and years at work
+   * of the coming week – read on its own, so the dashboard does not wait for it */
+  function coming() {
+    var c = card('Coming up · पुढे येणारे', ''); var box = el('div'); box.appendChild(el('p', 'none', 'Reading…')); c.appendChild(box);
+    var dm = function (d) { return String(d).slice(8, 10) + '-' + String(d).slice(5, 7); }, line = function (cls, n, title, sub) { var d = el('div', 'dz-need ' + cls); d.appendChild(el('span', 'n', n)); var t = el('div'); t.appendChild(el('b', '', title)); t.appendChild(el('small', '', sub)); d.appendChild(t); return d; };
+    window.HRAPI('api/hr', { action: 'hrComing' }).then(function (r) {
+      box.textContent = '';
+      r.papers.slice(0, 8).forEach(function (p) { box.appendChild(line(p.left < 0 ? 'r' : 'y', p.left < 0 ? '!' : p.left, p.name + ' – ' + p.paper, p.left < 0 ? 'ran out on ' + dm(p.expires_on) + '-' + String(p.expires_on).slice(0, 4) : p.left === 0 ? 'runs out today' : 'runs out in ' + p.left + (p.left === 1 ? ' day' : ' days') + ' (' + dm(p.expires_on) + ')')); });
+      if (r.papers.length > 8) box.appendChild(el('p', 'muted', '+ ' + (r.papers.length - 8) + ' more papers'));
+      r.days.slice(0, 8).forEach(function (d) { box.appendChild(line(d.what === 'birthday' ? 'v' : 'b', d.in === 0 ? '★' : d.in, d.name, (d.what === 'birthday' ? 'Birthday' : d.years + (d.years === 1 ? ' year' : ' years') + ' with us') + ' – ' + (d.in === 0 ? 'today' : d.in === 1 ? 'tomorrow' : 'on ' + dm(d.day)))); });
+      if (!r.papers.length && !r.days.length) box.appendChild(el('p', 'none', 'Nothing in the coming days. · पुढच्या दिवसांत काही नाही.'));
+    }, function () { box.textContent = ''; box.appendChild(el('p', 'none', 'Could not be read – open the page again.')); });
+    return c;
   }
   function needs(r) {
     var n = r.needs, days = n.oldest ? Math.max(0, Math.floor((Date.now() - Date.parse(n.oldest)) / 86400000)) : 0;
