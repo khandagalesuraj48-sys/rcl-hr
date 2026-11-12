@@ -391,3 +391,40 @@ test('delete: only an employee added by mistake (HR Admin, with the reason); one
   const next = await ACT.empSave(user, { name: 'After Delete', category: 'staff', mobile: mob() }); assert.notStrictEqual(next.code, x.code, 'a deleted code is not given again by the counter');
   await no(ACT.empExit(admin, { id: next.id, on: '', reason: 'x' }), /Relieving date: a date/);
 });
+
+test('the full profile: lists are the office\'s (add, rename, switch off); details saved by group; numbers masked for an HR User; rows added, changed, removed; what is compulsory', async () => {
+  await no(ACT.listSave(user, { kind: 'branch', name: 'B ' + tag }), /Only the HR Admin/, 403); await no(ACT.listSave(admin, { kind: 'nope', name: 'x' }), /Unknown list/);
+  let l = await ACT.listSave(admin, { kind: 'branch', name: 'Branch ' + tag }); const br = l.lists.branch.find(x => x.name === 'Branch ' + tag); assert.ok(br && br.active);
+  await no(ACT.listSave(admin, { kind: 'branch', name: 'branch ' + tag.toLowerCase() }), /already in the list/, 409);
+  l = await ACT.listSave(admin, { kind: 'branch', id: br.id, name: 'Branch ' + tag + ' 2', active: true }); assert.ok(l.lists.branch.some(x => x.id === br.id && x.name === 'Branch ' + tag + ' 2'));
+  l = await ACT.listSave(admin, { kind: 'qualification', name: 'Diploma ' + tag }); const ql = l.lists.qualification.find(x => x.name === 'Diploma ' + tag);
+  const e = await ACT.empSave(user, { name: 'Profile Rig', category: 'staff', mobile: mob(), email: mail('prof'), dob: '1990-05-05' });
+  let p = await ACT.profGet(user, { id: e.id }); assert.deepStrictEqual([p.data, p.secret, p.masked, p.complete.missing], [{}, {}, true, []]); assert.ok(p.defs.groups.length === 3 && p.defs.rows.length === 4 && p.lists.blood.length >= 8);
+  await no(ACT.profGet(self(mail1), { id: e.id }), /HR office only/, 403); await no(ACT.profGet(ses('user', SITE2), { id: e.id }), /not found on this site/, 404);
+  await no(ACT.profSave(user, { id: e.id, group: 'job', data: { branch: E1.id } }), /Branch: choose a value of the list/);
+  p = await ACT.profSave(user, { id: e.id, group: 'job', data: { branch: br.id, notice_days: '30', overtime: 'no', confirmation_date: '01-06-2026' } }); assert.deepStrictEqual(p.data, { branch: br.id, notice_days: 30, overtime: false, confirmation_date: '2026-06-01' });
+  p = await ACT.profSave(user, { id: e.id, group: 'profile', data: { father_name: 'Senior Rig', cug: '9876500000' } }); assert.deepStrictEqual(p.data, { branch: br.id, notice_days: 30, overtime: false, confirmation_date: '2026-06-01', father_name: 'Senior Rig', cug: '9876500000' }, 'a group leaves the other groups alone');
+  p = await ACT.profSave(admin, { id: e.id, group: 'secret', data: { uan: '123456789012', bank_account: '000123456789', bank_ifsc: 'SBIN0001234', bank_name: 'Rig Bank' } }); assert.strictEqual(p.secret.bank_account, '000123456789');
+  p = await ACT.profGet(user, { id: e.id }); assert.deepStrictEqual([p.secret.uan, p.secret.bank_account, p.secret.bank_ifsc], ['XXXX9012', 'XXXX6789', 'SBIN0001234'], 'an HR User sees the numbers masked');
+  p = await ACT.profSave(user, { id: e.id, group: 'secret', data: Object.assign({}, p.secret, { bank_holder: 'Profile Rig' }) }); assert.strictEqual((await ACT.profGet(admin, { id: e.id })).secret.bank_account, '000123456789', 'a masked box left as it is keeps its number');
+  const au = (await db('GET', 'hr_audit?select=detail&site=eq.' + SITE + '&action=eq.' + encodeURIComponent('Profile changed (Statutory & bank)') + '&order=id.desc&limit=5')) || []; assert.ok(au.length >= 2 && !JSON.stringify(au).includes('123456789'), 'the audit holds no number');
+  // switched off: not offered, but it stays where it is
+  await ACT.listSave(admin, { kind: 'branch', id: br.id, name: 'Branch ' + tag + ' 2', active: false });
+  p = await ACT.profSave(user, { id: e.id, group: 'job', data: { branch: br.id, notice_days: 45 } }); assert.deepStrictEqual([p.data.branch, p.data.notice_days, p.data.overtime], [br.id, 45, undefined]);
+  const e2 = await ACT.empSave(user, { name: 'Profile Two', category: 'labour', mobile: mob() }); await no(ACT.profSave(user, { id: e2.id, group: 'job', data: { branch: br.id } }), /choose a value of the list/);
+  // rows
+  await no(ACT.profRowSave(user, { id: e.id, kind: 'family', data: { relation: '' } }), /Name: needed/);
+  p = await ACT.profRowSave(user, { id: e.id, kind: 'family', data: { name: 'Mother Rig', nominee: 'yes', mobile: '9876511111' } }); const fr = p.rows.family[0]; assert.deepStrictEqual(fr.data, { name: 'Mother Rig', mobile: '9876511111', nominee: true });
+  p = await ACT.profRowSave(user, { id: e.id, kind: 'family', row: fr.id, data: { name: 'Mother Rig', nominee: 'no' } }); assert.deepStrictEqual(p.rows.family, [{ id: fr.id, data: { name: 'Mother Rig', nominee: false } }]);
+  p = await ACT.profRowSave(user, { id: e.id, kind: 'education', data: { qualification: ql.id, year: '2010' } }); assert.strictEqual(p.rows.education.length, 1);
+  await no(ACT.profRowSave(user, { id: e.id, kind: 'experience', data: { company: 'Old Co', from: '2020-01-01', to: '2019-01-01' } }), /To: it is before From/);
+  await no(ACT.profRowRemove(user, { row: fr.id, reason: '' }), /Reason: write why/); p = await ACT.profRowRemove(user, { row: fr.id, reason: 'entered twice' }); assert.strictEqual(p.rows.family.length, 0);
+  assert.strictEqual(((await db('GET', 'hr_employee_rows?select=removed_reason&id=eq.' + fr.id)) || [])[0].removed_reason, 'entered twice', 'removed = kept with who and why');
+  // what is compulsory – the site's own setting
+  await no(ACT.profRequiredSave(user, { keys: ['emp.dob'] }), /Only the HR Admin/, 403);
+  const st = await ACT.profRequiredSave(admin, { keys: ['secret.pf_no', 'rows.family', 'profile.blood', 'made.up'] }); assert.deepStrictEqual(st.required, ['secret.pf_no', 'rows.family', 'profile.blood']);
+  p = await ACT.profGet(user, { id: e.id }); assert.deepStrictEqual(p.complete.missing, ['Blood group', 'PF number', 'Family (at least one)']); assert.ok(p.complete.pct > 20 && p.complete.pct < 100);
+  assert.deepStrictEqual((await ACT.listAll(ses('user', SITE2))).required, [], 'another site has its own');
+  await ACT.profRequiredSave(admin, { keys: [] });
+  await no(ACT.empDelete(admin, { id: e.id, reason: 'try' }), /personal details \(KYC \/ profile\)/, 409);
+});

@@ -13,6 +13,7 @@ const PAGES = [
   { key: 'requests', name: 'Requests', who: 'all' },
   { key: 'phones', name: 'Phones', who: 'all' },
   { key: 'rules', name: 'Shifts & rules', who: 'all' },
+  { key: 'lists', name: 'Lists', who: 'admin' },      // (step 6) the pick-lists of the profile and what is compulsory
   { key: 'departments', name: 'Departments', who: 'admin' },
   { key: 'designations', name: 'Designations', who: 'admin' },
 ];
