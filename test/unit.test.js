@@ -176,7 +176,7 @@ test('the actions: every one asks the sign-in first; the Admin\'s ones are refus
   const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
   assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'docRemove', 'empImport',
     'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'selfieUrl', 'punch',
-    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide']);
+    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash']);
   assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n[^\n]+\n  if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   assert.ok(!/db\('DELETE'/.test(src), 'no row is ever deleted by an action');
@@ -262,7 +262,7 @@ test('attendance actions: the office\'s ones are closed to "My HR"; changes are 
   assert.deepStrictEqual(SELF, ['myAttend', 'selfieUrl', 'punch', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide']);
   for (const [a, p] of [['projSave', 'places'], ['placeSave', 'places'], ['placeBulk', 'places'], ['placeImport', 'places'], ['placeRemove', 'places'], ['devRelease', 'phones'], ['punchReview', 'review'], ['shiftSave', 'shifts'], ['shiftRemove', 'shifts'], ['holidaySave', 'shifts'], ['holidayRemove', 'shifts'], ['rulesSave', 'shifts'], ['regDecide', 'regularize']]) assert.ok(String(ACT[a]).indexOf("await power.need(s, '" + p + "')") > -1, a + ': the power ' + p);
   assert.match(String(ACT.daySet), /await power\.need\(s, has \? 'correct' : 'manual'\)/); assert.match(String(ACT.powerSet), /s\.role !== 'super'/);
-  for (const a of ['placeList', 'devList', 'punchDay', 'punchSelfie', 'attSetup', 'muster', 'empAround', 'dayGet', 'daySet', 'regList']) assert.match(String(ACT[a]), /needOffice\(s\)/, a);
+  for (const a of ['placeList', 'devList', 'punchDay', 'punchSelfie', 'attSetup', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'attDash']) assert.match(String(ACT[a]), /needOffice\(s\)/, a);
   for (const a of SELF) assert.match(String(ACT[a]), /const (emp|boss) = await me\(s\)/, a + ': only for the employee the sign-in is');
   assert.ok(!/db\('(PATCH|DELETE)', 'hr_punch/.test(src), 'no punch and no decision is changed or deleted');
   assert.deepStrictEqual(src.match(/db\('DELETE', '(\w+)/g), ["db('DELETE', 'hr_place_people"], 'only "for whom" of a place is taken back');
@@ -340,4 +340,21 @@ test('the site is chosen in HR among the Portal\'s sites of the person; the form
   assert.ok(!/api\/(site|sites)\b/.test(html + js), 'HR makes no site – it only chooses');
   assert.match(js, /site: \$\('f_site'\)\.value,/); assert.match(js, /fs\.disabled = !!e\.id && !isAdmin\(\);/); assert.match(js, /api\('empAround', \{ id: id \}\)/);
   assert.match(api, /if \(sitesOf\(s\)\.indexOf\(site\) < 0\) throw fail\(403, 'Site: choose a site where you have HR\.', 'site'\);\n    if \(was && site !== was\.site\) needAdmin\(s\);/);
+});
+
+test('the attendance dashboard: the HR office only; it only reads; the page puts every text in as text; the muster\'s day opens in a panel', () => {
+  const act = fs.readFileSync(path.join(root, 'lib', 'act_dash.js'), 'utf8'), { ACT, SELF } = require('../api/hr');
+  assert.match(String(ACT.attDash), /^async attDash\(s\) \{\s+needOffice\(s\);/); assert.ok(SELF.indexOf('attDash') < 0, 'not for "My HR"');
+  assert.ok(!/db\('(POST|PATCH|PUT|DELETE)'/.test(act) && !/audit\(/.test(act), 'attDash writes nothing');
+  const src = fs.readFileSync(path.join(root, 'public', 'dash.js'), 'utf8'), win = {}; new Function('window', 'document', src)(win, { getElementById: () => null });
+  assert.deepStrictEqual(win.HRDASH.pages, [['dashboard', 'Dashboard']]); assert.ok(win.HRDASH.has('dashboard') && !win.HRDASH.has('muster'));
+  assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|\b(alert|confirm|prompt)\(/.test(src), 'only textContent, no browser dialog');
+  assert.deepStrictEqual([win.HRDASH._initials('asha rig'), win.HRDASH._initials('Babu'), win.HRDASH._initials(''), win.HRDASH._minOf('09:15')], ['AR', 'B', '', 555]);
+  const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), js = fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8'), mus = fs.readFileSync(path.join(root, 'public', 'mus.js'), 'utf8');
+  for (const id of src.match(/\$\('([a-z_0-9]+)'\)/g).map(x => x.slice(3, -2))) assert.ok(html.indexOf('id="' + id + '"') > -1, 'the page has #' + id);
+  assert.ok(html.indexOf('<script src="dash.js"></script>') > -1 && html.indexOf('<script src="dash.js">') < html.indexOf('<script src="hr.js">'));
+  assert.match(js, /go\(page \|\| \(window\.HRDASH \? 'dashboard' : 'employees'\)\);/); assert.match(js, /if \(dash\) window\.HRDASH\.open\(S\.me, go\);/);
+  // the muster: the day's panel uses the same actions as before – a correction and a request's decision are the server's
+  for (const a of ["api('dayGet', { id: w.id, day: d })", "api('daySet', Object.assign({ id: w.id, day: d, reason: why.value }, body))", "api('regDecide', { id: q.id, decision: dec, note: note.value })"]) assert.ok(mus.indexOf(a) > -1, a);
+  assert.match(String(ACT.dayGet), /place: pl\[p\.place_id\] \|\| ''/);
 });

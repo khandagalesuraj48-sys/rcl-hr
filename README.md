@@ -67,6 +67,14 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
   * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
     count, requests waiting.
+* **The attendance dashboard and the muster's look (12-11-2026, the pictures he approved – "hech design final aahe web sathi")** –
+  no SQL step, nothing is written. `lib/act_dash.js` → `attDash` (HR office only): today counted with the muster's own measure
+  (`daysOf`) – at work now, present, late, not marked, **absent of yesterday** (nobody is absent while the day runs), the arrivals
+  by half hour, who is at which work place (the place of his IN), the last 7 days, and what waits (requests, doubtful punches,
+  tries with another phone in 7 days, people not marked with no phone tied). `public/dash.js` is the page (the first tab; asks
+  again every minute while it is on the screen). The muster (`public/mus.js`) has colour cells (L = present but late) and a
+  day opens in a **panel on the right** – the same actions as before (`dayGet`, `daySet`, `regDecide`); `dayGet` now also gives
+  each punch's work place. "Tried from outside" of the picture is not there: nothing is saved outside a work place.
 * **The muster, shifts, rules, requests (12-11-2026)** – `sql/hr_step5_muster.sql` (run by the owner in rcl-hr, after step 4):
   `hr_shifts`, `hr_shift_people`, `hr_holidays`, `hr_att_rules`, `hr_regularize`, `hr_day_entries`, `hr_admin_powers`.
   `lib/day.js` (one day → its code), `lib/powers.js`, `lib/act_muster.js` (the actions), `public/mus.js` (the pages).

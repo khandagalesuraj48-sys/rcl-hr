@@ -9,7 +9,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var el = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null) e.textContent = String(text); return e; };
   var api = function (action, body) { return window.HRAPI('api/hr', Object.assign({ action: action }, body || {})); };
-  var M = { me: null, init: null, month: '', cat: '', data: null, cfg: null, reg: 'pending' };
+  var M = { me: null, init: null, month: '', cat: '', data: null, cfg: null, reg: 'pending', sel: null, wrap: null, side: null };
   var PAGES = [['muster', 'Muster'], ['requests', 'Requests'], ['rules', 'Shifts & rules']];
   var CAT = { staff: 'Staff', operator: 'Operator', driver: 'Driver', labour: 'Labour' };
   var CODE = { P: 'Present', HD: 'Half day', A: 'Absent', WO: 'Weekly off', H: 'Holiday', WOP: 'Worked on a weekly off', HP: 'Worked on a holiday', IN: 'At work now', MIS: 'IN without OUT – to be set right' };
@@ -51,27 +51,39 @@
     return { get: function () { return { scope: sc.value, scope_values: st.values, people: st.people.map(function (x) { return x.id; }) }; } };
   }
 
-  /* ───────────── Muster ───────────── */
+  /* ───────────── Muster ───────────── (the look he approved, 12-11-2026: colour cells; a day opens in a panel on the right) */
+  var MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   function muster() {
     var root = $('p_mus'); root.textContent = '';
-    var tools = el('div', 'tools'), mo = inp('month', M.month, { 'aria-label': 'Month' }), cat = inp('select', null, { 'aria-label': 'Category' }); mo.style.flex = '0 0 180px';
+    var top = el('div', 'dz-top'), tt = el('div'), sub = el('small', '', MON[+M.month.slice(5) - 1] + ' ' + M.month.slice(0, 4) + (M.me ? ' · ' + (M.me.siteName || M.me.site) : '')); tt.appendChild(el('h2', '', 'Muster · हजेरीपट')); tt.appendChild(sub); top.appendChild(tt);
+    var pills = el('div', 'dz-pills'), mo = inp('month', M.month, { 'aria-label': 'Month' }), cat = inp('select', null, { 'aria-label': 'Category' }); mo.className = 'dz-pill'; cat.className = 'dz-pill';
     opt(cat, '', 'All categories', !M.cat); Object.keys(CAT).forEach(function (k) { opt(cat, k, CAT[k], M.cat === k); });
-    mo.onchange = function () { if (mo.value) { M.month = mo.value; muster(); } }; cat.onchange = function () { M.cat = cat.value; muster(); };
-    tools.appendChild(mo); tools.appendChild(cat); var gap = el('span'); gap.style.flex = '1'; tools.appendChild(gap); var dl = btn('sec', 'Download (CSV)', function () { csv(); }); tools.appendChild(dl); root.appendChild(tools);
-    var leg = el('p', 'muted'); leg.style.margin = '0 0 10px'; Object.keys(CODE).forEach(function (c) { var s = el('span', 'mc c-' + c, c); s.style.marginRight = '4px'; leg.appendChild(s); leg.appendChild(document.createTextNode(CODE[c] + '   ')); }); leg.appendChild(document.createTextNode('• late   ✎ entered or corrected by hand   ? a punch waits to be looked at')); root.appendChild(leg);
+    mo.onchange = function () { if (mo.value) { M.month = mo.value; M.sel = null; muster(); } }; cat.onchange = function () { M.cat = cat.value; M.sel = null; muster(); };
+    pills.appendChild(cat); pills.appendChild(mo); pills.appendChild(btn('dz-pill dark', 'Download (CSV)', function () { csv(); })); top.appendChild(pills); root.appendChild(top);
+    var wrap = el('div', 'mz-wrap mz'), card = el('div', 'dz-card'), side = el('div', 'mz-side'); side.hidden = true; wrap.appendChild(card); wrap.appendChild(side); root.appendChild(wrap); M.wrap = wrap; M.side = side;
     api('muster', { month: M.month, category: M.cat }).then(function (r) {
-      M.data = r; var heads = ['Code', 'Name'];
-      r.days.forEach(function (d) { var th = el('th', 'md' + (d === r.today ? ' today' : '')), wd = new Date(d + 'T00:00:00Z').getUTCDay(); th.appendChild(el('div', '', +d.slice(8))); th.appendChild(el('div', 'wd', WD[wd].slice(0, 2))); if (r.week_off.indexOf(wd) > -1 || r.holidays.some(function (h) { return h.day === d; })) th.className += ' free'; heads.push(th); });
-      ['P', 'HD', 'A', 'Late', 'Days'].forEach(function (h) { var th = el('th', 'mt', h); heads.push(th); });
-      var t = table(heads); t.table.className = 'mus';
+      M.data = r; var free = function (d) { return r.week_off.indexOf(new Date(d + 'T00:00:00Z').getUTCDay()) > -1 || r.holidays.some(function (h) { return h.day === d; }); };
+      var work = r.days.filter(function (d) { return d <= r.today && !free(d); }).length, h = el('h3', '', r.rows.length + (r.rows.length === 1 ? ' employee' : ' employees') + ' · ' + work + (work === 1 ? ' working day' : ' working days') + ' so far');
+      var lg = el('span', 'dz-leg'); lg.style.marginTop = '0'; [['p', 'Present'], ['l', 'Late'], ['h', 'Half day'], ['a', 'Absent'], ['o', 'Weekly off / holiday']].forEach(function (k) { var s = el('span'); s.appendChild(el('i', k[0])); s.appendChild(document.createTextNode(k[1])); lg.appendChild(s); }); h.appendChild(lg); card.appendChild(h);
+      var heads = [el('th', '', 'Employee')];
+      r.days.forEach(function (d) { var wd = new Date(d + 'T00:00:00Z').getUTCDay(), th = el('th', (d === r.today ? 'today' : '') + (free(d) ? ' free' : '')); th.appendChild(el('div', '', WD[wd].slice(0, 1))); th.appendChild(el('div', '', +d.slice(8))); heads.push(th); });
+      ['P', 'HD', 'A', 'Late', 'Days'].forEach(function (x) { heads.push(el('th', 'mt', x)); });
+      var t = table(heads); t.table.className = 'mz'; t.box.style.border = '0'; t.box.style.borderRadius = '0';
       r.rows.forEach(function (w) {
-        var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', w.code)); tr.appendChild(el('td', 'nm', w.name));
-        w.codes.forEach(function (c, i) { var td = el('td', 'mcell'), b = el('button', 'mc c-' + (c || 'none'), (c || '·') + (w.late[i] ? '•' : '') + (w.fix[i] ? '✎' : '') + (w.wait[i] ? '?' : '')); b.type = 'button'; b.title = w.name + ' – ' + dmy(r.days[i]) + (c ? ': ' + CODE[c] : ''); b.onclick = function () { day(w, r.days[i]); }; td.appendChild(b); tr.appendChild(td); });
+        var tr = el('tr'), nm = el('td'); nm.appendChild(el('b', '', w.name)); nm.appendChild(el('small', '', w.code + ' · ' + (CAT[w.category] || ''))); tr.appendChild(nm);
+        w.codes.forEach(function (c, i) {
+          var d = r.days[i], late = !!w.late[i], blue = late && c === 'P', td = el('td'), b = el('button', 'mz-c ' + (blue ? 'L' : c || 'none'), blue ? 'L' : c || ''), marks = (late && !blue ? '•' : '') + (w.fix[i] ? '✎' : '') + (w.wait[i] ? '?' : '');
+          b.type = 'button'; if (marks) b.appendChild(el('sup', '', marks)); b.dataset.k = w.id + '|' + d;
+          b.title = w.name + ' – ' + dmy(d) + (c ? ': ' + CODE[c] : '') + (late ? ', late' : '') + (w.fix[i] ? ', entered or corrected by hand' : '') + (w.wait[i] ? ', a punch waits to be looked at' : ''); b.setAttribute('aria-label', b.title);
+          b.onclick = function () { M.sel = { id: w.id, d: d }; day(w, d); }; td.appendChild(b); tr.appendChild(td);
+        });
         [w.total.P, w.total.HD, w.total.A + w.total.MIS, w.total.late, w.total.paid].forEach(function (v) { tr.appendChild(el('td', 'mt', v)); }); t.body.appendChild(tr);
       });
       if (!r.rows.length) t.box.appendChild(el('p', 'none', 'No employee in this month.'));
-      root.appendChild(t.box);
-      root.appendChild(el('p', 'muted', '"Days" = present + half days × ½ + weekly offs + holidays − the half days for late coming (when the rule is set). A day with IN but no OUT is counted as absent until it is set right.'));
+      card.appendChild(t.box);
+      card.appendChild(el('p', 'muted', 'L = present, came late   IN = at work now   MIS = IN without OUT, to be set right   • late   ✎ entered or corrected by hand   ? a punch waits to be looked at. Press a day to open it.'));
+      card.appendChild(el('p', 'muted', '"Days" = present + half days × ½ + weekly offs + holidays − the half days for late coming (when the rule is set). A day with IN but no OUT is counted as absent until it is set right.'));
+      if (M.sel) { var w = r.rows.filter(function (x) { return x.id === M.sel.id; })[0]; if (w && r.days.indexOf(M.sel.d) > -1) day(w, M.sel.d); else M.sel = null; }
     }, fail);
   }
   function csv() {
@@ -80,26 +92,53 @@
     r.rows.forEach(function (w) { lines.push([w.code, w.name, CAT[w.category] || ''].concat(w.codes, [w.total.P, w.total.HD, w.total.A, w.total.WO, w.total.H, w.total.MIS, w.total.late, w.total.paid]).map(q).join(',')); });
     var a = el('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv' })); a.download = 'Muster_' + r.month + '.csv'; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
-  // one day of one person
+  // one day of one person – the panel on the right
   function day(w, d) {
-    var s = sheet(w.name + ' (' + w.code + ') – ' + dmy(d), 'What counts for this day, its punches as they came, and everything entered for it. A punch is never changed – a change is a new row.', true);
-    api('dayGet', { id: w.id, day: d }).then(function (r) { fillDay(s, w, d, r); }, function (e) { s.err(e); });
+    var side = M.side, sky = el('div', 'mz-sky none'), bd = el('div', 'mz-bd'), er = el('p', 'err'), wd = new Date(d + 'T00:00:00Z').getUTCDay(); side.textContent = ''; side.hidden = false; M.wrap.classList.add('open');
+    var unsel = function () { Array.prototype.forEach.call(M.wrap.querySelectorAll('.mz-c.sel'), function (b) { b.classList.remove('sel'); }); };
+    unsel(); Array.prototype.forEach.call(M.wrap.querySelectorAll('.mz-c'), function (b) { if (b.dataset.k === w.id + '|' + d) b.classList.add('sel'); });
+    var x = btn('mz-x', '×', function () { M.sel = null; side.hidden = true; M.wrap.classList.remove('open'); unsel(); }); x.setAttribute('aria-label', 'Close this day'); sky.appendChild(x);
+    sky.appendChild(el('small', '', WD[wd] + ', ' + dmy(d))); sky.appendChild(el('h3', '', w.name)); sky.appendChild(el('small', '', w.code + ' · ' + (CAT[w.category] || ''))); var chip = el('em', '', '…'); sky.appendChild(chip);
+    er.hidden = true; er.setAttribute('role', 'alert'); side.appendChild(sky); side.appendChild(bd); bd.appendChild(el('p', 'muted', 'Opening…'));
+    var s = { sky: sky, chip: chip, body: bd, err: function (e) { er.textContent = e ? (e.message || String(e)) : ''; er.hidden = !e; if (e) bd.appendChild(er); } };
+    api('dayGet', { id: w.id, day: d }).then(function (r) { if (M.sel && (M.sel.id !== w.id || M.sel.d !== d)) return; fillDay(s, w, d, r); }, function (e) { bd.textContent = ''; s.err(e); });
   }
   function fillDay(s, w, d, r) {
     var b = s.body, x = r.day; b.textContent = ''; s.err(null);
-    var dl = el('dl'), row = function (k, v) { dl.appendChild(el('dt', '', k)); dl.appendChild(el('dd', '', v || '–')); };
+    s.sky.className = 'mz-sky ' + (x.code || 'none'); s.chip.textContent = (x.code ? CODE[x.code] : 'Nothing yet') + (x.in && x.out ? ' · ' + x.hours + ' h' : '') + (x.late_min ? ' · late ' + x.late_min + ' m' : '');
+    r.punches.forEach(function (p) {
+      var c = el('div', 'mz-pun'), t = el('div'), kind = p.kind === 'in' ? 'IN' : 'OUT', line = el('div');
+      if (window.HRDASH) { var th = window.HRDASH.thumb(p.id, w.name + ' – ' + kind + ' ' + p.time, true); th.className += ' big'; c.appendChild(th); }
+      line.appendChild(el('span', 'dz-chip ' + (p.kind === 'in' ? 'g' : 'y'), kind)); line.appendChild(document.createTextNode(' ')); line.appendChild(el('b', '', p.time)); t.appendChild(line);
+      t.appendChild(el('small', '', [p.place, p.offline ? 'sent later' : '', p.status === 'review' ? 'to be looked at' : ''].filter(Boolean).join(' · ') || '–')); c.appendChild(t); b.appendChild(c);
+    });
+    if (!r.punches.length) b.appendChild(el('p', 'muted', 'No punch on this day.'));
+    r.requests.filter(function (q) { return q.status === 'pending'; }).forEach(function (q) {
+      var c = el('div', 'mz-req'); c.appendChild(el('b', '', 'Request waiting · विनंती बाकी')); c.appendChild(el('p', '', 'IN ' + (q.in_time || '–') + ' · OUT ' + (q.out_time || '–') + ' – "' + q.reason + '"'));
+      if (q.level === 1 && role() !== 'super') c.appendChild(el('small', '', 'It still waits for the reporting person.'));
+      else if (may('regularize')) {
+        var note = inp('text', '', { maxlength: 200, placeholder: 'Why it is refused', 'aria-label': 'Why it is refused' }); note.hidden = true; c.appendChild(note);
+        var send = function (dec) { api('regDecide', { id: q.id, decision: dec, note: note.value }).then(function () { toast(dec === 'approved' ? 'Approved.' : 'Refused.'); muster(); }, function (e) { s.err(e); }); };
+        c.appendChild(btn('mz-ok', 'Approve', function () { send('approved'); })); c.appendChild(btn('mz-no', 'Refuse', function () { if (note.hidden) { note.hidden = false; note.focus(); } else send('refused'); }));
+      }
+      b.appendChild(c);
+    });
+    b.appendChild(el('label', '', 'How this day was counted')); var dl = el('dl'), row = function (k, v) { dl.appendChild(el('dt', '', k)); dl.appendChild(el('dd', '', v || '–')); };
     row('Counts as', x.code ? x.code + ' – ' + CODE[x.code] : 'Nothing yet'); row('IN', x.in); row('OUT', x.out + (x.next_day ? ' (next day)' : '')); row('Hours', x.in && x.out ? x.hours : ''); if (x.late_min) row('Late', x.late_min + ' min'); if (x.early_min) row('Left early', x.early_min + ' min');
     row('Shift', x.shift); if (x.holiday) row('Holiday', x.holiday); row('From', x.src === 'punch' ? 'His punches' : x.src === 'manual' ? 'Entered by hand' : x.src === 'correction' ? 'Corrected' : x.src === 'regularized' ? 'His request, approved' : ''); b.appendChild(dl);
-    b.appendChild(el('label', '', 'Punches')); var ul = el('ul', 'hist'); r.punches.forEach(function (p) { ul.appendChild(el('li', '', (p.kind === 'in' ? 'IN ' : 'OUT ') + p.time + (p.offline ? ' · sent later' : '') + (p.status === 'review' ? ' · to be looked at' : ''))); }); if (!r.punches.length) ul.appendChild(el('li', 'off', 'No punch on this day.')); b.appendChild(ul);
     if (r.entries.length) { b.appendChild(el('label', '', 'Entered for this day (the newest counts)')); var u2 = el('ul', 'hist'); r.entries.forEach(function (e, i) { u2.appendChild(el('li', i ? 'off' : '', (e.in || e.out ? 'IN ' + (e.in || '–') + ' · OUT ' + (e.out || '–') : 'No attendance') + ' — was IN ' + (e.old_in || '–') + ' · OUT ' + (e.old_out || '–') + ' — ' + e.reason + ' — ' + e.by + ', ' + stamp(e.at))); }); b.appendChild(u2); }
-    if (r.requests.length) { b.appendChild(el('label', '', 'His requests')); var u3 = el('ul', 'hist'); r.requests.forEach(function (q) { u3.appendChild(el('li', '', 'IN ' + (q.in_time || '–') + ' · OUT ' + (q.out_time || '–') + ' — ' + q.reason + ' — ' + q.status)); }); b.appendChild(u3); }
+    var old = r.requests.filter(function (q) { return q.status !== 'pending'; });
+    if (old.length) { b.appendChild(el('label', '', 'His requests')); var u3 = el('ul', 'hist'); old.forEach(function (q) { u3.appendChild(el('li', '', 'IN ' + (q.in_time || '–') + ' · OUT ' + (q.out_time || '–') + ' — ' + q.reason + ' — ' + q.status)); }); b.appendChild(u3); }
     var has = x.punches > 0 || (x.src && x.src !== 'punch'), can = d <= r.today && may(has ? 'correct' : 'manual');
+    var form = el('div'), top = el('div', 'acts'), ti = inp('time', x.in), to = inp('time', x.out); form.hidden = true;
+    if (can) top.appendChild(btn('pri', has ? 'Correct this day' : 'Enter this day by hand', function () { form.hidden = !form.hidden; if (!form.hidden) ti.focus(); }));
+    top.appendChild(btn('sec', 'Open employee', function () { if (window.HR && window.HR.emp) window.HR.emp(w.id); })); b.appendChild(top); b.appendChild(form);
     if (!can) return;
-    b.appendChild(el('label', '', has ? 'Correct this day' : 'Enter this day by hand')); var g = el('div', 'grid');
-    var ti = field(g, 'IN', inp('time', x.in)), to = field(g, 'OUT', inp('time', x.out)), nx = inp('checkbox'), l = el('label', 'ck'); nx.checked = !!x.next_day; l.appendChild(nx); l.appendChild(document.createTextNode(' OUT is on the next day (night)')); var d1 = el('div', 'full'); d1.appendChild(l); g.appendChild(d1);
-    var why = field(g, 'Reason *', inp('text', '', { maxlength: 200 }), true); b.appendChild(g);
-    var save = function (body) { api('daySet', Object.assign({ id: w.id, day: d, reason: why.value }, body)).then(function (n) { toast('Saved.'); fillDay(s, w, d, n); muster(); }, function (e) { s.err(e); }); };
-    var acts = el('div', 'acts'); acts.style.justifyContent = 'flex-start'; acts.appendChild(btn('pri', 'Save', function () { save({ in_time: ti.value, out_time: to.value, out_next_day: nx.checked }); })); if (has) acts.appendChild(btn('danger', 'No attendance on this day', function () { save({ none: true }); })); b.appendChild(acts);
+    var g = el('div', 'grid'); g.style.marginTop = '12px'; field(g, 'IN', ti); field(g, 'OUT', to);
+    var nx = inp('checkbox'), l = el('label', 'ck'); nx.checked = !!x.next_day; l.appendChild(nx); l.appendChild(document.createTextNode(' OUT is on the next day (night)')); var d1 = el('div', 'full'); d1.appendChild(l); g.appendChild(d1);
+    var why = field(g, 'Reason *', inp('text', '', { maxlength: 200 }), true); form.appendChild(g);
+    var save = function (body) { api('daySet', Object.assign({ id: w.id, day: d, reason: why.value }, body)).then(function () { toast('Saved.'); muster(); }, function (e) { s.err(e); }); };
+    var acts = el('div', 'acts'); acts.appendChild(btn('pri', 'Save', function () { save({ in_time: ti.value, out_time: to.value, out_next_day: nx.checked }); })); if (has) acts.appendChild(btn('danger', 'No attendance on this day', function () { save({ none: true }); })); form.appendChild(acts);
   }
 
   /* ───────────── Requests ───────────── */
