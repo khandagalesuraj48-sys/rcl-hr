@@ -71,6 +71,17 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
   * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
     count, requests waiting.
+* **The month: verified by the site's HR, approved by the HO HR (step 10, 12-11-2026)** – his words: "MONTH END LA JYA TYA SITE CHA HR
+  ATTENDANCE VERIFY KAREL USER WISE BULK VERIFY … SITE HR NI VERIFY KEL KI DIRECT HO HR KADE DATA JAIL". Page **Month verification**
+  (web only): everybody of a month with his counts – present, half, absent, leave, **extra days** (worked on a weekly off / a
+  holiday), late days, days for pay (`lib/month.js`). After the month's last day the **HR Admin** (power `month`, given or taken by
+  the Super Admin) ticks people and verifies them – not a person with an "IN without OUT" day or a request still waiting; the counts
+  of that moment are kept (`hr_month_people`). A day changed afterwards shows "Changed since verified" – verify again. The **HO HR**
+  (`hr_ho_hr`, given by the Super Admin; the Super Admin himself too) sees every site of his sign-in, sends people back with the
+  reason, or **approves** the site's month when everybody is verified (`hr_months`): from then on no day of that month is changed
+  (`needOpen` – a day set by hand, a request, a doubtful punch, a leave decided). Only the Super Admin opens it again, with the
+  reason. Everything is in the audit. `sql/hr_step10_month.sql` – three new tables, run by the owner; before it the page says so and
+  everything else works as before.
 * **Once a day, a forgotten OUT, the late policy (step 8, 12-11-2026)** – his words: one sign-in and one sign-out a day; who forgets
   OUT is signed out by the system and is absent; three late marks a month, the fourth is a half day; a "no late" policy; the times
   by the shift. All of it is the site's **dated rules** and its **shifts** – nothing in the code (`lib/day.js`):
