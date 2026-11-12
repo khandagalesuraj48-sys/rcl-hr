@@ -101,16 +101,17 @@ const ACT = {
     const q = R.str(x.q, 60).replace(/[%_*,()\\"]/g, ' ').trim(), st = ['incomplete', 'pending', 'active', 'left'].indexOf(x.status) > -1 ? x.status : '', cat = R.CATS.indexOf(x.category) > -1 ? x.category : '';
     let path = 'hr_employees?select=' + EMP + '&site=eq.' + enc(s.site) + (st ? '&status=eq.' + st : '&status=neq.left') + (cat ? '&category=eq.' + cat : '');
     if (q) path += '&or=' + enc('(name.ilike.*' + q + '*,code.ilike.*' + q + '*,mobile.ilike.*' + q + '*,email.ilike.*' + q + '*)');
-    const rows = (await db('GET', path + '&order=name&limit=501')) || [];
-    const all = (await db('GET', 'hr_employees?select=status&site=eq.' + enc(s.site))) || [], counts = { incomplete: 0, pending: 0, active: 0, left: 0 }; all.forEach(r => { counts[r.status]++; });
+    // (12-11-2026, "hr modual slow ahe") the two readings are asked together – one wait, not two
+    const [rs, al] = await Promise.all([db('GET', path + '&order=name&limit=501'), db('GET', 'hr_employees?select=status&site=eq.' + enc(s.site))]);
+    const rows = rs || [], all = al || [], counts = { incomplete: 0, pending: 0, active: 0, left: 0 }; all.forEach(r => { counts[r.status]++; });
     return { rows: rows.slice(0, 500), more: rows.length > 500, counts: counts };
   },
 
   async empGet(s, x) {
     const e = await one(s, id(x.id));
-    const hist = (await db('GET', 'hr_employment?select=id,site,department_id,designation_id,reports_to,valid_from,valid_to,note,created_by,created_at&employee_id=eq.' + e.id + '&order=valid_from.desc,created_at.desc')) || [];
-    const boss = e.reports_to ? ((await db('GET', 'hr_employees?select=id,code,name&id=eq.' + e.reports_to)) || [])[0] || null : null;
-    return { employee: e, history: hist, boss: boss };
+    const [hist, bs] = await Promise.all([db('GET', 'hr_employment?select=id,site,department_id,designation_id,reports_to,valid_from,valid_to,note,created_by,created_at&employee_id=eq.' + e.id + '&order=valid_from.desc,created_at.desc'),
+      e.reports_to ? db('GET', 'hr_employees?select=id,code,name&id=eq.' + e.reports_to) : null]);      // (asked together – one wait)
+    return { employee: e, history: hist || [], boss: (bs || [])[0] || null };
   },
   // the people an employee can report to (this site's, not left) – for the box of the form
   async empPick(s, x) {
@@ -213,8 +214,8 @@ const ACT = {
    * Master. An HR User sees the Aadhaar only as XXXX XXXX 1234 (he can type a new one); the HR Admin / Super Admin see it whole.
    * The record of changes never holds an Aadhaar or PAN – only that it changed and its last four. */
   async privGet(s, x) {
-    const e = await one(s, id(x.id)), p = ((await db('GET', 'hr_employee_private?select=*&employee_id=eq.' + e.id)) || [])[0] || {};
-    const docs = (await db('GET', 'hr_employee_docs?select=kind&employee_id=eq.' + e.id + '&active=is.true')) || [];
+    const e = await one(s, id(x.id)), [pv, dc] = await Promise.all([db('GET', 'hr_employee_private?select=*&employee_id=eq.' + e.id), db('GET', 'hr_employee_docs?select=kind&employee_id=eq.' + e.id + '&active=is.true')]);
+    const p = (pv || [])[0] || {}, docs = dc || [];
     return { personal: { aadhaar: isAdmin(s) ? (p.aadhaar || '') : '', aadhaar_mask: R.aadhaarMask(p.aadhaar), pan: p.pan || '', mobile2: p.mobile2 || '', family_name: p.family_name || '', family_relation: p.family_relation || '', family_mobile: p.family_mobile || '',
       address_current: p.address_current || '', address_permanent: p.address_permanent || '' }, relations: R.REL, docsMissing: R.docsMissing(e.category, docs.map(d => d.kind)) };
   },
