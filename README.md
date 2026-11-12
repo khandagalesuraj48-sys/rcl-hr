@@ -71,6 +71,14 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
   * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
     count, requests waiting.
+* **More of the office (12-11-2026 – "tu je sangtile 1 to 16 ek sath banwala ghe", the first group; no database step)** –
+  **Payslip to print:** Payroll → a LOCKED month → "Payslip" of a line opens a page to print / save as PDF (`paySlipOf`; the head
+  is the site's name – HR does not know the company's). **Bank list (Excel):** name, name as on bank, bank, IFSC, account number,
+  net pay (`payBank` – the HO HR only; the account numbers whole only here; "Bank list taken" in the audit, never a number; a
+  person without a bank account in his profile is said). **Coming up** on the dashboard (`hrComing`, `lib/coming.js`): the papers
+  of this site's people whose date runs out within 30 days or has run out, the birthdays and the years at work of the coming 7
+  days. A person's own (`myHr.coming`): his papers running out, his birthday today, his years at work today – for the app.
+  `myAttend` also says `week_off` / `days_off` for the phone's IN / OUT reminders.
 * **Payroll (step 12, 12-11-2026)** – his words: "HO HR … SALARY CALCULATE KRU SHAKEL JYAT PT PF DEDUCTION SALARY ADVANCE HE SAGLE HO
   WARUN KARTA YEIL"; decided: a day's pay = the month's salary ÷ the days of that month, an extra day = one day's pay. Page
   **Payroll** (web; the HO HR and the Super Admin only – `init.ho`, menu `who: 'ho'`). **Pay sheet:** a site's month, only after

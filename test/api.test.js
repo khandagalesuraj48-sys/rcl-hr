@@ -683,6 +683,15 @@ test('(step 12) payroll: only the HO HR; only after the month is approved; count
   // a changed setting does not touch the locked month; the database refuses a change of a payslip
   await ACT.paySettingsSave(uQ, { valid_from: month + '-01', pf_pct: '50' }); assert.strictEqual((await ACT.payList(uQ, { month })).rows.find(r => r.id === A.id).pf, 240);
   await no(db('PATCH', 'hr_payslips?employee_id=eq.' + A.id, { net: 1 }), /Database|refused|permission/); await no(db('DELETE', 'hr_pay_runs?site=eq.' + SQ), /Database|refused|permission/);
+  // (12-11-2026) the locked month: one person's payslip to print, and the bank list – the HO HR only; an unlocked month has neither
+  await no(ACT.payBank(aQ, { month }), /only for the HO HR/, 403); await no(ACT.paySlipOf(aQ, { month, id: A.id }), /only for the HO HR/, 403);
+  await no(ACT.payBank(uQ, { month: today.slice(0, 7) }), /not locked yet/, 400);
+  await db('POST', 'hr_employee_profile?on_conflict=employee_id', [{ employee_id: A.id, data: {}, secret: { bank_name: 'Rig Bank', bank_ifsc: 'RIGB0000001', bank_account: '000111222333', bank_holder: 'Roll One' }, updated_by: 'rig' }], 'resolution=merge-duplicates,return=minimal');
+  const bk = await ACT.payBank(uQ, { month }), bA = bk.rows.find(r => r.code === A.code), bB = bk.rows.find(r => r.code === B.code);
+  assert.deepStrictEqual([bk.rows.length, bk.total, bk.missing, bA.bank, bA.ifsc, bA.account, bA.net, bA.missing, bB.account, bB.missing, bB.net], [2, 1756, 1, 'Rig Bank', 'RIGB0000001', '000111222333', 1260, false, '', true, 496]);
+  const ps = await ACT.paySlipOf(uQ, { month, id: A.id }); assert.deepStrictEqual([ps.employee.code, ps.employee.name, ps.slip.net, ps.slip.gross, ps.slip.deductions.map(l => l.label), ps.locked.by], [A.code, 'Roll One', 1260, 2100, ['PF', 'Profession Tax', 'Advance'], 'user@rig.test']);
+  await no(ACT.paySlipOf(uQ, { month, id: C.id }), /no payslip in that month/, 404);
+  const bLog = JSON.stringify(await db('GET', 'hr_audit?select=action,detail&site=eq.' + SQ + '&action=eq.Bank%20list%20taken')); assert.ok(/Bank list taken/.test(bLog) && !/000111222333|RIGB0000001/.test(bLog), 'that the list was taken is written – never a number');
   // his own payslip – only his
   const mine = await ACT.mySlips({ site: SQ, email: mail('roll1'), name: 'x', role: 'self', info: {} });
   assert.deepStrictEqual([mine.slips.length, mine.slips[0].month, mine.slips[0].net, mine.slips[0].gross, mine.slips[0].earnings.map(l => l.label), mine.slips[0].deductions.map(l => l.label + ' ' + l.amount)], [1, month, 1260, 2100, ['Earned pay', 'arrear of last month'], ['PF 240', 'Profession Tax 200', 'Advance 400']]);
@@ -700,4 +709,20 @@ test('(the phone\'s reminders) my attendance says the free days of the coming we
   await ACT.shiftSave(aR, { name: 'General ' + SR, start_time: '08:30', end_time: '17:30', auto_out: '23:50', valid_from: '2026-01-01' });
   a = await ACT.myAttend(me, { device_id: 'rig-rem-1' });
   assert.deepStrictEqual([a.week_off, a.days_off, a.shift.start, a.shift.end, a.shift.auto_out], [[0, 6], [D.addDays(today, 3)], '08:30', '17:30', '23:50']);
+});
+
+test('(what comes up) the office\'s list: papers running out within 30 days or run out, birthdays and years at work of the coming week; a person sees his own', async () => {
+  const SC = tag + 'C', aC = ses('admin', SC), D = require('../lib/day'), today = require('../lib/rules').today(), y = +today.slice(0, 4);
+  const born = (y - 30) + D.addDays(today, 3).slice(4), joined = (y - 5) + today.slice(4);
+  const E = await ACT.empSave(aC, { name: 'Coming One', category: 'driver', mobile: mob(), email: mail('com1'), dob: born, joined_on: joined });
+  const F = await ACT.empSave(aC, { name: 'Coming Two', category: 'staff', mobile: mob(), email: mail('com2'), dob: (y - 40) + D.addDays(today, 60).slice(4), joined_on: '2024-01-01' });
+  await db('POST', 'hr_employee_docs', [{ employee_id: E.id, kind: 'licence', title: '', number: 'RIG1', expires_on: D.addDays(today, 10), path: 'rig/a.pdf', mime: 'application/pdf', bytes: 10, created_by: 'rig' },
+    { employee_id: E.id, kind: 'other', title: 'Medical', number: '', expires_on: D.addDays(today, -2), path: 'rig/b.pdf', mime: 'application/pdf', bytes: 10, created_by: 'rig' },
+    { employee_id: F.id, kind: 'other', title: 'Far paper', number: '', expires_on: D.addDays(today, 90), path: 'rig/c.pdf', mime: 'application/pdf', bytes: 10, created_by: 'rig' }], 'return=minimal');
+  const c = await ACT.hrComing(aC);
+  assert.deepStrictEqual(c.papers.map(p => [p.code, p.left]), [[E.code, -2], [E.code, 10]]); assert.match(c.papers[1].paper, /licen/i);
+  assert.deepStrictEqual(c.days.map(d => [d.code, d.what, d.in, d.years || 0]), [[E.code, 'work', 0, 5], [E.code, 'birthday', 3, 0]]);
+  await no(ACT.hrComing({ site: SC, email: mail('com1'), name: 'x', role: 'self', info: {} }), /HR office only/, 403);
+  const me = await ACT.myHr({ site: SC, email: mail('com1'), name: 'x', role: 'self', info: {} });
+  assert.deepStrictEqual([me.coming.papers.map(p => p.left), me.coming.birthday, me.coming.work_years], [[-2, 10], false, 5]);
 });

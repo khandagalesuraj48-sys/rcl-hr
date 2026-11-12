@@ -42,7 +42,8 @@
     root.textContent = '';
     if (!r.ready) { root.appendChild(note(r.reason, 'warn')); return; }
     var chips = el('div', 'chips'); [['People', r.rows.length], ['Gross ₹', rs(r.totals.gross)], ['Deductions ₹', rs(r.totals.pf + r.totals.esic + r.totals.pt + r.totals.advance + r.totals.other_ded)], ['Net pay ₹', rs(r.totals.net)]].forEach(function (c) { var x = el('div', 'chip'); x.style.cursor = 'default'; x.appendChild(el('b', '', c[1])); x.appendChild(el('span', '', c[0])); chips.appendChild(x); }); root.appendChild(chips);
-    if (r.locked) root.appendChild(note('The pay of ' + mName(r.month) + ' is LOCKED (' + r.locked.by + ', ' + when(r.locked.at) + ') – it is never counted again. A mistake is set right in the next month.', 'ok'));
+    if (r.locked) { root.appendChild(note('The pay of ' + mName(r.month) + ' is LOCKED (' + r.locked.by + ', ' + when(r.locked.at) + ') – it is never counted again. A mistake is set right in the next month.', 'ok'));
+      var lt = el('div', 'tools'); lt.appendChild(btn('pri', 'Bank list (Excel)', function () { bank(r.month); })); lt.appendChild(el('span', 'muted', 'Name, bank, IFSC, account number and net pay – for the bank. A payslip: the button of each line.')); lt.lastChild.style.alignSelf = 'center'; root.appendChild(lt); }
     else { root.appendChild(note('Counted from the approved attendance and each person\'s approved salary. A day\'s pay = the month\'s salary ÷ ' + r.month_days + ' days; an extra day = one day\'s pay.' + (r.settings ? ' PF / ESIC / PT: the settings from ' + dmy(r.settings.valid_from) + '.' : ' PF / ESIC / PT: no settings yet – nothing is deducted for them.')));
       if (r.problems) root.appendChild(note(r.problems + ' people cannot be paid yet – see the red line of each.', 'warn')); }
     var t = table(['Code', 'Name', 'Salary', 'Pay days', 'Extra', 'Earned', 'Extra pay', 'Other +', 'Gross', 'PF', 'ESIC', 'PT', 'Advance', 'Other −', 'Net pay', '']);
@@ -52,7 +53,7 @@
       tr.appendChild(el('td', '', w.rate ? rs(w.rate) + (w.pay_type === 'daily' ? ' a day' : ' a month') : '–'));
       [w.pay_days, w.extra_days].forEach(function (v) { var c = el('td', '', v || '–'); c.style.textAlign = 'center'; tr.appendChild(c); });
       num(tr, w.earned); num(tr, w.extra); num(tr, w.other_earn); num(tr, w.gross, true); num(tr, w.pf); num(tr, w.esic); num(tr, w.pt); num(tr, w.advance); num(tr, w.other_ded); num(tr, w.net, true);
-      var a = el('td'); if (!r.locked) a.appendChild(btn('sm ghost', 'Set…', function () { person(r, w); })); tr.appendChild(a); t.body.appendChild(tr);
+      var a = el('td'); if (!r.locked) a.appendChild(btn('sm ghost', 'Set…', function () { person(r, w); })); else a.appendChild(btn('sm ghost', 'Payslip', function () { slip(r.month, w.id); })); tr.appendChild(a); t.body.appendChild(tr);
     });
     if (!r.rows.length) t.box.appendChild(el('p', 'none', 'Nobody is verified in ' + mName(r.month) + '.'));
     if (!r.locked && r.rows.length) { var acts = el('div', 'tools'), ok = btn('pri', 'Lock the pay of ' + mName(r.month), function () {
@@ -75,6 +76,39 @@
       api('payFlags', { id: w.id, pf: ck.pf.checked, esic: ck.esic.checked, pt: ck.pt.checked }).then(function () { return api('payAdjust', { month: r.month, id: w.id, other_earn: e.value, earn_note: en.value, other_ded: dd.value, ded_note: dn.value, advance: av ? av.value : '' }); })
         .then(function () { d.close(); toast('Saved.'); draw(); }, d.err);
     }));
+  }
+  /* (12-11-2026) a LOCKED month: one person's payslip to print (the browser's own Print → "Save as PDF"), and the bank list as Excel */
+  function slip(month, id) {
+    api('paySlipOf', { month: month, id: id }).then(function (r) {
+      var w = window.open('', '_blank'); if (!w) return toast('The browser stopped the new window – allow pop-ups for this page.', true);
+      var d = w.document, s = r.slip, e = r.employee, add = function (parent, tag, text, css) { var x = d.createElement(tag); if (text !== undefined) x.textContent = String(text); if (css) x.style.cssText = css; parent.appendChild(x); return x; };
+      d.title = 'Payslip ' + e.code + ' ' + mName(month);
+      var st = d.createElement('style'); st.textContent = 'body{font:14px/1.45 Arial,Helvetica,sans-serif;color:#111;margin:28px;max-width:760px}h1{font-size:20px;margin:0}h2{font-size:15px;margin:2px 0 14px;font-weight:normal;color:#444}table{width:100%;border-collapse:collapse;margin:10px 0}td,th{border:1px solid #bbb;padding:6px 9px;text-align:left}td.n,th.n{text-align:right}th{background:#f1f1f1}.two{display:flex;gap:16px}.two>div{flex:1}.net{font-size:17px;font-weight:bold}small{color:#555}@media print{button{display:none}body{margin:10mm}}'; d.head.appendChild(st);
+      var b = d.body; add(b, 'h1', r.site_name); add(b, 'h2', 'Payslip – ' + mName(month));
+      var info = add(b, 'table'); [['Employee', e.name + ' (' + e.code + ')'], ['Designation / Department', [e.designation, e.department].filter(Boolean).join(' / ') || '–'], ['Salary', rs(s.rate) + (s.pay_type === 'daily' ? ' a day' : ' a month')], ['Days', s.pay_days + ' paid of ' + s.month_days + (s.extra_days ? ' · ' + s.extra_days + ' extra' : '')]].forEach(function (x) { var tr = add(info, 'tr'); add(tr, 'th', x[0], 'width:34%'); add(tr, 'td', x[1]); });
+      var c = s.counts || {}; add(b, 'small', 'Present ' + (c.present || 0) + ' · Half day ' + (c.half || 0) + ' · Absent ' + (c.absent || 0) + ' · Leave ' + (c.leave || 0) + ' · Weekly off ' + (c.week_off || 0) + ' · Holiday ' + (c.holiday || 0) + ' · Extra ' + (c.extra || 0));
+      var two = add(b, 'div'); two.className = 'two';
+      [['Earnings', s.earnings, 'Gross', s.gross], ['Deductions', s.deductions, 'Total deductions', s.total_deductions]].forEach(function (g) { var box = add(two, 'div'), t = add(box, 'table'), h = add(t, 'tr'); add(h, 'th', g[0]); add(h, 'th', '₹').className = 'n';
+        g[1].forEach(function (l) { var tr = add(t, 'tr'); add(tr, 'td', l.label); add(tr, 'td', rs(l.amount)).className = 'n'; }); if (!g[1].length) { var n = add(t, 'tr'); add(n, 'td', '–'); add(n, 'td', '').className = 'n'; }
+        var f = add(t, 'tr'); add(f, 'th', g[2]); add(f, 'th', rs(g[3])).className = 'n'; });
+      add(b, 'p', 'Net pay: ₹ ' + rs(s.net)).className = 'net';
+      add(b, 'small', 'Made from the attendance approved by the HO HR and locked by ' + r.locked.by + ' on ' + when(r.locked.at) + '. This is a computer-made payslip.');
+      var pb = add(b, 'p'); var bt = add(pb, 'button', 'Print / Save as PDF', 'padding:9px 16px;font-size:14px;margin-top:14px'); bt.onclick = function () { w.print(); };
+    }, fail);
+  }
+  function xlsxLib() { return new Promise(function (ok) { if (window.XLSX) return ok(true); var s = document.createElement('script'); s.src = '/vendor/xlsx-0.18.5.full.min.js'; s.onload = function () { ok(!!window.XLSX); }; s.onerror = function () { ok(false); }; document.head.appendChild(s); }); }
+  function bank(month) {
+    api('payBank', { month: month }).then(function (r) {
+      var head = ['Code', 'Name', 'Name as on bank', 'Bank', 'IFSC', 'Account number', 'Net pay'], rows = [head].concat(r.rows.map(function (x) { return [x.code, x.name, x.holder, x.bank, x.ifsc, x.account, x.net]; })); rows.push(['', 'Total', '', '', '', '', r.total]);
+      var name = 'Bank_list_' + r.site + '_' + month, save = function (blob, ext) { var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name + ext; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000); };
+      xlsxLib().then(function (ok) {
+        if (ok) { try { var ws = window.XLSX.utils.aoa_to_sheet(rows), wb = window.XLSX.utils.book_new(); ws['!cols'] = [10, 26, 26, 22, 14, 20, 12].map(function (n) { return { wch: n }; });
+            r.rows.forEach(function (x, i) { var c = ws['F' + (i + 2)]; if (c) { c.t = 's'; c.v = String(x.account); } });      // (an account number is text – Excel must not round it)
+            window.XLSX.utils.book_append_sheet(wb, ws, 'Bank list'); window.XLSX.writeFile(wb, name + '.xlsx'); } catch (e) { ok = false; } }
+        if (!ok) { var q = function (v) { return '"' + String(v === undefined || v === null ? '' : v).replace(/"/g, '""') + '"'; }; save(new Blob(['﻿' + rows.map(function (x) { return x.map(function (v, i) { return i === 5 && v ? '="' + String(v) + '"' : q(v); }).join(','); }).join('\r\n')], { type: 'text/csv' }), '.csv'); }
+        toast(r.missing ? 'Saved. ' + r.missing + ' people have no bank account / IFSC in their profile – their lines are empty there.' : 'Saved.', !!r.missing);
+      });
+    }, fail);
   }
   function advances(root) {
     api('advList').then(function (r) {
