@@ -107,7 +107,7 @@
   }
   function fillDay(s, w, d, r) {
     var b = s.body, x = r.day; b.textContent = ''; s.err(null);
-    s.sky.className = 'mz-sky ' + (x.code || 'none'); s.chip.textContent = (x.code ? CODE[x.code] : 'Nothing yet') + (x.in && x.out ? ' · ' + x.hours + ' h' : '') + (x.late_min ? ' · late ' + x.late_min + ' m' : '');
+    s.sky.className = 'mz-sky ' + (x.code || 'none'); s.chip.textContent = (x.code ? CODE[x.code] : 'Nothing yet') + (x.in && x.out ? ' · ' + x.hours + ' h' : '') + (x.late_min ? ' · late ' + x.late_min + ' m' : '') + (x.auto ? ' · closed by itself' : '');
     r.punches.forEach(function (p) {
       var c = el('div', 'mz-pun'), t = el('div'), kind = p.kind === 'in' ? 'IN' : 'OUT', line = el('div');
       if (window.HRDASH) { var th = window.HRDASH.thumb(p.id, w.name + ' – ' + kind + ' ' + p.time, true); th.className += ' big'; c.appendChild(th); }
@@ -126,7 +126,7 @@
       b.appendChild(c);
     });
     b.appendChild(el('label', '', 'How this day was counted')); var dl = el('dl'), row = function (k, v) { dl.appendChild(el('dt', '', k)); dl.appendChild(el('dd', '', v || '–')); };
-    row('Counts as', x.code ? x.code + ' – ' + CODE[x.code] : 'Nothing yet'); row('IN', x.in); row('OUT', x.out + (x.next_day ? ' (next day)' : '')); row('Hours', x.in && x.out ? x.hours : ''); if (x.late_min) row('Late', x.late_min + ' min'); if (x.early_min) row('Left early', x.early_min + ' min');
+    row('Counts as', x.code ? x.code + ' – ' + CODE[x.code] : 'Nothing yet'); row('IN', x.in); row('OUT', x.out + (x.next_day ? ' (next day)' : '')); row('Hours', x.in && x.out ? x.hours : ''); if (x.late_min) row('Late', x.late_min + ' min' + (x.late_half ? ' – counted as a half day (the late rule)' : '')); if (x.early_min) row('Left early', x.early_min + ' min'); if (x.auto) row('Closed by itself', 'OUT was not marked – the day counts as absent');
     row('Shift', x.shift); if (x.holiday) row('Holiday', x.holiday); row('From', x.src === 'punch' ? 'His punches' : x.src === 'manual' ? 'Entered by hand' : x.src === 'correction' ? 'Corrected' : x.src === 'regularized' ? 'His request, approved' : ''); b.appendChild(dl);
     if (r.entries.length) { b.appendChild(el('label', '', 'Entered for this day (the newest counts)')); var u2 = el('ul', 'hist'); r.entries.forEach(function (e, i) { u2.appendChild(el('li', i ? 'off' : '', (e.in || e.out ? 'IN ' + (e.in || '–') + ' · OUT ' + (e.out || '–') : 'No attendance') + ' — was IN ' + (e.old_in || '–') + ' · OUT ' + (e.old_out || '–') + ' — ' + e.reason + ' — ' + e.by + ', ' + stamp(e.at))); }); b.appendChild(u2); }
     var old = r.requests.filter(function (q) { return q.status !== 'pending'; });
@@ -173,19 +173,23 @@
     var root = $('p_mus'), c = M.cfg, can = may('shifts'); root.textContent = '';
     // shifts
     head(root, 'Shifts', can ? [btn('pri', '+ Add shift', function () { shiftForm(null); })] : []);
-    var t = table(['Shift', 'From – to', 'Break', 'For whom', 'From', 'Status']);
-    c.shifts.forEach(function (sh) { var tr = el('tr'); tr.tabIndex = 0; [sh.name, sh.start_time + ' – ' + sh.end_time + (sh.end_time < sh.start_time ? ' (next day)' : ''), sh.break_min ? sh.break_min + ' min' : '–', whomText(sh), dmy(sh.valid_from)].forEach(function (v, i) { tr.appendChild(el('td', i ? '' : 'nm', v)); }); var st = el('td'); st.appendChild(el('span', 'st ' + (sh.active ? 's-active' : 's-left'), sh.active ? 'On' : 'Off')); tr.appendChild(st); tr.onclick = function () { shiftForm(sh); }; t.body.appendChild(tr); });
+    var t = table(['Shift', 'From – to', 'Break', 'Forgot OUT: closed at', 'For whom', 'From', 'Status']);
+    c.shifts.forEach(function (sh) { var tr = el('tr'); tr.tabIndex = 0; [sh.name, sh.start_time + ' – ' + sh.end_time + (sh.end_time < sh.start_time ? ' (next day)' : ''), sh.break_min ? sh.break_min + ' min' : '–', sh.auto_out ? sh.auto_out + (sh.auto_out <= sh.start_time ? ' (next day)' : '') + ' – absent' : '–', whomText(sh), dmy(sh.valid_from)].forEach(function (v, i) { tr.appendChild(el('td', i ? '' : 'nm', v)); }); var st = el('td'); st.appendChild(el('span', 'st ' + (sh.active ? 's-active' : 's-left'), sh.active ? 'On' : 'Off')); tr.appendChild(st); tr.onclick = function () { shiftForm(sh); }; t.body.appendChild(tr); });
     if (!c.shifts.length) t.box.appendChild(el('p', 'none', 'No shift yet. Without a shift nobody is "late" – only the hours are counted.')); root.appendChild(t.box);
     // rules
     head(root, 'Attendance rules' + (c.rules_from ? ' – valid from ' + dmy(c.rules_from) : ' – none set yet'), []);
     var box = el('div', 'box'); box.style.padding = '16px'; var g = el('div', 'grid'), r = c.rules, num = function (v) { return v === undefined ? '' : v; };
     var f = { full_hours: field(g, 'Hours for a full day', inp('number', num(r.full_hours), { min: 1, max: 24, step: 0.5 })), half_hours: field(g, 'Hours for a half day (below: absent)', inp('number', num(r.half_hours), { min: 0.5, max: 24, step: 0.5 })),
       grace_min: field(g, 'Late after the shift\'s start + minutes', inp('number', num(r.grace_min), { min: 0, max: 240 })), early_min: field(g, 'Left early before the shift\'s end − minutes', inp('number', num(r.early_min), { min: 0, max: 240 })),
-      late_to_half: field(g, 'So many late days in a month = one half day (empty = never)', inp('number', num(r.late_to_half), { min: 0, max: 31 })), reg_levels: field(g, 'Who decides a request', inp('select')) };
+      late_free: field(g, 'Late days allowed in a month – every late day after them is a half day (empty = only marked)', inp('number', num(r.late_free), { min: 0, max: 31 })),
+      half_after_min: field(g, 'Half day at once when later than the shift\'s start + minutes (empty = never)', inp('number', num(r.half_after_min), { min: 1, max: 720 })),
+      late_to_half: field(g, 'So many late days in a month = one half day less in the days for pay (empty = never)', inp('number', num(r.late_to_half), { min: 0, max: 31 })),
+      once: field(g, 'Sign IN / OUT in a day', inp('select')), reg_levels: field(g, 'Who decides a request', inp('select')) };
+    opt(f.once, '', 'As often as needed (out and in again)', !r.once); opt(f.once, 'yes', 'Once – one IN and one OUT a day', !!r.once);
     opt(f.reg_levels, '1', 'The HR office', r.reg_levels !== 2); opt(f.reg_levels, '2', 'First the reporting person, then the HR office', r.reg_levels === 2);
     var wo = el('div', 'full'); wo.appendChild(el('label', '', 'Weekly off')); var days = []; WD.forEach(function (n, i) { var l = el('label', 'ck'), cb = inp('checkbox'); cb.checked = (r.week_off || []).indexOf(i) > -1; days.push(cb); l.appendChild(cb); l.appendChild(document.createTextNode(' ' + n)); wo.appendChild(l); }); g.appendChild(wo);
     var from = field(g, 'These rules count from (empty = today)', inp('date', '')); box.appendChild(g);
-    box.appendChild(el('p', 'muted', 'A rule left empty is not applied. Saving makes a NEW version from that date – the days before it keep the rules they had.'));
+    box.appendChild(el('p', 'muted', 'A rule left empty is not applied. No late policy at all: leave "Late after the shift\'s start" empty – then nobody is late. Saving makes a NEW version from that date – the days before it keep the rules they had.'));
     var er = el('p', 'err'); er.hidden = true; box.appendChild(er);
     if (can) { var acts = el('div', 'acts'); acts.style.justifyContent = 'flex-start'; acts.appendChild(btn('pri', 'Save the rules', function () { var b = { valid_from: from.value, week_off: days.map(function (cb, i) { return cb.checked ? i : -1; }).filter(function (i) { return i > -1; }) }; Object.keys(f).forEach(function (k) { b[k] = f[k].value; });
       api('rulesSave', b).then(function (n) { M.cfg = n; toast('Rules saved.'); drawRules(); }, function (e) { er.textContent = e.message; er.hidden = false; }); })); box.appendChild(acts); }
@@ -205,11 +209,11 @@
   }
   function shiftForm(sh) {
     var can = may('shifts'), s = sheet(sh ? sh.name : 'New shift', 'A change counts for the days from its date – a person\'s most exact shift wins: chosen for him, then his department, his category, everybody.'), g = el('div', 'grid'); s.body.appendChild(g);
-    var name = field(g, 'Name *', inp('text', sh ? sh.name : '', { maxlength: 40 })), st = field(g, 'Starts at *', inp('time', sh ? sh.start_time : '09:00')), en = field(g, 'Ends at * (earlier than the start = next day)', inp('time', sh ? sh.end_time : '18:00')), br = field(g, 'Break, minutes (not counted as work)', inp('number', sh ? sh.break_min : 0, { min: 0, max: 240 })), from = field(g, 'From which date (empty = today)', inp('date', sh ? sh.valid_from : ''));
+    var name = field(g, 'Name *', inp('text', sh ? sh.name : '', { maxlength: 40 })), st = field(g, 'Starts at *', inp('time', sh ? sh.start_time : '09:00')), en = field(g, 'Ends at * (earlier than the start = next day)', inp('time', sh ? sh.end_time : '18:00')), br = field(g, 'Break, minutes (not counted as work)', inp('number', sh ? sh.break_min : 0, { min: 0, max: 240 })), ao = field(g, 'Forgot OUT: the day is closed by itself at – and counts as absent (empty = never)', inp('time', sh && sh.auto_out ? sh.auto_out : '')), from = field(g, 'From which date (empty = today)', inp('date', sh ? sh.valid_from : ''));
     var who = whomFields(g, sh), on = inp('checkbox'), l = el('label', 'ck'); on.checked = sh ? sh.active : true; l.appendChild(on); l.appendChild(document.createTextNode(' On')); var d = el('div', 'full'); d.appendChild(l); g.appendChild(d);
     if (!can) { Array.prototype.forEach.call(g.querySelectorAll('input,select'), function (i) { i.disabled = true; }); return; }
     if (sh) { var why = inp('text', '', { maxlength: 200, placeholder: 'Why is it removed?' }); why.hidden = true; var wd = el('div', 'full'); wd.appendChild(why); g.appendChild(wd); var del = btn('danger', 'Remove…', function () { if (why.hidden) { why.hidden = false; why.focus(); return; } api('shiftRemove', { id: sh.id, reason: why.value }).then(function (n) { M.cfg = n; s.close(); toast('Removed.'); drawRules(); }, function (e) { s.err(e); }); }); del.style.marginRight = 'auto'; s.acts.insertBefore(del, s.acts.firstChild); }
-    s.acts.appendChild(btn('pri', 'Save', function () { api('shiftSave', Object.assign({ id: sh ? sh.id : '', name: name.value, start_time: st.value, end_time: en.value, break_min: br.value, valid_from: from.value, active: on.checked }, who.get())).then(function (n) { M.cfg = n; s.close(); toast('Saved.'); drawRules(); }, function (e) { s.err(e); }); }));
+    s.acts.appendChild(btn('pri', 'Save', function () { api('shiftSave', Object.assign({ id: sh ? sh.id : '', name: name.value, start_time: st.value, end_time: en.value, break_min: br.value, auto_out: ao.value, valid_from: from.value, active: on.checked }, who.get())).then(function (n) { M.cfg = n; s.close(); toast('Saved.'); drawRules(); }, function (e) { s.err(e); }); }));
   }
   function holidayForm() {
     var s = sheet('New holiday', 'A holiday of this site. Whoever works on it is shown as "worked on a holiday".'), g = el('div', 'grid'); s.body.appendChild(g); var day = field(g, 'Day *', inp('date', '')), name = field(g, 'Name *', inp('text', '', { maxlength: 60 }));

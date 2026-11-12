@@ -71,6 +71,16 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
   * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
     count, requests waiting.
+* **Once a day, a forgotten OUT, the late policy (step 8, 12-11-2026)** – his words: one sign-in and one sign-out a day; who forgets
+  OUT is signed out by the system and is absent; three late marks a month, the fourth is a half day; a "no late" policy; the times
+  by the shift. All of it is the site's **dated rules** and its **shifts** – nothing in the code (`lib/day.js`):
+  rules `once` (the server refuses a second IN: `stand`), `late_free` (so many late days a month are only marked, every later one is a
+  half day – counted from the 1st, `lateHalves`), `half_after_min` (later than the shift's start + this = a half day at once); no late
+  policy = `grace_min` empty. A shift's **`auto_out`** (`sql/hr_step8_auto_out.sql` – ONE new column, run by the owner): at that time a
+  day with IN and no OUT is closed by itself and reads **absent** (a night shift: the next morning) – only READ so, no punch is
+  written or changed; he can ask to set it right. The phone is told `next` (`in` / `out` / `done`), `once`, `closed`, his `shift`;
+  a night shift's OUT the morning after is taken. Before step 8 is run everything works as before (a closing time typed is refused
+  with what to do). Who decides a request (1 or 2 levels) and the leave policy's levels were there already.
 * **Leave (step 7, 12-11-2026)** – `sql/hr_step7_leave.sql` (run by the owner in rcl-hr, after step 6; three new tables). His words:
   4 leaves a month at a site, Sunday is a working day there, an absent day or a leave takes one from the balance; the Head Office
   differs (its Sunday off, its holidays). So the **policy is per site, with its date** (`hr_leave_policy`: leaves a month, carry on
