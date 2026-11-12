@@ -29,7 +29,7 @@ test('an employee: added with his code; incomplete without DOB / e-mail; a mobil
   await no(ACT.empSave(user, { name: 'X', category: 'boss' }), /Name: at least 2 letters\. Category: Staff, Operator, Driver or Labour\./, 400);
   await no(ACT.empSave(user, { name: 'Young One', category: 'labour', dob: '2015-01-01' }), /under 18/);
   const m1 = mob(), a = await ACT.empSave(user, { name: 'Asha Rig', category: 'staff', mobile: '+91 ' + m1, email: mail('ASHA'), dob: '05-03-1990', joined_on: '2024-04-01', department_id: dep, designation_id: des });
-  assert.match(a.code, /^E\d{5}$/); assert.strictEqual(a.status, 'pending'); assert.deepStrictEqual(a.missing, []);
+  assert.match(a.code, /^RCL\d{3,}$/); assert.strictEqual(a.status, 'pending'); assert.deepStrictEqual(a.missing, []);
   const b = await ACT.empSave(user, { name: 'Babu Rig', category: 'Labour', mobile: mob() });
   assert.strictEqual(b.status, 'incomplete'); assert.deepStrictEqual(b.missing, ['Date of birth', 'E-mail']); assert.notStrictEqual(b.code, a.code);
   await no(ACT.empSave(user, { name: 'Copy Rig', category: 'driver', mobile: m1 }), new RegExp('mobile number already belongs to employee ' + a.code), 409);
@@ -339,4 +339,24 @@ test('the employee\'s page: his work places, shift, phone, today, this month, wh
   assert.ok(a.places.some(p => p.name === 'Office ' + tag) && !a.places.some(p => /^Yard/.test(p.name))); assert.strictEqual(a.shift, 'General ' + tag);
   assert.deepStrictEqual([a.phone.model, a.today.code, a.month, a.total.P >= 1, a.total.late >= 1, a.requests_waiting], ['Other Phone', 'IN', TODAY.slice(0, 7), true, true, 0]);
   await no(ACT.empAround(self(mail1), { id: E1.id }), /HR office only/, 403); await no(ACT.empAround(ses('user', SITE2), { id: E1.id }), /not found on this site/, 404);
+});
+
+// (asked 12-11-2026: "RCL001 RCL002" and "EMPLOYEE CODE CHANGE EDIT KRTA YAWET … FIX NASAWET")
+test('the employee code: made by itself as RCL…, or typed; changed by the HR office; never the code of another; a typed code is passed over by the counter', async () => {
+  const typed = 'RC-' + tag;
+  const a = await ACT.empSave(user, { name: 'Code One', category: 'staff', code: ' ' + typed.toLowerCase() + ' ' }); assert.strictEqual(a.code, typed, 'typed at once – kept in capitals');
+  const b = await ACT.empSave(user, { name: 'Code Two', category: 'staff' }); assert.match(b.code, /^RCL\d{3,}$/, 'not typed: made by itself');
+  await no(ACT.empSave(user, { name: 'Code Three', category: 'staff', code: typed }), /already belongs to another employee/, 409);
+  await no(ACT.empSave(user, { name: 'Code Three', category: 'staff', code: 'a b?c' }), /Employee code: 2 to 20/, 400);
+  // changed: the same employee, his new code; his punches / papers hang on him, not on the code
+  const neu = 'RN-' + tag, c = await ACT.empSave(user, { id: b.id, name: 'Code Two', category: 'staff', code: neu }); assert.deepStrictEqual([c.id, c.code], [b.id, neu]);
+  const g = await ACT.empGet(admin, { id: b.id }); assert.strictEqual((g.employee || g.emp || g).code, neu);
+  const au = await db('GET', 'hr_audit?select=action,detail&site=eq.' + SITE + '&action=eq.Employee%20changed&order=id.desc&limit=1'); assert.deepStrictEqual(au[0].detail.code, [b.code, neu], 'written down: the old and the new');
+  await no(ACT.empSave(user, { id: b.id, name: 'Code Two', category: 'staff', code: typed }), /already belongs to another employee/, 409);
+  const same = await ACT.empSave(user, { id: b.id, name: 'Code Two B', category: 'staff', code: neu }); assert.strictEqual(same.code, neu, 'the same code again: nothing to refuse');
+  const kept = await ACT.empSave(user, { id: b.id, name: 'Code Two C', category: 'staff' }); assert.strictEqual(kept.code, neu, 'no code sent (an older page): his code stays');
+  // a code typed by hand that the counter would reach next: the counter passes over it
+  const next = Number(await db('POST', 'rpc/hr_next_no', { p_kind: 'emp', p_count: 1 })) + 1, hand = 'RCL' + String(next).padStart(3, '0');
+  const h = await ACT.empSave(user, { name: 'Code Hand', category: 'staff', code: hand }); assert.strictEqual(h.code, hand);
+  const auto = await ACT.empSave(user, { name: 'Code Auto', category: 'staff' }); assert.match(auto.code, /^RCL\d{3,}$/); assert.notStrictEqual(auto.code, hand);
 });
