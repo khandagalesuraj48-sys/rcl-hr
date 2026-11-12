@@ -46,8 +46,13 @@ dl{display:grid;grid-template-columns:150px 1fr;gap:8px 12px;margin:0 0 14px;fon
 .sm{height:40px;border:0;border-radius:10px;background:#1570EF;color:#fff;font-weight:600;padding:0 14px;cursor:pointer}.sm.ghost{background:#fff;color:#33456B;border:1px solid #D7E0EF}
 .faults{list-style:none;padding:0;margin:8px 0 0;display:block;max-height:240px;overflow:auto}.faults li{display:block;background:#FDECEC;color:#7A271A;border-radius:10px;padding:7px 10px;margin-bottom:5px;font-size:13.5px}.sum{font-weight:600;color:#0A1B44}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0A1B44;color:#fff;border-radius:12px;padding:11px 16px;font-size:14.5px;z-index:99;max-width:92vw}#toast.bad{background:#B42318}
+.ck{display:inline-flex;align-items:center;gap:6px;font-weight:500;margin:0 14px 6px 0}.ck input{width:18px;height:18px}.sheet.wide{max-width:900px}
+#wp_map{height:320px;border:1px solid #D7E0EF;border-radius:14px;margin:4px 0 12px;background:#EEF2F8;z-index:0}.vals{background:#F6F9FF;border-radius:12px;padding:10px 12px;margin-top:8px}
+.tag{display:inline-flex;align-items:center;background:#E9F2FF;color:#0B4FD8;border-radius:999px;padding:4px 6px 4px 12px;margin:0 6px 6px 0;font-size:13.5px;font-weight:600}.tag .x{border:0;background:transparent;color:#0B4FD8;font-size:18px;line-height:1;cursor:pointer;padding:0 6px}
+.sheet input[type=checkbox]{width:18px;height:18px}#ph_img{max-width:100%;max-height:70vh;border-radius:14px;display:block;margin:0 auto}
 @media(max-width:640px){body.in{padding:12px}.grid{grid-template-columns:1fr}dl{grid-template-columns:110px 1fr}.who2{display:none}}
 </style>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 </head>
 <body>
 <main class="card" id="start">
@@ -71,6 +76,7 @@ dl{display:grid;grid-template-columns:150px 1fr;gap:8px 12px;margin:0 0 14px;fon
     <div class="box"><table><thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Designation</th><th>Department</th><th>Mobile</th><th>Status</th></tr></thead><tbody id="emp_rows"></tbody></table>
       <p class="none" id="emp_none" hidden></p><p class="none muted" id="emp_more" hidden>Only the first 500 are shown – search to find the others.</p></div>
   </section>
+  <section id="p_att" hidden></section>
   <section id="p_mast" hidden>
     <h2 id="m_title" style="margin:0 0 12px;font-size:20px"></h2>
     <div class="tools"><input id="m_name" maxlength="60" aria-label="New name"><button class="pri" id="m_add" type="button">+ Add</button></div>
@@ -159,7 +165,73 @@ dl{display:grid;grid-template-columns:150px 1fr;gap:8px 12px;margin:0 0 14px;fon
   <p class="err" id="i_err" role="alert" hidden></p><div id="i_res" hidden style="margin-top:12px"></div>
   <div class="acts"><button class="sec" type="button" data-close="dlg_imp">Close</button><button class="pri" id="i_save" type="button" hidden></button></div>
 </div></div>
+
+<div class="dlg" id="dlg_place" hidden><form class="sheet wide" id="wp_form" role="dialog" aria-modal="true" aria-labelledby="wp_title" novalidate>
+  <h2 id="wp_title"></h2><p class="sub">Attendance can be marked only inside a work place. A change counts from the next punch – punches already taken stay as they are.</p>
+  <div class="grid">
+    <div><label for="wp_name">Name *</label><input id="wp_name" maxlength="60" autocomplete="off"></div>
+    <div><label for="wp_kind">Kind</label><select id="wp_kind"></select></div>
+    <div><label for="wp_proj">Project</label><select id="wp_proj"></select></div>
+    <div><label for="wp_shape">Shape</label><select id="wp_shape"><option value="circle">A point and so many metres around it</option><option value="polygon">An area drawn on the map</option><option value="corridor">Along the road (so many metres each side)</option></select></div>
+  </div>
+  <p class="muted" id="wp_help" style="margin:12px 0 0"></p><div id="wp_map"></div>
+  <div class="grid">
+    <div class="full grid" id="wp_pt" style="gap:12px"><div><label for="wp_lat">Latitude *</label><input id="wp_lat" inputmode="decimal" autocomplete="off" placeholder="18.520400"></div><div><label for="wp_lng">Longitude *</label><input id="wp_lng" inputmode="decimal" autocomplete="off" placeholder="73.856700"></div></div>
+    <div class="full" id="wp_pts" hidden><span id="wp_count" style="font-weight:600;margin-right:12px"></span><button class="sm ghost" id="wp_undo" type="button">Undo the last point</button> <button class="sm ghost" id="wp_clear" type="button">Start again</button></div>
+    <div id="wp_rad_box"><label for="wp_rad" id="wp_rad_lab">Radius in metres *</label><input id="wp_rad" type="number" min="20" max="5000" step="10"></div>
+    <div><label for="wp_from">From which date (empty = today)</label><input id="wp_from" type="date"></div>
+    <div class="full"><label for="wp_scope">For whom</label><select id="wp_scope"><option value="all">Everybody of the site</option><option value="category">Some categories</option><option value="department">Some departments</option><option value="people">Chosen people</option></select>
+      <div class="vals" id="wp_vals" hidden></div>
+      <div class="pick" id="wp_people" hidden style="margin-top:8px"><input id="wp_find" autocomplete="off" placeholder="Type a name or code to add a person" aria-label="Add a person"><div id="wp_find_list" hidden></div></div></div>
+    <div class="full"><label class="ck"><input id="wp_on" type="checkbox"> On (attendance can be marked here)</label></div>
+    <div class="full" id="wp_del_box" hidden><label for="wp_why">Why is it removed? *</label><input id="wp_why" maxlength="200"></div>
+  </div>
+  <p class="err" id="wp_err" role="alert" hidden></p>
+  <div class="acts"><button class="danger" id="wp_del" type="button" style="margin-right:auto">Remove…</button><button class="sec" type="button" data-aclose="dlg_place">Close</button><button class="pri" id="wp_save" type="submit">Save</button></div>
+</form></div>
+
+<div class="dlg" id="dlg_bulk" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="bk_title">
+  <h2 id="bk_title"></h2><p class="sub">Only what you fill here is changed in all of them – the rest stays as it is.</p>
+  <div class="grid">
+    <div><label for="bk_rad">Metres (empty = as it is)</label><input id="bk_rad" type="number" min="20" max="5000" step="10"></div>
+    <div><label for="bk_on">On / Off</label><select id="bk_on"><option value="">– leave as it is –</option><option value="on">On</option><option value="off">Off</option></select></div>
+    <div><label for="bk_proj">Project</label><select id="bk_proj"></select></div>
+    <div><label for="bk_scope">For whom</label><select id="bk_scope"><option value="">– leave as it is –</option><option value="all">Everybody of the site</option><option value="category">Some categories</option><option value="department">Some departments</option></select></div>
+    <div class="full vals" id="bk_vals" hidden></div>
+  </div>
+  <p class="err" id="bk_err" role="alert" hidden></p>
+  <div class="acts"><button class="sec" type="button" data-aclose="dlg_bulk">Cancel</button><button class="pri" id="bk_save" type="button">Change all</button></div>
+</div></div>
+
+<div class="dlg" id="dlg_many" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mn_title">
+  <h2 id="mn_title">Add many work places</h2><p class="sub">One line a place: <b>Name, latitude, longitude, metres</b> – for example: Gate 2, 18.520400, 73.856700, 150. They are for everybody of the site; change one afterwards if needed. All lines are saved, or none.</p>
+  <label for="mn_proj">Project</label><select id="mn_proj"></select>
+  <label for="mn_text" style="margin-top:12px">The list</label><textarea id="mn_text" style="height:180px" spellcheck="false"></textarea>
+  <div id="mn_res" hidden style="margin-top:12px"></div><p class="err" id="mn_err" role="alert" hidden></p>
+  <div class="acts"><button class="sec" type="button" data-aclose="dlg_many">Close</button><button class="pri" id="mn_save" type="button">Check and save</button></div>
+</div></div>
+
+<div class="dlg" id="dlg_proj" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pj_title">
+  <h2 id="pj_title">Projects</h2><p class="sub">A project groups the work places of one job. A project that is over is switched off – nothing is deleted.</p>
+  <div class="tools"><input id="pj_name" maxlength="60" aria-label="New project"><button class="pri" id="pj_add" type="button">+ Add</button></div>
+  <ul class="mrows" id="pj_rows"></ul><p class="muted" id="pj_none" hidden>No project yet.</p><p class="err" id="pj_err" role="alert" hidden></p>
+  <div class="acts"><button class="pri" type="button" data-aclose="dlg_proj">Close</button></div>
+</div></div>
+
+<div class="dlg" id="dlg_decide" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dc_title">
+  <h2 id="dc_title"></h2><p class="sub">It is written down with your name and the time.</p>
+  <label for="dc_note" id="dc_lab"></label><input id="dc_note" maxlength="200" autocomplete="off">
+  <p class="err" id="dc_err" role="alert" hidden></p>
+  <div class="acts"><button class="sec" type="button" data-aclose="dlg_decide">Cancel</button><button class="pri" id="dc_save" type="button"></button></div>
+</div></div>
+
+<div class="dlg" id="dlg_photo" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ph_title">
+  <h2 id="ph_title"></h2><p class="sub">The photo taken with the punch – kept as proof for 90 days.</p><img id="ph_img" alt="Photo of the punch">
+  <div class="acts"><button class="pri" type="button" data-aclose="dlg_photo">Close</button></div>
+</div></div>
 <p id="toast" role="status" hidden></p>
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="att.js"></script>
 <script src="hr.js"></script>
 <script>
 (function () {

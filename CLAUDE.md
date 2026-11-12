@@ -35,12 +35,19 @@ Store, Engineering and Purchase; the short version:
 * **An employee is not a sign-in:** the Employee Master is HR's; an employee who uses the app is linked to a Portal user.
   Categories: Staff, Operator, Driver, Labour (not the designation). DOB and a verified e-mail (OTP by Resend) are compulsory
   for everybody before activation.
-* **Attendance:** each person punches for himself, **today only** (the server's clock decides the day); GPS + selfie with every
-  punch; a punch is never changed or deleted – a correction (HR Admin / Super Admin) is a new row with the old time, the new
-  time, the reason, who and when; a geofence at every work place; a punch outside is kept and goes to approval; an offline
-  punch is sent later with its own number (never twice) and is approved by itself only when GPS, device, time and integrity
-  are in order; Developer Options ON blocks **only** HR attendance / punch; selfies are kept 90 days (longer under a hold).
-  Labour without a phone: the supervisor's phone (kiosk, Phase 3) or the HR Admin's manual entry (reason, who, when – always).
+* **Attendance (his decisions of 12-11-2026 – the later ones win):** each person punches for himself, **today only** (the
+  server's clock decides the day); GPS + a selfie with every punch – the selfie is **proof only, never checked by a machine; no
+  face recognition**; **nothing outside a work place** (geofence): no punch, no request, nothing is saved; **one phone a person**
+  – only attendance is tied to it, another phone works only after the HR Admin / Super Admin released the old one; Developer
+  Options ON or a made-up location blocks **only** HR attendance / punch; a punch is never changed or deleted (the database
+  refuses it) – a correction (HR Admin / Super Admin) is a new row with the old time, the new time, the reason, who and when;
+  no network: the phone keeps the punch exactly as taken and sends it later with its own number (never twice) – it counts by
+  itself only when the phone's own clock, place and phone are in order, anything doubtful waits for the HR Admin; selfies are
+  kept 90 days (longer under a hold). The HR Admin / Super Admin make projects and work places (a point + metres, an area, along
+  the road; for whom; one by one or many at once); a real **site** stays the Portal's. Labour without a phone: the HR Admin's
+  manual entry (reason, who, when – always).
+* **"My HR" (`hrme`):** a second module key of the Portal for an employee who uses HR only for himself (role `self`): his own
+  attendance and nothing of the office's pages. The employee is found by the e-mail of his sign-in in the Employee Master.
 * **Payroll for everybody**, by category and salary type; PF, ESIC, PT, LWF, TDS and the late / absent rules are settings with
   dates, never numbers in the code; a locked month is never recalculated; two months beside the present method first.
 * **Phases:** 1 foundation + Employee Master + import · 2 shifts, holidays, geofence, attendance, rules, muster · 3 face +

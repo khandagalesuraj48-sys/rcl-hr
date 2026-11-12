@@ -6,10 +6,13 @@ const { handler, send } = require('../lib/http');
 const ses = require('../lib/session');
 const PAGES = [
   { key: 'employees', name: 'Employees', who: 'all' },
+  { key: 'attendance', name: 'Attendance', who: 'all' },      // (step 4) the day's punches; work places (geofences); the phones
+  { key: 'places', name: 'Work places', who: 'all' },
+  { key: 'phones', name: 'Phones', who: 'all' },
   { key: 'departments', name: 'Departments', who: 'admin' },
   { key: 'designations', name: 'Designations', who: 'admin' },
 ];
-const mayOpen = (who, role) => who === 'all' || (who === 'admin' && (role === 'admin' || role === 'super'));
+const mayOpen = (who, role) => role === 'self' ? false : who === 'all' || (who === 'admin' && (role === 'admin' || role === 'super'));
 module.exports = handler(async (req, res) => {
   let s = null; try { s = await ses.read(req); } catch (e) { s = null; }
   send(res, 200, { module: 'hr', name: 'HR', pages: PAGES.filter(p => !s || mayOpen(p.who, s.role)).map(p => ({ key: p.key, name: p.name })) });

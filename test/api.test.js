@@ -137,3 +137,98 @@ test('his papers: sent to the private store, opened by a short link; pay papers 
   assert.deepStrictEqual([gone.active, gone.removed_by, gone.removed_reason, gone.canOpen], [false, 'admin@rig.test', 'Wrong file', false], 'the row stays'); assert.ok(l.docsMissing.indexOf('Driving licence') > -1);
   assert.deepStrictEqual((await db('GET', 'hr_audit?select=action&site=eq.' + s.site + '&action=like.Paper*&order=id')).map(x => x.action), ['Paper attached', 'Paper attached', 'Paper opened', 'Paper opened', 'Paper removed']);
 });
+
+/* ───────────── step 4: attendance (made-up people and places) ───────────── */
+const HQ = { lat: 18.5204, lng: 73.8567 };      // a point of a map – nobody's place
+const self = (email, site) => ({ site: site || SITE, email: email, name: 'Rig self', role: 'self', info: { sites: [] } });
+const cid = () => require('crypto').randomBytes(12).toString('hex');
+const selfie = async (s, c) => { const u = await ACT.selfieUrl(s, { client_id: c }); if (u.there) throw new Error('the photo is there already'); const r = await fetch(u.url, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg', 'x-upsert': 'false' }, body: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]) }); assert.ok(r.ok, 'the photo is taken: ' + r.status); return c; };
+const P = (over) => Object.assign({ kind: 'in', lat: HQ.lat, lng: HQ.lng, accuracy_m: 12, device: { id: 'rig-phone-' + tag + '-1', model: 'Rig Phone', os: 'Android 15' } }, over);
+let E1, E2, mail1, mail2, placeId;
+
+test('work places: only the HR Admin; a circle, an area, along the road; for whom; many at once; a removed place stays for its punches', async () => {
+  mail1 = mail('p1'); mail2 = mail('p2');
+  E1 = await ACT.empSave(user, { name: 'Punch One', category: 'staff', mobile: mob(), email: mail1, dob: '1991-01-01' });
+  E2 = await ACT.empSave(user, { name: 'Punch Two', category: 'labour', mobile: mob(), email: mail2, dob: '1992-02-02' });
+  await no(ACT.placeSave(user, { name: 'X' }), /Only the HR Admin/, 403); await no(ACT.placeList(self(mail1)), /HR office only/, 403);
+  await no(ACT.placeSave(admin, { name: 'O', radius_m: 5 }), /Name: at least 2 letters\. Place it on the map.*Radius: 20 to 5000 metres\./, 400);
+  let l = await ACT.projSave(admin, { name: 'Project ' + tag }); const proj = l.projects[0]; await no(ACT.projSave(admin, { name: 'project ' + tag.toLowerCase() }), /already in the list/, 409);
+  l = await ACT.placeSave(admin, { name: 'Office ' + tag, kind: 'office', lat: HQ.lat, lng: HQ.lng, radius_m: 150, project_id: proj.id, valid_from: '2026-01-01' }); placeId = l.id;
+  assert.deepStrictEqual([l.places.length, l.places[0].scope, l.places[0].radius_m, l.places[0].project_id], [1, 'all', 150, proj.id]);
+  await no(ACT.placeSave(admin, { name: 'office ' + tag.toLowerCase(), lat: 1, lng: 1, radius_m: 100 }), /already there/, 409);
+  await no(ACT.placeSave(admin, { name: 'Camp ' + tag, lat: 18.6, lng: 73.9, radius_m: 100, scope: 'people', people: [] }), /choose at least one employee/);
+  l = await ACT.placeSave(admin, { name: 'Camp ' + tag, kind: 'camp', lat: 18.6, lng: 73.9, radius_m: 100, scope: 'people', people: [E2.id], valid_from: '2026-01-01' }); const camp = l.id;
+  assert.deepStrictEqual(l.places.find(p => p.id === camp).people, [E2.id]);
+  l = await ACT.placeSave(admin, { name: 'Road ' + tag, shape: 'corridor', points: [[18.70, 73.80], [18.70, 73.90]], radius_m: 60, scope: 'category', scope_values: ['labour'], valid_from: '2026-01-01' }); const road = l.id;
+  l = await ACT.placeSave(admin, { name: 'Yard ' + tag, shape: 'polygon', points: [[18.80, 73.80], [18.80, 73.81], [18.81, 73.81], [18.81, 73.80]], valid_from: '2026-01-01' }); const yard = l.id;
+  // many at once
+  await no(ACT.placeBulk(admin, { ids: [placeId, yard], radius_m: 300 }), /cannot be set for an area drawn/);
+  await no(ACT.placeBulk(admin, { ids: [placeId, camp] }), /Nothing to change/);
+  l = await ACT.placeBulk(admin, { ids: [camp, road], radius_m: 250, scope: 'all' }); assert.strictEqual(l.changed, 2);
+  assert.deepStrictEqual(l.places.filter(p => p.id === camp || p.id === road).map(p => [p.radius_m, p.scope, p.people.length]), [[250, 'all', 0], [250, 'all', 0]]);
+  l = await ACT.placeImport(admin, { rows: [{ name: 'Gate A ' + tag, lat: 18.9, lng: 73.9, radius_m: 80 }, { name: 'Gate A ' + tag, lat: 18.9, lng: 73.9, radius_m: 80 }, { name: 'Gate C ' + tag, lat: 99, lng: 73.9, radius_m: 80 }] });
+  assert.deepStrictEqual([l.saved, l.lines.map(x => x.line)], [0, [2, 3]], 'all or none');
+  l = await ACT.placeImport(admin, { rows: [{ name: 'Gate A ' + tag, lat: 18.9, lng: 73.9, radius_m: 80 }, { name: 'Gate B ' + tag, lat: 18.91, lng: 73.9, radius_m: 80 }] }); assert.strictEqual(l.saved, 2);
+  await no(ACT.placeRemove(admin, { id: yard, reason: '' }), /write why/); l = await ACT.placeRemove(admin, { id: yard, reason: 'Work over' });
+  assert.ok(!l.places.some(p => p.id === yard)); assert.strictEqual((await db('GET', 'hr_places?select=removed_by,active&id=eq.' + yard))[0].removed_by, 'admin@rig.test', 'the row stays');
+  await no(ACT.placeSave(ses('admin', SITE2), { id: placeId, name: 'Stolen', lat: 1, lng: 1, radius_m: 100 }), /not found on this site/, 404);
+});
+
+test('a punch: himself only, inside only, with a photo, IN then OUT, sent twice kept once; Developer Options / made-up location refused', async () => {
+  const s1 = self(mail1);
+  await no(ACT.myAttend(self(mail('nobody'))), /not in the Employee Master/, 403);
+  let a = await ACT.myAttend(s1, { device_id: P().device.id });
+  assert.deepStrictEqual([a.employee.code, a.may, a.phone, a.next, a.punches.length, a.day], [E1.code, true, 'none', 'in', 0, require('../lib/rules').today()]); assert.ok(a.places.some(p => p.id === placeId) && !a.places.some(p => /Yard/.test(p.name)));
+  const c1 = cid();
+  await no(ACT.punch(s1, P({ client_id: 'short' })), /Bad punch/);
+  await no(ACT.punch(s1, P({ client_id: c1, dev_options: true })), /Developer Options are ON/, 403);
+  await no(ACT.punch(s1, P({ client_id: c1, mock: true })), /made-up location/, 403);
+  await no(ACT.punch(s1, P({ client_id: c1, accuracy_m: 400 })), /not exact enough yet \(400 m\)/);
+  await no(ACT.punch(s1, P({ client_id: c1, lat: undefined })), /location was not received/);
+  await no(ACT.punch(s1, P({ client_id: c1, lat: HQ.lat + 0.01 })), /outside your work place/, 403);
+  await no(ACT.punch(s1, P({ client_id: c1 })), /photo of this punch did not arrive/);
+  assert.strictEqual((await db('GET', 'hr_punches?select=id&employee_id=eq.' + E1.id)).length, 0, 'nothing was saved by a refused punch'); assert.strictEqual((await db('GET', 'hr_devices?select=id&employee_id=eq.' + E1.id)).length, 0, 'and no phone tied');
+  await selfie(s1, c1); await no(selfie(s1, c1), /there already/);      // a photo is never replaced
+  let r = await ACT.punch(s1, P({ client_id: c1, kind: 'out' })).catch(e => e); assert.match(r.message, /Mark IN first/);
+  r = await ACT.punch(s1, P({ client_id: c1 })); assert.deepStrictEqual([r.again, r.punch.kind, r.punch.status, r.next, r.place], [false, 'in', 'ok', 'out', 'Office ' + tag]);
+  const again = await ACT.punch(s1, P({ client_id: c1 })); assert.deepStrictEqual([again.again, again.punch.id, again.punches.length], [true, r.punch.id, 1], 'sent twice, kept once');
+  await no(ACT.punch(self(mail2), P({ client_id: c1, device: { id: 'rig-phone-' + tag + '-2' } })), /Bad punch number/, 409);
+  await no(ACT.punch(s1, P({ client_id: await selfie(s1, cid()) })), /already IN since \d\d:\d\d/, 409);
+  r = await ACT.punch(s1, P({ client_id: await selfie(s1, cid()), kind: 'out' })); assert.deepStrictEqual([r.punch.kind, r.next, r.punches.length], ['out', 'in', 2]);
+  a = await ACT.myAttend(s1, { device_id: P().device.id }); assert.deepStrictEqual([a.phone, a.punches.map(p => p.kind)], ['this', ['in', 'out']]);
+  const mo = await ACT.myMonth(s1, {}); assert.deepStrictEqual([mo.days.length, mo.days[0].punches, /^\d\d:\d\d$/.test(mo.days[0].in), /^\d\d:\d\d$/.test(mo.days[0].out)], [1, 2, true, true]);
+  // the database itself: a punch is never changed or deleted
+  await no(db('PATCH', 'hr_punches?id=eq.' + r.punch.id, { kind: 'in' }), /Database|refused/); await no(db('DELETE', 'hr_punches?id=eq.' + r.punch.id), /Database|refused/);
+});
+
+test('one phone a person: another phone and another person\'s phone are refused and noted; the HR Admin releases it', async () => {
+  const s1 = self(mail1), s2 = self(mail2), other = { id: 'rig-phone-' + tag + '-9', model: 'Other Phone' };
+  await no(ACT.punch(s1, P({ client_id: await selfie(s1, cid()), device: other })), /tied to another phone/, 403);
+  await no(ACT.punch(s2, P({ client_id: await selfie(s2, cid()) })), /already tied to another employee/, 403);      // E2 on E1's phone
+  let d = await ACT.devList(user); const mine = d.devices.find(x => x.code === E1.code);
+  assert.deepStrictEqual([mine.active, mine.model, mine.device_id, mine.mark.length], [true, 'Rig Phone', undefined, 6]); assert.deepStrictEqual(d.tries.map(t => t.why).sort(), ['another phone', 'phone of another person']);
+  await no(ACT.devRelease(user, { id: mine.id, reason: 'New phone' }), /Only the HR Admin/, 403); await no(ACT.devRelease(admin, { id: mine.id, reason: '' }), /write why/);
+  await no(ACT.devRelease(ses('admin', SITE2), { id: mine.id, reason: 'New phone' }), /not found on this site/, 404);
+  d = await ACT.devRelease(admin, { id: mine.id, reason: 'New phone' }); assert.deepStrictEqual([d.devices.find(x => x.id === mine.id).active, d.devices.find(x => x.id === mine.id).released_by], [false, 'admin@rig.test']);
+  await no(ACT.devRelease(admin, { id: mine.id, reason: 'Again' }), /already released/);
+  const r = await ACT.punch(s1, P({ client_id: await selfie(s1, cid()), device: other })); assert.strictEqual(r.punch.kind, 'in');
+  assert.strictEqual((await ACT.myAttend(s1, { device_id: other.id })).phone, 'this');
+});
+
+test('no network: the punch counts for its own moment when the phone\'s clock is in order; anything doubtful waits for the HR Admin', async () => {
+  const s2 = self(mail2), dev = { id: 'rig-phone-' + tag + '-2', model: 'Second Phone' }, now = Date.now(), back = 20 * 60000;
+  const off = (over) => P(Object.assign({ device: dev, offline: true, anchor_server: now - 3600000, anchor_elapsed: 5000000, elapsed: 5000000 + 3600000 - back, at_device: new Date(now - back + 3000).toISOString() }, over));
+  let r = await ACT.punch(s2, off({ client_id: await selfie(s2, cid()) })); assert.deepStrictEqual([r.punch.status, r.punch.offline], ['ok', true]); assert.ok(Math.abs(Date.parse(r.punch.at) - (now - back)) < 2000, 'its own moment, not the moment it arrived');
+  await no(ACT.punch(s2, off({ client_id: await selfie(s2, cid()), kind: 'out', lat: HQ.lat + 0.02 })), /outside your work place/, 403);      // outside: never, offline too
+  r = await ACT.punch(s2, off({ client_id: await selfie(s2, cid()), kind: 'out', elapsed: 1000, at_device: new Date(now - 60000).toISOString() }));      // the phone was restarted in between
+  assert.strictEqual(r.punch.status, 'review');
+  await no(ACT.punchDay(self(mail2), {}), /HR office only/, 403);
+  let d = await ACT.punchDay(user, { review: 1 }); const w = d.punches.find(p => p.id === r.punch.id); assert.ok(w && w.code === E2.code && /restarted/.test(w.why.join()));
+  const day = await ACT.punchDay(user, {}); assert.ok(day.punches.length >= 5 && day.punches.every(p => p.place === 'Office ' + tag));
+  assert.match((await ACT.punchSelfie(user, { id: w.id })).url, /\/storage\/v1\/object\/sign\/hr-selfies\//); await no(ACT.punchSelfie(ses('user', SITE2), { id: w.id }), /not found on this site/, 404);
+  await no(ACT.punchReview(user, { id: w.id, decision: 'accepted' }), /Only the HR Admin/, 403); await no(ACT.punchReview(admin, { id: w.id, decision: 'refused' }), /write why it is refused/);
+  await no(ACT.punchReview(admin, { id: day.punches.find(p => p.status === 'ok').id, decision: 'accepted' }), /needs no decision/);
+  d = await ACT.punchReview(admin, { id: w.id, decision: 'accepted', note: 'Phone was restarted, seen at site' }); assert.ok(!d.punches.some(p => p.id === w.id));
+  await no(ACT.punchReview(admin, { id: w.id, decision: 'refused', note: 'again' }), /already decided/, 409);
+  assert.deepStrictEqual((await db('GET', 'hr_punches?select=status&id=eq.' + w.id))[0], { status: 'review' }, 'the punch itself stays as it came');
+});

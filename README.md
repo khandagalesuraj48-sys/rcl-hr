@@ -38,6 +38,28 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     experience letter, other. JPG / PNG / WebP / PDF, 10 MB. Opened by a link of 5 minutes; **the pay papers (bank passbook,
     salary slip) only by the HR Admin / Super Admin**; every opening is written down. Removed = kept, with who and why.
   * The employee's page says which papers are still expected (a driver: his licence) – a reminder, never a block.
+* **Attendance, the core (12-11-2026: "GEOFENCE BAHER KAHICH NHI HONAR", "DEVICE BINDING", "SELFI … FKT PROOF")** –
+  `sql/hr_step4_attendance.sql` (run by the owner in rcl-hr, after step 3): `hr_projects`, `hr_places`, `hr_place_people`,
+  `hr_devices`, `hr_device_tries`, `hr_punches`, `hr_punch_reviews`, the PRIVATE bucket `hr-selfies`; the role `self`.
+  `lib/geo.js` (inside / how far), `lib/attend.js` (the rules), `lib/act_attend.js` (the actions), `public/att.js` (the pages).
+  * **Work places** (`placeList`, `placeSave`, `placeBulk`, `placeImport`, `placeRemove`, `projSave` – changes: HR Admin / Super
+    Admin): a point + metres (20–5000), an area drawn on the map, or along the road with metres each side; for everybody, some
+    categories, some departments or chosen people; from a date; On / Off; many at once. Removed = kept with who and why.
+    The map: Leaflet (BSD, `public/vendor/leaflet`) with OpenStreetMap's pictures.
+  * **A punch** (`myAttend`, `selfieUrl`, `punch`, `myMonth` – every person for himself; the employee is the one whose e-mail the
+    sign-in has): today only by the server's clock; refused – and nothing saved – outside his work places, with a reading worse
+    than 100 m, with Developer Options ON or a made-up location, from another phone, without its photo, IN after IN / OUT
+    without IN. The first punch ties the phone (`hr_devices`); one phone a person and one person a phone – the database itself
+    holds it. The photo goes straight to the private bucket (JPEG, 1 MB) and is never replaced.
+  * **No network:** the phone sends the punch later with its own number (`client_id` – sent twice, kept once), the server's time
+    of its last contact and its own counter since switch-on; in order → it counts for its own moment; restarted, clock moved,
+    older than 72 hours or out of order → `review`: the HR Admin accepts or refuses (`punchReview`, a new row – the punch stays).
+  * **Phones** (`devList`, `devRelease` – HR Admin / Super Admin, with a reason); tries from another phone are listed.
+  * **"My HR"** – the Portal's second module key `hrme` gives the role `self`: only the four actions above, no page of the office.
+  * `hr_punches`, `hr_punch_reviews`, `hr_device_tries`: the server's key may only read and add – never change or delete.
+  * Not built yet: shifts, holidays, the late / half-day rules, the muster, regularization, manual entry, the correction of a
+    punch, the removal of photos after 90 days, the check of the phone by Play Integrity; until the e-mail OTP is there an
+    employee whose details are complete ("pending") may punch (`MAY_PUNCH` in `lib/act_attend.js`).
   * Today HR fills these. The employee filling them himself comes with his own sign-in (the activation step).
 * **Not built yet (the next steps of Phase 1):** activation by e-mail OTP (Resend) and the sign-in with mobile number or e-mail
   (a change in the Portal – asked for separately), the Payroll-only details (bank account, PF…), the finer roles and powers,
