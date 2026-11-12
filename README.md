@@ -103,6 +103,10 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
   again every minute while it is on the screen). The muster (`public/mus.js`) has colour cells (L = present but late) and a
   day opens in a **panel on the right** – the same actions as before (`dayGet`, `daySet`, `regDecide`); `dayGet` now also gives
   each punch's work place. "Tried from outside" of the picture is not there: nothing is saved outside a work place.
+* **An employee's sign-in for the app (12-11-2026)** – the employee's page: "Sign-in for the app…" (HR Admin / Super Admin). The
+  page asks the Portal (`<portal>/api/hrlogin`, with the person's own Portal sign-in – `HRPORTAL` in `public/index.html`); the
+  Portal makes the user, gives "My HR" (`hrme`) on the employee's site and answers a one-time password, shown once. HR's server
+  has no part in it and keeps nothing. Needs the module `hrme` in the Portal.
 * **The muster, shifts, rules, requests (12-11-2026)** – `sql/hr_step5_muster.sql` (run by the owner in rcl-hr, after step 4):
   `hr_shifts`, `hr_shift_people`, `hr_holidays`, `hr_att_rules`, `hr_regularize`, `hr_day_entries`, `hr_admin_powers`.
   `lib/day.js` (one day → its code), `lib/powers.js`, `lib/act_muster.js` (the actions), `public/mus.js` (the pages).
