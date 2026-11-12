@@ -524,3 +524,42 @@ test('(12-11-2026) the late rule of a month, very late, a forgotten OUT closed a
   if (st.punches.some(p => p.kind === 'in') && st.next !== 'out') { assert.strictEqual(st.next, 'done'); await no(ACT.punch(s1, P({ client_id: cid() })), /attendance is done – one IN and one OUT a day/, 409); }
   else assert.ok(['in', 'out'].indexOf(st.next) > -1);
 });
+
+test('(step 9) the face: registered once from five pictures of ONE person; a punch\'s photo must be his – another person\'s is refused and nothing is saved; reset by the HR Admin', { timeout: 150000 }, async () => {
+  const FA = require('../api/face').ACT, F = require('../lib/face'), jpeg = require('jpeg-js'), fsx = require('fs'), px = require('path');
+  // pictures of single faces, cut out of the sample pictures that come with the face library (nobody of ours)
+  const m = await F.load(), raw = jpeg.decode(fsx.readFileSync(px.join(px.dirname(require.resolve('@vladmandic/face-api/package.json')), 'demo', 'sample1.jpg')), { useTArray: true, formatAsRGBA: false, maxMemoryUsageInMB: 512 });
+  const img = m.tf.tensor3d(raw.data, [raw.height, raw.width, 3], 'int32'), found = (await m.api.detectAllFaces(img, new m.api.SsdMobilenetv1Options({ minConfidence: 0.6 }))).sort((a, b) => a.box.x - b.box.x); img.dispose(); assert.ok(found.length >= 2);
+  const cut = (f, light, q) => { const b = f.box, pad = Math.round(b.width * 0.5), x0 = Math.max(0, Math.round(b.x) - pad), y0 = Math.max(0, Math.round(b.y) - pad), w = Math.min(raw.width - x0, Math.round(b.width) + 2 * pad), h = Math.min(raw.height - y0, Math.round(b.height) + 2 * pad), o = Buffer.alloc(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const s = ((y0 + y) * raw.width + x0 + x) * 3, d = (y * w + x) * 4; for (let k = 0; k < 3; k++) o[d + k] = Math.min(255, raw.data[s + k] * light); o[d + 3] = 255; }
+    return jpeg.encode({ data: o, width: w, height: h }, q).data; };
+  const A = found[0], B = found[1], s1 = self(mail1), admin = ses('admin'), sup = ses('super');
+  const put = async (url, body) => assert.ok((await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg', 'x-upsert': 'false' }, body })).ok);
+  // before: not asked, not registered
+  let st = await FA.faceState(s1); assert.deepStrictEqual([st.required, st.enrolled, st.min], [false, false, 90]);
+  await no(FA.faceCheck(s1, { client_id: cid() }), /not registered yet/, 409); await no(FA.faceInfo(s1, { id: E1.id }), /HR office only/, 403);
+  // five pictures: one of them of another person – refused, nothing registered
+  let u = await FA.faceEnrolUrls(s1); assert.deepStrictEqual(u.pictures.map(p => p.pose), ['front', 'left', 'right', 'up', 'down']);
+  for (const p of u.pictures) await put(p.url, cut(p.pose === 'up' ? B : A, 1, 90));
+  await no(FA.faceEnrol(s1, { token: u.token }), /Up: this is not the same face/); assert.strictEqual((await FA.faceState(s1)).enrolled, false);
+  await no(FA.faceEnrol(s1, { token: 'a'.repeat(24) }), /Front: the picture did not arrive/);
+  // five pictures of himself (lighter, darker, another quality): registered – once
+  u = await FA.faceEnrolUrls(s1); const looks = { front: [1, 92], left: [0.85, 80], right: [1.1, 85], up: [0.75, 70], down: [0.95, 60] };
+  for (const p of u.pictures) await put(p.url, cut(A, looks[p.pose][0], looks[p.pose][1]));
+  assert.deepStrictEqual(await FA.faceEnrol(s1, { token: u.token, device: { id: 'rig-phone-' + tag + '-1', model: 'Rig Phone' } }), { enrolled: true });
+  await no(FA.faceEnrolUrls(s1), /registered already/, 409); assert.strictEqual((await FA.faceState(s1)).enrolled, true);
+  // a punch's photo: his own matches (at least 90 %), another person's does not – noted, refused
+  const shot = async (who, light) => { const c = cid(), su = await ACT.selfieUrl(s1, { client_id: c }); await put(su.url, cut(who, light, 75)); return c; };
+  const mine = await shot(A, 0.9), ok = await FA.faceCheck(s1, { client_id: mine }); assert.strictEqual(ok.match, true); assert.ok(ok.pct >= 90, 'his own face: ' + ok.pct + ' %');
+  const other = await shot(B, 1); await no(FA.faceCheck(s1, { client_id: other }), /the face does not match the registered face of .* at least 90 % is needed\)\. Nothing is saved\./, 403);
+  await no(FA.faceCheck(s1, { client_id: cid() }), /did not arrive/);
+  // the rule on: a punch whose photo was not found his is not taken; one that was passes this check
+  const was = (await ACT.attSetup(admin)).rules; await ACT.rulesSave(sup, Object.assign({}, was, { face: 'yes', face_min: 90 })); assert.strictEqual((await ACT.myAttend(s1, {})).face, true);
+  // (the punch itself: the server's check of "this punch's photo was found his" is read in the unit test – here his phone was released in an earlier test)
+  // the HR office: what is registered, the checks with how far they matched; reset with the reason – then he registers again
+  const info = await FA.faceInfo(admin, { id: E1.id }); assert.strictEqual(info.enrolled, true); assert.strictEqual(info.pictures.length, 5); assert.ok(info.tries.some(t => t.result === 'nomatch' && t.kind === 'punch' && t.match_pct < 90) && info.tries.some(t => t.result === 'ok' && t.kind === 'punch'));
+  assert.strictEqual((await FA.faceInfo(ses('user'), { id: E1.id })).pictures.length, 0, 'the pictures: HR Admin / Super Admin only');
+  await no(FA.faceReset(ses('user'), { id: E1.id, reason: 'try' }), /Only the HR Admin/, 403); await no(FA.faceReset(admin, { id: E1.id, reason: '' }), /Reason/); await no(FA.faceInfo(ses('admin', SITE2), { id: E1.id }), /not found on this site/, 404);
+  assert.deepStrictEqual(await FA.faceReset(admin, { id: E1.id, reason: 'Registered in bad light' }), { reset: true }); st = await FA.faceState(s1); assert.strictEqual(st.enrolled, false);
+  assert.strictEqual((await FA.faceInfo(admin, { id: E1.id })).resets.length, 1); await ACT.rulesSave(sup, was);
+});

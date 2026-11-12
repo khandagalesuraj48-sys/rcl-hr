@@ -439,7 +439,7 @@ test('an employee\'s page opens at once from the list; nothing of him is changed
   const js = fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8'), api = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8');
   assert.match(js, /if \(had\) \{ drawEmp\(\{ employee: had, history: \[\], boss: null \}, false\); show\('dlg_emp'\); \}/);
   assert.match(js, /if \(seq !== S\.seq \|\| \(had && \$\('dlg_emp'\)\.hidden\)\) return;/, 'closed or another opened meanwhile: the late answer is dropped');
-  assert.match(js, /\['d_prof', 'd_kyc', 'd_docs', 'd_login', 'd_del', 'd_exit', 'd_tr', 'd_edit'\]\.forEach\(function \(b\) \{ \$\(b\)\.disabled = !full; \}\);/);
+  assert.match(js, /\['d_prof', 'd_kyc', 'd_docs', 'd_login', 'd_facebtn', 'd_del', 'd_exit', 'd_tr', 'd_edit'\]\.forEach\(function \(b\) \{ \$\(b\)\.disabled = !full; \}\);/);
   assert.ok(!/localStorage|sessionStorage/.test(js.slice(js.indexOf('function openEmp'), js.indexOf('function login()'))), 'kept in the page\'s memory only');
   for (const a of ['empList', 'empGet', 'privGet']) { const i = api.indexOf('async ' + a + '('); assert.match(api.slice(i, i + 1400), /await Promise\.all\(\[db\('GET'/, a); }
 });
@@ -480,4 +480,22 @@ test('(12-11-2026) once a day; a forgotten OUT closed at the shift\'s own time =
   assert.deepStrictEqual(S([P('in', day, '08:20')], T(next, '08:00'), {}, { start_time: '08:30', end_time: '18:00' }), ['in', '', 0, 0], 'no closing time: yesterday\'s IN is open for 20 hours only');
   const src = fs.readFileSync(path.join(root, 'lib', 'act_attend.js'), 'utf8');
   assert.match(src, /if \(kind === 'in' && st\.next === 'done'\) throw fail\(409, 'Today\\'s attendance is done – one IN and one OUT a day\./); assert.ok(!/PATCH', 'hr_punches|DELETE', 'hr_punches/.test(src), 'a punch is never changed or deleted – a closed day is only read so');
+});
+
+test('(step 9) the face: the percentage from the model\'s distance, the site\'s rule, the nearest registered picture; no punch without the check; only himself; nothing deleted', () => {
+  const F = require('../lib/face'), D = require('../lib/day');
+  assert.deepStrictEqual([0, 0.3, 0.45, 0.5, 0.6, 0.7, 1].map(F.pct), [100, 99, 90, 81, 50, 19, 0], '0.45 reads 90 %, the model\'s own line 0.6 reads 50 %');
+  assert.ok(Math.abs(F.distOf(90) - 0.45) < 1e-9); assert.ok(F.pct(F.distOf(80)) === 80 && F.distOf(80) > F.distOf(90), 'a lower percentage allows a wider distance');
+  assert.deepStrictEqual([F.minOf({}), F.minOf({ face_min: 85 }), F.minOf({ face_min: 10 }), F.minOf(null)], [90, 85, 90, 90], '90 unless the site set its own');
+  const a = new Array(128).fill(0), b = a.slice(); b[0] = 0.3; const c = a.slice(); c[0] = 0.8;
+  assert.deepStrictEqual(F.nearest([c, b], a), { distance: 0.3, pct: 99 }, 'the nearest of the registered pictures counts'); assert.deepStrictEqual(F.nearest([], a), { distance: Infinity, pct: 0 });
+  assert.deepStrictEqual(D.rules({ face: 'yes', face_min: 90 }).rules, { face_min: 90, face: true }); assert.match(D.rules({ face_min: 30 }).errors.join(), /Face: at least/); assert.deepStrictEqual(D.rules({ face: '' }).rules, {}, 'not asked unless switched on');
+  const att = fs.readFileSync(path.join(root, 'lib', 'act_attend.js'), 'utf8'), face = fs.readFileSync(path.join(root, 'api', 'face.js'), 'utf8'), FA = require('../api/face');
+  assert.match(att, /if \(st\.face\) \{\s+let seen; try \{ seen = \(await db\('GET', 'hr_face_tries\?select=id&employee_id=eq\.' \+ emp\.id \+ '&client_id=eq\.' \+ cid \+ '&kind=eq\.punch&result=eq\.ok&limit=1'\)\)/, 'this punch\'s own photo must have been found his');
+  assert.ok(att.indexOf('if (st.face) {') < att.indexOf("await db('POST', 'hr_punches'"), 'checked before anything is saved');
+  assert.deepStrictEqual(FA.SELF, ['faceState', 'faceEnrolUrls', 'faceEnrol', 'faceCheck']); for (const k of FA.SELF) { assert.match(String(FA.ACT[k]), /const emp = await me\(s\)/, k); assert.ok(!/x\.id\b/.test(String(FA.ACT[k])), k + ': no employee id from the phone'); }
+  assert.match(String(FA.ACT.faceInfo), /needOffice\(s\)/); assert.match(String(FA.ACT.faceReset), /if \(!isAdmin\(s\)\) throw fail\(403/);
+  assert.ok(!/'DELETE'/.test(face), 'a face is reset, never deleted'); assert.match(face, /if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403/);
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')); assert.ok(v.functions['api/face.js'].includeFiles.indexOf('face-api/model') > -1, 'the model goes with the endpoint');
+  const sql = fs.readFileSync(path.join(root, 'sql', 'hr_step9_faces.sql'), 'utf8'); assert.ok(!/drop table|delete from|truncate/i.test(sql.replace(/^--.*$/gm, '')), 'the step deletes nothing'); assert.match(sql, /grant select, insert on public\.hr_face_tries to service_role;/);
 });
