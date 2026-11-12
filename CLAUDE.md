@@ -46,6 +46,10 @@ Store, Engineering and Purchase; the short version:
   kept 90 days (longer under a hold). The HR Admin / Super Admin make projects and work places (a point + metres, an area, along
   the road; for whom; one by one or many at once); a real **site** stays the Portal's. Labour without a phone: the HR Admin's
   manual entry (reason, who, when – always).
+* **The muster:** the late / half-day / absent rules, the shifts and the weekly off are **settings with a date** (a new
+  version; a day keeps the version of that day) – a rule left empty is not applied, no number in the code. A manual entry, a
+  correction and an approved request are NEW rows (old times, new times, reason, who, when); the punches stay. **The Super
+  Admin gives or takes each power of the HR Admin per site** (`hr_admin_powers`).
 * **"My HR" (`hrme`):** a second module key of the Portal for an employee who uses HR only for himself (role `self`): his own
   attendance and nothing of the office's pages. The employee is found by the e-mail of his sign-in in the Employee Master.
 * **Payroll for everybody**, by category and salary type; PF, ESIC, PT, LWF, TDS and the late / absent rules are settings with

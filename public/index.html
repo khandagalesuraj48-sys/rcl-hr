@@ -49,7 +49,12 @@ dl{display:grid;grid-template-columns:150px 1fr;gap:8px 12px;margin:0 0 14px;fon
 .ck{display:inline-flex;align-items:center;gap:6px;font-weight:500;margin:0 14px 6px 0}.ck input{width:18px;height:18px}.sheet.wide{max-width:900px}
 #wp_map{height:320px;border:1px solid #D7E0EF;border-radius:14px;margin:4px 0 12px;background:#EEF2F8;z-index:0}.vals{background:#F6F9FF;border-radius:12px;padding:10px 12px;margin-top:8px}
 .tag{display:inline-flex;align-items:center;background:#E9F2FF;color:#0B4FD8;border-radius:999px;padding:4px 6px 4px 12px;margin:0 6px 6px 0;font-size:13.5px;font-weight:600}.tag .x{border:0;background:transparent;color:#0B4FD8;font-size:18px;line-height:1;cursor:pointer;padding:0 6px}
-.sheet input[type=checkbox]{width:18px;height:18px}#ph_img{max-width:100%;max-height:70vh;border-radius:14px;display:block;margin:0 auto}
+.sheet input[type=checkbox],.box input[type=checkbox]{width:18px;height:18px}.box .grid input,.box .grid select{width:100%;height:44px;border:1px solid #D7E0EF;border-radius:12px;padding:0 12px;background:#fff}
+table.mus th,table.mus td{padding:6px 3px;text-align:center}table.mus th:nth-child(-n+2),table.mus td:nth-child(-n+2){text-align:left;padding:8px 10px;position:sticky;background:#fff;z-index:1}table.mus th:first-child,table.mus td:first-child{left:0}table.mus th:nth-child(2),table.mus td:nth-child(2){left:74px;box-shadow:1px 0 0 #E3EAF6}
+table.mus td:first-child,table.mus th:first-child{min-width:74px;max-width:74px}th.md{font-size:12px;letter-spacing:0;min-width:34px}th.md .wd{font-size:10px;font-weight:500}th.md.free{color:#B42318}th.md.today{color:#1570EF}th.mt,td.mt{font-weight:700;padding:6px 8px!important;min-width:44px}
+.mc{display:inline-block;min-width:30px;border:0;border-radius:8px;padding:5px 3px;font-size:11.5px;font-weight:700;cursor:pointer;background:#EEF0F4;color:#566589}span.mc{cursor:default;padding:2px 6px}
+.mc.c-P,.mc.c-WOP,.mc.c-HP{background:#DDF3E4;color:#146C2E}.mc.c-HD{background:#FFF1DA;color:#8A5300}.mc.c-A{background:#FDE3E0;color:#B42318}.mc.c-MIS{background:#B42318;color:#fff}.mc.c-IN{background:#E0ECFF;color:#0B4FD8}.mc.c-WO,.mc.c-H{background:#EEF0F4;color:#566589}.mc.c-none{background:transparent;color:#B9C2D4}
+#ph_img{max-width:100%;max-height:70vh;border-radius:14px;display:block;margin:0 auto}
 @media(max-width:640px){body.in{padding:12px}.grid{grid-template-columns:1fr}dl{grid-template-columns:110px 1fr}.who2{display:none}}
 </style>
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
@@ -77,6 +82,7 @@ dl{display:grid;grid-template-columns:150px 1fr;gap:8px 12px;margin:0 0 14px;fon
       <p class="none" id="emp_none" hidden></p><p class="none muted" id="emp_more" hidden>Only the first 500 are shown – search to find the others.</p></div>
   </section>
   <section id="p_att" hidden></section>
+  <section id="p_mus" hidden></section>
   <section id="p_mast" hidden>
     <h2 id="m_title" style="margin:0 0 12px;font-size:20px"></h2>
     <div class="tools"><input id="m_name" maxlength="60" aria-label="New name"><button class="pri" id="m_add" type="button">+ Add</button></div>
@@ -232,6 +238,7 @@ dl{display:grid;grid-template-columns:150px 1fr;gap:8px 12px;margin:0 0 14px;fon
 <p id="toast" role="status" hidden></p>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="att.js"></script>
+<script src="mus.js"></script>
 <script src="hr.js"></script>
 <script>
 (function () {

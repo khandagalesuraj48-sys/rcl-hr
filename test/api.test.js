@@ -232,3 +232,90 @@ test('no network: the punch counts for its own moment when the phone\'s clock is
   await no(ACT.punchReview(admin, { id: w.id, decision: 'refused', note: 'again' }), /already decided/, 409);
   assert.deepStrictEqual((await db('GET', 'hr_punches?select=status&id=eq.' + w.id))[0], { status: 'review' }, 'the punch itself stays as it came');
 });
+
+/* ───────────── step 5: shifts, holidays, rules, the muster, a day set by hand, requests ───────────── */
+const D = require('../lib/day'), RU = require('../lib/rules');
+const TODAY = RU.today(), ago = n => D.addDays(TODAY, -n), OFF = (D.weekday(TODAY) + 1) % 7;      // the weekly off: tomorrow's weekday – none of the last five days
+
+test('shifts, holidays and the rules with their date: only who has the power; a new version, the old days keep theirs', async () => {
+  let a = await ACT.attSetup(user); assert.deepStrictEqual([a.shifts.length, a.rules, Object.values(a.powers).every(v => v === true), a.power_list.length], [0, {}, true, 7]);
+  await no(ACT.attSetup(self(mail1)), /HR office only/, 403); await no(ACT.shiftSave(user, { name: 'G' }), /Only the HR Admin/, 403);
+  await no(ACT.shiftSave(admin, { name: 'G', start_time: '9', end_time: '9:00' }), /Name: at least 2 letters\. Starts at: a time as HH:MM\./);
+  a = await ACT.shiftSave(admin, { name: 'General ' + tag, start_time: '9:00', end_time: '18:00', valid_from: '2026-01-01' }); const sh = a.shifts[0];
+  assert.deepStrictEqual([sh.start_time, sh.end_time, sh.break_min, sh.scope], ['09:00', '18:00', 0, 'all']);
+  await no(ACT.shiftSave(admin, { name: 'general ' + tag.toLowerCase(), start_time: '10:00', end_time: '19:00' }), /already there/, 409);
+  a = await ACT.shiftSave(admin, { name: 'Night ' + tag, start_time: '20:00', end_time: '06:00', scope: 'people', people: [E2.id], valid_from: ago(-5) }); const night = a.shifts.find(x => /^Night/.test(x.name)); assert.deepStrictEqual(night.people, [E2.id]);
+  await no(ACT.shiftRemove(admin, { id: night.id, reason: '' }), /write why/); a = await ACT.shiftRemove(admin, { id: night.id, reason: 'Not used' }); assert.strictEqual(a.shifts.length, 1);
+  await no(ACT.holidaySave(admin, { day: '32-01-2026', name: 'X' }), /Day: a date.*Name: at least 2 letters/);
+  a = await ACT.holidaySave(admin, { day: ago(40), name: 'Festival ' + tag }); assert.strictEqual(a.holidays.length, 1);
+  a = await ACT.holidaySave(admin, { rows: [{ day: ago(41), name: 'One' }, { day: ago(40), name: 'Twice' }] }); assert.deepStrictEqual([a.saved, a.lines.map(l => l.line)], [0, [2]], 'all or none');
+  a = await ACT.holidaySave(admin, { rows: [{ day: ago(41), name: 'One' }, { day: ago(42), name: 'Two' }] }); assert.deepStrictEqual([a.saved, a.holidays.length], [2, 3]);
+  a = await ACT.holidayRemove(admin, { id: a.holidays.find(h => h.name === 'Two').id }); assert.strictEqual(a.holidays.length, 2);
+  await no(ACT.rulesSave(admin, { full_hours: 4, half_hours: 6 }), /less than/);
+  await no(ACT.rulesSave(admin, { valid_from: '2026-01-01', full_hours: 8 }), /only by the Super Admin/, 403);
+  a = await ACT.rulesSave(sup, { valid_from: '2026-01-01', full_hours: 8, half_hours: 4, grace_min: 10, week_off: [OFF] });
+  assert.deepStrictEqual([a.rules, a.rules_from, a.versions.length], [{ full_hours: 8, half_hours: 4, grace_min: 10, week_off: [OFF] }, '2026-01-01', 1]);
+  assert.strictEqual((await db('GET', 'hr_audit?select=detail&site=eq.' + SITE + '&action=eq.Attendance rules set&order=id.desc&limit=1'))[0].detail.new.full_hours, 8);
+});
+
+test('the muster: today\'s punches; a day entered by hand, corrected, set aside – each a new row with the old and the new; the Admin\'s powers', async () => {
+  const month = TODAY.slice(0, 7), y = ago(1), back = y.slice(0, 7) === month;
+  let m = await ACT.muster(user, { month }); const r1 = m.rows.find(r => r.id === E1.id), r2 = m.rows.find(r => r.id === E2.id), i = m.days.indexOf(TODAY);
+  assert.ok(r1 && r2 && i > -1); assert.strictEqual(r1.codes[i], 'IN', 'IN – OUT – IN again: at work'); assert.strictEqual(r2.codes[i], 'IN', 'his accepted OUT was before his IN: at work');
+  assert.ok(m.rows.length >= 2 && m.rows.every(r => r.codes.length === m.days.length)); assert.deepStrictEqual(m.week_off, [OFF]);
+  await no(ACT.muster(self(mail1), { month }), /HR office only/, 403);
+  // by hand: a day with no punch
+  await no(ACT.daySet(user, { id: E2.id, day: y, in_time: '09:00', out_time: '18:00', reason: 'No phone' }), /Only the HR Admin/, 403);
+  await no(ACT.daySet(admin, { id: E2.id, day: ago(-1), in_time: '09:00', reason: 'xxx' }), /still to come/); await no(ACT.daySet(admin, { id: E2.id, day: y, in_time: '18:00', out_time: '09:00', reason: 'xxx' }), /OUT must be after IN/);
+  await no(ACT.daySet(admin, { id: E2.id, day: y, in_time: '09:00', out_time: '18:00', reason: '' }), /Reason: write why/); await no(ACT.daySet(admin, { id: E2.id, day: y, none: true, reason: 'xxx' }), /no attendance to set aside/);
+  await no(ACT.daySet(admin, { id: E2.id, day: ago(90), in_time: '09:00', out_time: '18:00', reason: 'Old one' }), /only by the Super Admin/, 403);
+  await no(ACT.daySet(ses('admin', SITE2), { id: E2.id, day: y, in_time: '09:00', out_time: '18:00', reason: 'xxx' }), /not found on this site/, 404);
+  let d = await ACT.daySet(admin, { id: E2.id, day: y, in_time: '9:00', out_time: '18:00', reason: 'No phone – seen at site' });
+  assert.deepStrictEqual([d.day.code, d.day.in, d.day.out, d.day.hours, d.day.src, d.entries.length, d.entries[0].source, d.entries[0].old_in], ['P', '09:00', '18:00', 9, 'manual', 1, 'manual', '']);
+  // corrected: the old times stay in the new row
+  d = await ACT.daySet(admin, { id: E2.id, day: y, in_time: '09:00', out_time: '13:00', reason: 'He left at one' });
+  assert.deepStrictEqual([d.day.code, d.day.hours, d.day.src, d.entries.length, d.entries[0].source, d.entries[0].old_out, d.entries[0].by], ['HD', 4, 'correction', 2, 'correction', '18:00', 'admin@rig.test']);
+  d = await ACT.daySet(admin, { id: E2.id, day: y, none: true, reason: 'Entered for the wrong man' }); assert.deepStrictEqual([d.day.code, d.day.in, d.entries.length], ['A', '', 3]);
+  if (back) { m = await ACT.muster(user, { month }); const w = m.rows.find(r => r.id === E2.id); assert.deepStrictEqual([w.codes[m.days.indexOf(y)], w.fix[m.days.indexOf(y)]], ['A', 1]); }
+  // a night: OUT the next morning
+  d = await ACT.daySet(admin, { id: E2.id, day: ago(2), in_time: '20:00', out_time: '05:30', out_next_day: true, reason: 'Night work' }); assert.deepStrictEqual([d.day.hours, d.day.next_day, d.day.late_min > 0], [9.5, true, true]);
+  // the database: an entry is never changed
+  await no(db('PATCH', 'hr_day_entries?employee_id=eq.' + E2.id, { reason: 'changed' }), /Database|refused/);
+  // the Super Admin takes a power from the HR Admin, and gives it back
+  await no(ACT.powerSet(admin, { power: 'manual', allowed: false }), /Only the Super Admin/, 403); await no(ACT.powerSet(sup, { power: 'fly', allowed: true }), /Unknown power/);
+  let p = await ACT.powerSet(sup, { power: 'manual', allowed: false }); assert.strictEqual(p.powers.manual, false);
+  await no(ACT.daySet(admin, { id: E1.id, day: ago(3), in_time: '09:00', out_time: '18:00', reason: 'By hand' }), /has not given the HR Admin this power.*Manual entry/, 403);
+  d = await ACT.daySet(admin, { id: E2.id, day: ago(2), in_time: '20:00', out_time: '06:00', out_next_day: true, reason: 'Still his to correct' }); assert.strictEqual(d.day.hours, 10, 'a correction is another power');
+  d = await ACT.daySet(sup, { id: E1.id, day: ago(3), in_time: '09:00', out_time: '18:00', reason: 'By hand' }); assert.strictEqual(d.day.src, 'manual');
+  p = await ACT.powerSet(sup, { power: 'manual', allowed: true }); assert.strictEqual(p.powers.manual, true);
+  p = await ACT.powerSet(sup, { power: 'places', allowed: false }); await no(ACT.projSave(admin, { name: 'No power ' + tag }), /has not given the HR Admin this power/, 403); await ACT.powerSet(sup, { power: 'places', allowed: true });
+});
+
+test('a request to set an old day right: himself, a day gone, one waiting a day; the HR office decides – or first the reporting person', async () => {
+  const s1 = self(mail1), s2 = self(mail2), day = ago(2);
+  await no(ACT.regAsk(s1, { day: TODAY, in_time: '09:00', reason: 'Forgot it' }), /a day already gone/); await no(ACT.regAsk(s1, { day: ago(61), in_time: '09:00', out_time: '18:00', reason: 'Forgot it' }), /only 60 days back/);
+  await no(ACT.regAsk(s1, { day, in_time: '09:20', out_time: '18:05', reason: 'x' }), /what happened/); await no(ACT.regAsk(s1, { day, out_time: '18:05', reason: 'Forgot OUT' }), /no IN: give the IN time too/);
+  let r = await ACT.regAsk(s1, { day, in_time: '09:20', out_time: '18:05', reason: 'Phone was dead' }); assert.deepStrictEqual([r.rows[0].status, r.rows[0].level, r.rows[0].in_time, r.rows[0].out_time], ['pending', 2, '09:20', '18:05']);
+  await no(ACT.regAsk(s1, { day, in_time: '09:00', out_time: '18:00', reason: 'Once more' }), /already waiting/, 409);
+  let l = await ACT.regList(user, {}); const q = l.rows.find(x => x.code === E1.code); assert.ok(q && l.can === false);
+  await no(ACT.regDecide(user, { id: q.id, decision: 'approved' }), /Only the HR Admin/, 403); await no(ACT.regDecide(admin, { id: q.id, decision: 'refused' }), /write why it is refused/);
+  await no(ACT.regDecide(ses('admin', SITE2), { id: q.id, decision: 'approved' }), /not found on this site/, 404);
+  l = await ACT.regDecide(admin, { id: q.id, decision: 'approved', note: 'Seen by the supervisor' }); assert.ok(!l.rows.some(x => x.id === q.id)); await no(ACT.regDecide(admin, { id: q.id, decision: 'approved' }), /already decided/, 409);
+  const d = await ACT.dayGet(user, { id: E1.id, day }); assert.deepStrictEqual([d.day.code, d.day.in, d.day.out, d.day.late_min, d.day.src, d.entries[0].source, d.requests[0].status, d.requests[0].steps[0].by], ['P', '09:20', '18:05', 20, 'regularized', 'regularized', 'approved', 'admin@rig.test']);
+  const mo = await ACT.myMonth(s1, { month: day.slice(0, 7) }), md = mo.all.find(x => x.day === day); assert.deepStrictEqual([md.code, md.late_min, mo.total.late >= 1, mo.all.length >= 28], ['P', 20, true, true]);
+  // two levels: the reporting person first
+  await ACT.rulesSave(sup, { valid_from: TODAY, full_hours: 8, half_hours: 4, grace_min: 10, week_off: [OFF], reg_levels: 2 });
+  const e2 = (await ACT.empGet(user, { id: E2.id })).employee; await ACT.empSave(user, { id: E2.id, name: e2.name, category: e2.category, mobile: e2.mobile, email: e2.email, dob: e2.dob, reports_to: E1.id });
+  r = await ACT.regAsk(s2, { day: ago(4), in_time: '08:55', out_time: '17:10', reason: 'No network all day' }); assert.strictEqual(r.rows[0].level, 1);
+  const w = r.rows[0]; await no(ACT.regDecide(admin, { id: w.id, decision: 'approved' }), /still waits for the reporting person/, 403);
+  let t = await ACT.teamRegs(s1); assert.deepStrictEqual([t.team, t.rows.map(x => x.id)], [1, [w.id]]); assert.deepStrictEqual((await ACT.teamRegs(s2)).rows, []);
+  await no(ACT.teamRegDecide(s2, { id: w.id, decision: 'approved' }), /does not report to you/, 403);
+  t = await ACT.teamRegDecide(s1, { id: w.id, decision: 'approved', note: 'He was on site' }); assert.deepStrictEqual(t.rows, []); await no(ACT.teamRegDecide(s1, { id: w.id, decision: 'approved' }), /does not wait for you any more/, 409);
+  assert.deepStrictEqual([(await ACT.dayGet(user, { id: E2.id, day: ago(4) })).day.in, (await ACT.dayGet(user, { id: E2.id, day: ago(4) })).day.src], ['', ''], 'not counted until the HR office approved too');
+  assert.strictEqual((await ACT.dayGet(user, { id: E2.id, day: ago(20) })).day.code, '', 'before the site\'s first recorded day nobody is absent');
+  l = await ACT.regDecide(admin, { id: w.id, decision: 'approved' }); const dd = await ACT.dayGet(user, { id: E2.id, day: ago(4) });
+  assert.deepStrictEqual([dd.day.code, dd.day.hours, dd.requests[0].steps.map(x => x.level + ':' + x.decision)], ['P', 8.25, ['1:approved', '2:approved']]);
+  // refused by the reporting person: it ends there
+  r = await ACT.regAsk(s2, { day: ago(5), in_time: '09:00', out_time: '18:00', reason: 'Forgot the phone' }); await no(ACT.teamRegDecide(s1, { id: r.rows[0].id, decision: 'refused' }), /write why/);
+  await ACT.teamRegDecide(s1, { id: r.rows[0].id, decision: 'refused', note: 'He was not there' }); assert.strictEqual((await ACT.myRegs(s2)).rows[0].status, 'refused'); assert.strictEqual((await ACT.dayGet(user, { id: E2.id, day: ago(5) })).day.src, '');
+});
