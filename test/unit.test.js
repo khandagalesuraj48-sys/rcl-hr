@@ -434,3 +434,12 @@ test('an employee\'s sign-in is asked of the Portal from the page; HR\'s server 
   assert.ok(!/localStorage|sessionStorage/.test(js.slice(js.indexOf('function loginGive'), js.indexOf('// ---------- add / change'))), 'kept nowhere');
   for (const f of fs.readdirSync(path.join(root, 'api')).concat(fs.readdirSync(path.join(root, 'lib')).map(x => '../lib/' + x))) assert.ok(!/password/i.test(fs.readFileSync(path.join(root, 'api', f), 'utf8').replace(/No secret, key, password[^\n]*/g, '')), f + ': HR\'s server has nothing to do with passwords');
 });
+
+test('an employee\'s page opens at once from the list; nothing of him is changed before the server\'s own answer; the readings of one action are asked together', () => {
+  const js = fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8'), api = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8');
+  assert.match(js, /if \(had\) \{ drawEmp\(\{ employee: had, history: \[\], boss: null \}, false\); show\('dlg_emp'\); \}/);
+  assert.match(js, /if \(seq !== S\.seq \|\| \(had && \$\('dlg_emp'\)\.hidden\)\) return;/, 'closed or another opened meanwhile: the late answer is dropped');
+  assert.match(js, /\['d_prof', 'd_kyc', 'd_docs', 'd_login', 'd_del', 'd_exit', 'd_tr', 'd_edit'\]\.forEach\(function \(b\) \{ \$\(b\)\.disabled = !full; \}\);/);
+  assert.ok(!/localStorage|sessionStorage/.test(js.slice(js.indexOf('function openEmp'), js.indexOf('function login()'))), 'kept in the page\'s memory only');
+  for (const a of ['empList', 'empGet', 'privGet']) { const i = api.indexOf('async ' + a + '('); assert.match(api.slice(i, i + 1400), /await Promise\.all\(\[db\('GET'/, a); }
+});

@@ -82,24 +82,37 @@
       dl.hidden = false; lab.hidden = false;
     }, function () { /* attendance is not set up yet, or not his to see: the page stays as it is */ });
   }
+  /* (12-11-2026, asked: "line la click kel ki lawkar te open pn hot nahiye … hr modual slow ahe") THE PAGE OPENS AT ONCE with what
+   * the list already has of him (the same details – they were read with the list); his history, the person he reports to, his
+   * attendance and his papers come a moment later, each by itself. Until the server has answered nothing of him can be changed
+   * here (the buttons wait) – so a change always starts from the server's own answer, never from the list. */
   function openEmp(id) {
+    var seq = S.seq = (S.seq || 0) + 1, had = (S.rows || []).filter(function (x) { return x.id === id; })[0];
+    if (had) { drawEmp({ employee: had, history: [], boss: null }, false); show('dlg_emp'); }
     api('empGet', { id: id }).then(function (r) {
+      if (seq !== S.seq || (had && $('dlg_emp').hidden)) return;      // he opened another, or closed the page meanwhile
+      drawEmp(r, true); show('dlg_emp');
+    }, function (x) { if (seq === S.seq) { if (had) hide('dlg_emp'); fail(x); } });
+    $('d_docs_miss').hidden = true;
+    api('privGet', { id: id }).then(function (p) { if (seq !== S.seq || !S.open) return; var e = S.open.employee, m = p.docsMissing; $('d_docs_miss').hidden = !m.length || e.status === 'left'; $('d_docs_miss').textContent = 'Documents still to attach: ' + m.join(', ') + '.'; }, function () { /* the details are asked again when their page is opened */ });
+    around(id);
+  }
+  function drawEmp(r, full) {
       var e = r.employee; S.open = r; $('d_title').textContent = e.name; $('d_code').textContent = e.code + ' · ' + (CAT[e.category] || '');
       var fc = $('d_face'), st = $('d_st'); fc.textContent = e.name.trim().split(/\s+/).map(function (w) { return w.charAt(0); }).slice(0, 2).join('').toUpperCase(); st.className = 'st ep-st s-' + e.status; st.textContent = STATUS[e.status];
       var dl = $('d_list'), dl2 = $('d_list2'); dl.textContent = ''; dl2.textContent = '';
       row(dl, 'Site', siteName(e.site)); row(dl, 'Designation', nameOf(S.init.designations, e.designation_id)); row(dl, 'Department', nameOf(S.init.departments, e.department_id));
-      row(dl, 'Reports to', r.boss ? r.boss.name + ' (' + r.boss.code + ')' : ''); row(dl, 'Active from', dmy(e.joined_on)); row(dl, 'Relieving date', e.status === 'left' ? dmy(e.left_on) : ''); if (e.status === 'left') row(dl, 'Reason', e.left_reason);
+      row(dl, 'Reports to', r.boss ? r.boss.name + ' (' + r.boss.code + ')' : !full && e.reports_to ? '…' : ''); row(dl, 'Active from', dmy(e.joined_on)); row(dl, 'Relieving date', e.status === 'left' ? dmy(e.left_on) : ''); if (e.status === 'left') row(dl, 'Reason', e.left_reason);
       row(dl2, 'Mobile', e.mobile); row(dl2, 'E-mail', e.email + (e.email ? (e.email_verified_at ? ' ✓ verified' : ' – not verified yet') : '')); row(dl2, 'Date of birth', dmy(e.dob)); row(dl2, 'Gender', e.gender ? e.gender.charAt(0).toUpperCase() + e.gender.slice(1) : '');
       var miss = []; if (!e.dob) miss.push('Date of birth'); if (!e.email) miss.push('E-mail'); if (!e.mobile) miss.push('Mobile');
       $('d_miss').hidden = !miss.length || e.status === 'left'; $('d_miss').textContent = 'Incomplete – still needed: ' + miss.join(', ') + '. He cannot be activated until then.';
       var h = $('d_hist'); h.textContent = '';
       r.history.forEach(function (x) { var li = el('li'); li.appendChild(el('b', '', dmy(x.valid_from) + ' → ' + (x.valid_to ? dmy(x.valid_to) : 'today'))); li.appendChild(el('span', '', ' ' + x.site + ' · ' + (nameOf(S.init.designations, x.designation_id) || '–') + ' · ' + (nameOf(S.init.departments, x.department_id) || '–') + (x.note ? ' · ' + x.note : ''))); h.appendChild(li); });
-      $('d_docs_miss').hidden = true; api('privGet', { id: e.id }).then(function (p) { S.open.priv = p; var m = p.docsMissing; $('d_docs_miss').hidden = !m.length || e.status === 'left'; $('d_docs_miss').textContent = 'Documents still to attach: ' + m.join(', ') + '.'; }, function () { /* the details are asked again when their page is opened */ });
-      around(e.id);
       var left = e.status === 'left'; $('d_edit').hidden = left; $('d_tr').hidden = left || !isAdmin(); $('d_exit').hidden = left || !isAdmin(); $('d_del').hidden = !isAdmin();
       $('d_login').hidden = left || !isAdmin();      // his sign-in: the HR Admin's or the Super Admin's to give
-      show('dlg_emp');
-    }, fail);
+      if (!full) h.appendChild(el('li', '', '…'));
+      // nothing of him is opened or changed before the server's own answer is here
+      ['d_prof', 'd_kyc', 'd_docs', 'd_login', 'd_del', 'd_exit', 'd_tr', 'd_edit'].forEach(function (b) { $(b).disabled = !full; });
   }
 
   /* ---------- his sign-in for the app (12-11-2026: "ADMIN … LA EK TEMP PASSWORD DEU SHAKEL NANTR USER SWATACHA PASS SET KRU SHAKEL") ----------
