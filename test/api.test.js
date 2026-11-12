@@ -61,7 +61,7 @@ test('transfer and exit: only the HR Admin; only to a site of his sign-in; the h
   assert.strictEqual((await ACT.empList(admin, {})).rows.length, 1); const there = (await ACT.empList(ses('admin', SITE2), {})).rows; assert.deepStrictEqual(there.map(r => r.code), [b.code]);
   const h = (await ACT.empGet(ses('admin', SITE2), { id: b.id })).history; assert.deepStrictEqual([h[0].site, h[0].valid_from, h[0].note, h[0].valid_to], [SITE2, day, 'To site two', null]);
   await no(ACT.empExit(user, { id: a.id, on: day, reason: 'Resigned' }), /Only the HR Admin/, 403);
-  await no(ACT.empExit(admin, { id: a.id, on: '2020-01-01', reason: 'Resigned' }), /before the joining date/);
+  await no(ACT.empExit(admin, { id: a.id, on: '2020-01-01', reason: 'Resigned' }), /before the date he is active from/);
   await no(ACT.empExit(admin, { id: a.id, on: day, reason: '' }), /write the reason/);
   await ACT.empExit(admin, { id: a.id, on: day, reason: 'Resigned' });
   const g = await ACT.empGet(admin, { id: a.id }); assert.deepStrictEqual([g.employee.status, g.employee.left_on, g.employee.left_reason], ['left', day, 'Resigned']);
@@ -373,4 +373,21 @@ test('the attendance dashboard: the HR office only; today counted like the muste
   assert.strictEqual(d.needs.requests, (await ACT.regList(user, { status: 'pending' })).rows.length);
   const other = await ACT.attDash(ses('user', SITE2)); assert.ok(!other.who.some(w => w.id === E1.id || w.id === E2.id), 'another site sees nothing of this one');
   const day = await ACT.dayGet(user, { id: E1.id, day: TODAY }); assert.ok(day.punches.length && day.punches.every(p => typeof p.place === 'string')); assert.ok(day.punches.some(p => p.place === 'Office ' + tag)); assert.strictEqual(day.employee.category, 'staff');
+});
+
+test('delete: only an employee added by mistake (HR Admin, with the reason); one with attendance is refused – he is relieved; the list as a file', async () => {
+  const x = await ACT.empSave(user, { name: 'Wrong Entry', category: 'driver', mobile: mob(), joined_on: '2026-02-01' });
+  await no(ACT.empDelete(user, { id: x.id, reason: 'added twice' }), /Only the HR Admin/, 403); await no(ACT.empDelete(admin, { id: x.id, reason: '' }), /Reason: write why he is deleted/);
+  await no(ACT.empDelete(ses('admin', SITE2), { id: x.id, reason: 'added twice' }), /not found on this site/, 404);
+  await no(ACT.empDelete(admin, { id: E1.id, reason: 'try' }), /has attendance.*cannot be deleted\. Relieve him/, 409);      // E1 has punches and a phone
+  const boss = await ACT.empSave(user, { name: 'Wrong Boss', category: 'staff', mobile: mob() }); await ACT.empSave(user, { id: x.id, name: 'Wrong Entry', category: 'driver', mobile: (await ACT.empGet(user, { id: x.id })).employee.mobile, joined_on: '2026-02-01', reports_to: boss.id });
+  await no(ACT.empDelete(admin, { id: boss.id, reason: 'try' }), /people reporting to him/, 409);
+  const ex = await ACT.empExport(user, { q: 'Wrong Entry' }); assert.deepStrictEqual(ex.rows.map(r => [r.code, r.name, r.category, r.joined_on, r.left_on, r.status]), [[x.code, 'Wrong Entry', 'driver', '2026-02-01', '', 'incomplete']]);
+  const d = await ACT.empDelete(admin, { id: x.id, reason: 'added twice' }); assert.deepStrictEqual(d, { ok: true, code: x.code });
+  await no(ACT.empGet(user, { id: x.id }), /not found on this site/, 404); assert.strictEqual(((await db('GET', 'hr_employment?select=id&employee_id=eq.' + x.id)) || []).length, 0);
+  const a = (await db('GET', 'hr_audit?select=action,target,detail&site=eq.' + SITE + '&action=eq.Employee%20deleted&order=id.desc&limit=1'))[0]; assert.ok(a && a.detail.reason === 'added twice' && a.detail.old.code === x.code && a.detail.old.name === 'Wrong Entry');
+  await ACT.empDelete(admin, { id: boss.id, reason: 'made for a test' });      // nobody reports to him any more
+  assert.ok((await ACT.empGet(user, { id: E1.id })).employee.id === E1.id, 'the others are untouched');
+  const next = await ACT.empSave(user, { name: 'After Delete', category: 'staff', mobile: mob() }); assert.notStrictEqual(next.code, x.code, 'a deleted code is not given again by the counter');
+  await no(ACT.empExit(admin, { id: next.id, on: '', reason: 'x' }), /Relieving date: a date/);
 });

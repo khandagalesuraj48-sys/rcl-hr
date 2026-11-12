@@ -8,7 +8,7 @@
   var api = function (action, body) { return window.HRAPI('api/hr', Object.assign({ action: action }, body || {})); };
   // a date as DD-MM-YYYY; a moment (…T…Z) is shown as its day in India
   var dmy = function (d) { if (!d) return ''; d = String(d); if (d.indexOf('T') > 0) { var t = Date.parse(d); if (!isNaN(t)) d = new Date(t + 19800000).toISOString(); } return d.slice(0, 10).split('-').reverse().join('-'); };
-  var STATUS = { incomplete: 'Incomplete', pending: 'Waiting for OTP', active: 'Active', left: 'Left' };
+  var STATUS = { incomplete: 'Incomplete', pending: 'Waiting for OTP', active: 'Active', left: 'Relieved' };
   var CAT = { staff: 'Staff', operator: 'Operator', driver: 'Driver', labour: 'Labour' };
   var isAdmin = function () { return S.me && (S.me.user.role === 'admin' || S.me.user.role === 'super'); };
   var nameOf = function (list, id) { var r = (list || []).filter(function (x) { return x.id === id; })[0]; return r ? r.name : ''; };
@@ -17,12 +17,19 @@
   function fail(e) { toast(e && e.message ? e.message : 'HR did not answer – try again.', true); }
 
   // ---------- the frame of the pages ----------
+  function face(td, key) { if (window.HRDASH && window.HRDASH.face) td.insertBefore(window.HRDASH.face(td.textContent, key), td.firstChild); return td; }      // the letters of his name before it
+  var PAGE_HEAD = { employees: ['Employees · कर्मचारी', 'The Employee Master of this site – press a person to open his page.'], attendance: ['Attendance · आजची हजेरी', 'Every punch of a day as it was taken – and the doubtful ones to be looked at.'], places: ['Work places · कामाच्या जागा', 'Where attendance can be marked: the place, how many metres, for whom.'],
+    phones: ['Phones · फोन', 'One phone a person – only attendance is tied to it.'], requests: ['Requests · विनंत्या', 'People ask to set an old day right – it counts only when approved.'], rules: ['Shifts & rules · शिफ्ट व नियम', 'Shifts, holidays and the rules of the muster – each with its date.'],
+    departments: ['Departments · विभाग', 'The list offered in an employee\'s form.'], designations: ['Designations · पदे', 'The list offered in an employee\'s form.'] };
   function tabs() {
     var t = $('tabs'); t.textContent = '';
     (window.HRDASH ? window.HRDASH.pages.map(function (p) { return [p[0], p[1], true]; }) : []).concat([['employees', 'Employees', true]]).concat((window.HRATT ? window.HRATT.pages : []).concat(window.HRMUS ? window.HRMUS.pages : []).map(function (p) { return [p[0], p[1], true]; }), [['departments', 'Departments', isAdmin()], ['designations', 'Designations', isAdmin()]]).forEach(function (p) {
       if (!p[2]) return; var b = el('button', 'tab' + (S.page === p[0] ? ' on' : ''), p[1]); b.type = 'button'; b.onclick = function () { go(p[0]); }; t.appendChild(b);
     });
   }
+  // the head of every page: its name, one line about it, and on the right the page's own controls beside the site
+  function head(title, sub, nodes) { $('p_title').textContent = title; $('p_sub').textContent = sub || ''; var t = $('p_tools'); t.textContent = ''; (nodes || []).forEach(function (n) { t.appendChild(n); }); }
+  window.HRHEAD = { set: head };
   function go(page) {
     if ((page === 'departments' || page === 'designations') && !isAdmin()) page = 'employees';
     var att = !!window.HRATT && window.HRATT.has(page);      // (step 4) Attendance, Work places, Phones – att.js
@@ -30,7 +37,7 @@
     var dash = !!window.HRDASH && window.HRDASH.has(page);      // the attendance dashboard – dash.js
     S.page = att || mus || dash || page === 'departments' || page === 'designations' ? page : 'employees'; tabs();
     $('p_emp').hidden = S.page !== 'employees'; $('p_att').hidden = !att; $('p_mus').hidden = !mus; $('p_dash').hidden = !dash; $('p_mast').hidden = att || mus || dash || S.page === 'employees';
-    $('app').classList.toggle('wide', dash || S.page === 'muster');      // the dashboard and the muster use the whole width
+    var hd = PAGE_HEAD[S.page]; if (hd) head(hd[0], hd[1], []);      // the dashboard and the muster fill the head themselves (HRHEAD.set)
     try { history.replaceState(null, '', location.pathname + location.search + '#page=' + S.page); } catch (e) { /* the page still works */ }
     if (dash) window.HRDASH.open(S.me, go); else if (att) window.HRATT.open(S.page, S.me, S.init); else if (mus) window.HRMUS.open(S.page, S.me, S.init); else if (S.page === 'employees') list(); else masters();
   }
@@ -39,13 +46,14 @@
   function list() {
     api('empList', { q: S.q, status: S.status, category: S.category }).then(function (r) {
       S.rows = r.rows; var c = r.counts, chips = $('chips'); chips.textContent = '';
-      [['', 'On the rolls', c.incomplete + c.pending + c.active], ['incomplete', 'Incomplete', c.incomplete], ['pending', 'Waiting for OTP', c.pending], ['active', 'Active', c.active], ['left', 'Left', c.left]].forEach(function (k) {
+      [['', 'On the rolls', c.incomplete + c.pending + c.active], ['incomplete', 'Incomplete', c.incomplete], ['pending', 'Waiting for OTP', c.pending], ['active', 'Active', c.active], ['left', 'Relieved', c.left]].forEach(function (k) {
         var b = el('button', 'chip' + (S.status === k[0] ? ' on' : '') + (k[0] ? ' s-' + k[0] : '')); b.type = 'button'; b.appendChild(el('b', '', k[2])); b.appendChild(el('span', '', k[1])); b.onclick = function () { S.status = k[0]; list(); }; chips.appendChild(b);
       });
       var tb = $('emp_rows'); tb.textContent = '';
       r.rows.forEach(function (e) {
         var tr = el('tr'); tr.tabIndex = 0;
-        [e.code, e.name, CAT[e.category] || e.category, nameOf(S.init.designations, e.designation_id), nameOf(S.init.departments, e.department_id), e.mobile].forEach(function (v, i) { var td = el('td', i === 1 ? 'nm' : '', v || '–'); tr.appendChild(td); });
+        var nm = el('td', 'nm pwho'), box = el('div'); box.appendChild(el('b', '', e.name)); box.appendChild(el('small', '', e.code)); nm.appendChild(box); if (window.HRDASH && window.HRDASH.face) nm.insertBefore(window.HRDASH.face(e.name, e.id), box); tr.appendChild(nm);
+        [CAT[e.category] || e.category, nameOf(S.init.designations, e.designation_id), nameOf(S.init.departments, e.department_id), e.mobile, dmy(e.joined_on), dmy(e.left_on)].forEach(function (v) { tr.appendChild(el('td', '', v || '–')); });
         var td = el('td'); td.appendChild(el('span', 'st s-' + e.status, STATUS[e.status])); tr.appendChild(td);
         tr.onclick = function () { openEmp(e.id); }; tr.onkeydown = function (ev) { if (ev.key === 'Enter') openEmp(e.id); };
         tb.appendChild(tr);
@@ -74,19 +82,19 @@
   }
   function openEmp(id) {
     api('empGet', { id: id }).then(function (r) {
-      var e = r.employee; S.open = r; $('d_title').textContent = e.name; $('d_code').textContent = e.code + ' · ' + (CAT[e.category] || '') + ' · ' + STATUS[e.status];
-      var dl = $('d_list'); dl.textContent = '';
+      var e = r.employee; S.open = r; $('d_title').textContent = e.name; $('d_code').textContent = e.code + ' · ' + (CAT[e.category] || '');
+      var fc = $('d_face'), st = $('d_st'); fc.textContent = e.name.trim().split(/\s+/).map(function (w) { return w.charAt(0); }).slice(0, 2).join('').toUpperCase(); st.className = 'st ep-st s-' + e.status; st.textContent = STATUS[e.status];
+      var dl = $('d_list'), dl2 = $('d_list2'); dl.textContent = ''; dl2.textContent = '';
       row(dl, 'Site', siteName(e.site)); row(dl, 'Designation', nameOf(S.init.designations, e.designation_id)); row(dl, 'Department', nameOf(S.init.departments, e.department_id));
-      row(dl, 'Reports to', r.boss ? r.boss.name + ' (' + r.boss.code + ')' : ''); row(dl, 'Mobile', e.mobile); row(dl, 'E-mail', e.email + (e.email ? (e.email_verified_at ? ' ✓ verified' : ' – not verified yet') : ''));
-      row(dl, 'Date of birth', dmy(e.dob)); row(dl, 'Gender', e.gender ? e.gender.charAt(0).toUpperCase() + e.gender.slice(1) : ''); row(dl, 'Joined', dmy(e.joined_on));
-      if (e.status === 'left') { row(dl, 'Left on', dmy(e.left_on)); row(dl, 'Reason', e.left_reason); }
+      row(dl, 'Reports to', r.boss ? r.boss.name + ' (' + r.boss.code + ')' : ''); row(dl, 'Active from', dmy(e.joined_on)); row(dl, 'Relieving date', e.status === 'left' ? dmy(e.left_on) : ''); if (e.status === 'left') row(dl, 'Reason', e.left_reason);
+      row(dl2, 'Mobile', e.mobile); row(dl2, 'E-mail', e.email + (e.email ? (e.email_verified_at ? ' ✓ verified' : ' – not verified yet') : '')); row(dl2, 'Date of birth', dmy(e.dob)); row(dl2, 'Gender', e.gender ? e.gender.charAt(0).toUpperCase() + e.gender.slice(1) : '');
       var miss = []; if (!e.dob) miss.push('Date of birth'); if (!e.email) miss.push('E-mail'); if (!e.mobile) miss.push('Mobile');
       $('d_miss').hidden = !miss.length || e.status === 'left'; $('d_miss').textContent = 'Incomplete – still needed: ' + miss.join(', ') + '. He cannot be activated until then.';
       var h = $('d_hist'); h.textContent = '';
       r.history.forEach(function (x) { var li = el('li'); li.appendChild(el('b', '', dmy(x.valid_from) + ' → ' + (x.valid_to ? dmy(x.valid_to) : 'today'))); li.appendChild(el('span', '', ' ' + x.site + ' · ' + (nameOf(S.init.designations, x.designation_id) || '–') + ' · ' + (nameOf(S.init.departments, x.department_id) || '–') + (x.note ? ' · ' + x.note : ''))); h.appendChild(li); });
       $('d_docs_miss').hidden = true; api('privGet', { id: e.id }).then(function (p) { S.open.priv = p; var m = p.docsMissing; $('d_docs_miss').hidden = !m.length || e.status === 'left'; $('d_docs_miss').textContent = 'Documents still to attach: ' + m.join(', ') + '.'; }, function () { /* the details are asked again when their page is opened */ });
       around(e.id);
-      var left = e.status === 'left'; $('d_edit').hidden = left; $('d_tr').hidden = left || !isAdmin(); $('d_exit').hidden = left || !isAdmin();
+      var left = e.status === 'left'; $('d_edit').hidden = left; $('d_tr').hidden = left || !isAdmin(); $('d_exit').hidden = left || !isAdmin(); $('d_del').hidden = !isAdmin();
       show('dlg_emp');
     }, fail);
   }
@@ -96,7 +104,7 @@
   function form(e, boss) {
     e = e || {}; $('f_title').textContent = e.id ? 'Change ' + e.code : 'Add employee'; $('f_id').value = e.id || ''; $('f_code').value = e.code || '';
     $('f_name').value = e.name || ''; $('f_cat').value = e.category || ''; $('f_gender').value = e.gender || ''; $('f_mobile').value = e.mobile || ''; $('f_email').value = e.email || '';
-    $('f_dob').value = e.dob || ''; $('f_join').value = e.joined_on || '';
+    $('f_dob').value = e.dob || ''; $('f_join').value = e.joined_on || ''; $('f_left').value = e.left_on ? dmy(e.left_on) : '';
     fill($('f_dep'), S.init.departments, e.department_id, '– none –'); fill($('f_des'), S.init.designations, e.designation_id, '– none –');
     // his site: one of the sites where this person has HR; for an employee of today another site = a transfer from today (HR Admin)
     var fs = $('f_site'); fs.textContent = ''; sites().forEach(function (x) { var o = el('option', '', (x.name || x.code) + (x.name && x.name !== x.code ? ' (' + x.code + ')' : '')); o.value = x.code; fs.appendChild(o); }); fs.value = e.site || S.me.site; fs.disabled = !!e.id && !isAdmin();
@@ -131,10 +139,31 @@
     api('empTransfer', { id: e.id, site: $('t_site').value, department_id: $('t_dep').value, designation_id: $('t_des').value, reports_to: $('t_site').value === e.site ? e.reports_to : '', from: $('t_from').value, note: $('t_note').value })
       .then(function () { busy(b, false); hide('dlg_tr'); toast(e.code + ' transferred.'); list(); }, function (x) { busy(b, false); $('t_err').textContent = x.message; $('t_err').hidden = false; });
   }
-  function exit() { var e = S.open.employee; $('x_title').textContent = e.name + ' (' + e.code + ') has left'; $('x_on').value = ''; $('x_reason').value = ''; $('x_err').hidden = true; hide('dlg_emp'); show('dlg_exit'); }
+  function exit() { var e = S.open.employee; $('x_title').textContent = 'Relieve ' + e.name + ' (' + e.code + ')'; $('x_on').value = ''; $('x_reason').value = ''; $('x_err').hidden = true; hide('dlg_emp'); show('dlg_exit'); }
   function exitSave(ev) {
     ev.preventDefault(); var e = S.open.employee, b = $('x_save'); busy(b, true);
-    api('empExit', { id: e.id, on: $('x_on').value, reason: $('x_reason').value }).then(function () { busy(b, false); hide('dlg_exit'); toast(e.code + ' marked as left. Nothing was deleted.'); list(); }, function (x) { busy(b, false); $('x_err').textContent = x.message; $('x_err').hidden = false; });
+    api('empExit', { id: e.id, on: $('x_on').value, reason: $('x_reason').value }).then(function () { busy(b, false); hide('dlg_exit'); toast(e.code + ' relieved. Nothing was deleted.'); list(); }, function (x) { busy(b, false); $('x_err').textContent = x.message; $('x_err').hidden = false; });
+  }
+
+  // (asked 12-11-2026) delete: only an employee added by mistake – the server refuses when anything hangs on him
+  function del() { var e = S.open.employee; $('del_title').textContent = 'Delete ' + e.name + ' (' + e.code + ')'; $('del_reason').value = ''; $('del_err').hidden = true; hide('dlg_emp'); show('dlg_del'); $('del_reason').focus(); }
+  function delSave(ev) {
+    ev.preventDefault(); var e = S.open.employee, b = $('del_save'); busy(b, true);
+    api('empDelete', { id: e.id, reason: $('del_reason').value }).then(function () { busy(b, false); hide('dlg_del'); toast(e.code + ' deleted.'); list(); }, function (x) { busy(b, false); $('del_err').textContent = x.message; $('del_err').hidden = false; });
+  }
+  // the list as an Excel file: the people the list shows now (all of them); the column names are the ones the import reads
+  function exportList() {
+    var b = $('b_exp'); busy(b, true);
+    api('empExport', { q: S.q, status: S.status, category: S.category }).then(function (r) {
+      var head = ['Code', 'Name', 'Category', 'Designation', 'Department', 'Mobile', 'E-mail', 'Date of birth', 'Gender', 'Joining date', 'Relieving date', 'Reason', 'Status'];
+      var rows = [head].concat(r.rows.map(function (e) { return [e.code, e.name, CAT[e.category] || e.category, e.designation, e.department, e.mobile, e.email, dmy(e.dob), e.gender, dmy(e.joined_on), dmy(e.left_on), e.left_reason, STATUS[e.status] || e.status]; })), name = 'Employees_' + r.site + '_' + new Date(Date.now() + 19800000).toISOString().slice(0, 10);
+      var save = function (blob, ext) { var a = el('a'); a.href = URL.createObjectURL(blob); a.download = name + ext; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500); busy(b, false); toast(r.rows.length + ' employees in the file.'); };
+      xlsxLib().then(function (ok) {
+        if (ok) { try { var ws = window.XLSX.utils.aoa_to_sheet(rows), wb = window.XLSX.utils.book_new(); ws['!cols'] = head.map(function (h, i) { return { wch: i === 1 || i === 6 ? 28 : 16 }; }); window.XLSX.utils.book_append_sheet(wb, ws, 'Employees'); return save(new Blob([window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), '.xlsx'); } catch (e) { /* the plain file below */ } }
+        var q = function (v) { v = String(v === undefined || v === null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+        save(new Blob(['\ufeff' + rows.map(function (x) { return x.map(q).join(','); }).join('\r\n')], { type: 'text/csv' }), '.csv');      // Excel opens it too
+      });
+    }, function (e) { busy(b, false); fail(e); });
   }
 
   // ---------- his own details (Aadhaar, PAN, numbers, addresses) ----------
@@ -244,13 +273,13 @@
         var t; $('q').oninput = function () { clearTimeout(t); t = setTimeout(function () { S.q = $('q').value; list(); }, 300); };
         $('cat').onchange = function () { S.category = $('cat').value; list(); };
         $('b_add').onclick = function () { form(null, null); }; $('b_imp').onclick = function () { $('i_file').value = ''; $('i_err').hidden = true; $('i_res').hidden = true; $('i_save').hidden = true; show('dlg_imp'); };
-        $('d_edit').onclick = function () { form(S.open.employee, S.open.boss); }; $('d_tr').onclick = transfer; $('d_exit').onclick = exit;
+        $('d_edit').onclick = function () { form(S.open.employee, S.open.boss); }; $('d_tr').onclick = transfer; $('d_exit').onclick = exit; $('d_del').onclick = del; $('del_form').onsubmit = delSave; $('b_exp').onclick = exportList;
         $('d_kyc').onclick = kyc; $('d_docs').onclick = docs; $('k_form').onsubmit = kycSave; $('o_add').onclick = docAdd;
         $('f_form').onsubmit = save; $('t_form').onsubmit = transferSave; $('x_form').onsubmit = exitSave;
         var bt; $('f_boss').oninput = function () { clearTimeout(bt); bt = setTimeout(pickBoss, 250); };
         $('i_file').onchange = function () { importFile($('i_file').files[0]); }; $('i_save').onclick = importSave;
         Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (b) { b.onclick = function () { hide(b.dataset.close); }; });
-        document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') ['dlg_form', 'dlg_tr', 'dlg_exit', 'dlg_imp', 'dlg_kyc', 'dlg_docs', 'dlg_emp'].some(function (d) { if (!$(d).hidden) { hide(d); return true; } return false; }); });
+        document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') ['dlg_form', 'dlg_tr', 'dlg_exit', 'dlg_del', 'dlg_imp', 'dlg_kyc', 'dlg_docs', 'dlg_emp'].some(function (d) { if (!$(d).hidden) { hide(d); return true; } return false; }); });
         go(page || (window.HRDASH ? 'dashboard' : 'employees'));
       }, function (e) { window.HRMSG(e.message); });
     },

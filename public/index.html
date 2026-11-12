@@ -55,7 +55,6 @@ table.mus td:first-child,table.mus th:first-child{min-width:74px;max-width:74px}
 .mc{display:inline-block;min-width:30px;border:0;border-radius:8px;padding:5px 3px;font-size:11.5px;font-weight:700;cursor:pointer;background:#EEF0F4;color:#566589}span.mc{cursor:default;padding:2px 6px}
 .mc.c-P,.mc.c-WOP,.mc.c-HP{background:#DDF3E4;color:#146C2E}.mc.c-HD{background:#FFF1DA;color:#8A5300}.mc.c-A{background:#FDE3E0;color:#B42318}.mc.c-MIS{background:#B42318;color:#fff}.mc.c-IN{background:#E0ECFF;color:#0B4FD8}.mc.c-WO,.mc.c-H{background:#EEF0F4;color:#566589}.mc.c-none{background:transparent;color:#B9C2D4}
 /* the attendance dashboard and the muster's new look (dash.js, mus.js) */
-#app.wide{max-width:1560px}
 .dz-top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:2px 0 14px}.dz-top h2{margin:0;font-size:24px;font-weight:800;letter-spacing:-.4px}.dz-top small{display:block;font-size:13px;color:#66708c;font-weight:500;margin-top:2px}
 .dz-pills{margin-left:auto;display:flex;flex-wrap:wrap;gap:10px;align-items:center}.dz-pill{background:#fff;border:0;border-radius:14px;padding:9px 14px;font-size:13.5px;font-weight:600;box-shadow:0 2px 8px rgba(20,30,60,.06)}
 .dz-pills select.dz-pill,.dz-pills input.dz-pill{height:40px}.dz-pills button.dz-pill{cursor:pointer;height:40px}.dz-pill.dark{background:#0F1F3D;color:#fff}
@@ -100,6 +99,31 @@ table.mz td:first-child b{display:block;font-size:13px;font-weight:600}table.mz 
 .mz-ok{height:38px;border:0;border-radius:10px;background:#1f9d57;color:#fff;font-weight:600;padding:0 14px;cursor:pointer;margin-right:8px}.mz-no{height:38px;border:1px solid #F3C1BC;border-radius:10px;background:#fff;color:#c22a1b;font-weight:600;padding:0 14px;cursor:pointer}
 @media(max-width:1180px){.dz-hero{grid-template-columns:1fr 1fr}.dz-arc{display:none}.dz-glass{padding:22px 22px 22px 12px}.dz-grid{grid-template-columns:1fr}.mz-wrap.open{grid-template-columns:minmax(0,1fr)}.mz-side{position:static;max-height:none;order:-1}}
 @media(max-width:640px){.dz-hero{grid-template-columns:1fr}.dz-glass{padding:0 16px 16px}.dz-big{padding:20px 16px 12px}}
+/* the same look on every HR page (asked 12-11-2026: "baki jitke pages aahet te saglenceh designs hawwet") – only the look */
+body.in{background:#EEF1F7}body.in #app{max-width:1560px}
+body.in .tab{border:0;box-shadow:0 2px 8px rgba(20,30,60,.06);padding:9px 16px;font-size:14px;color:#55607c}body.in .tab.on{background:#0F1F3D;color:#fff}
+body.in .box{border:0;border-radius:22px;box-shadow:0 4px 16px rgba(20,30,60,.07);padding:6px 12px}.dz-card .box{box-shadow:none!important;padding:0!important}
+body.in th{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600;color:#7b839c;border-bottom:1px solid #EEF1F7}body.in td{border-bottom:1px solid #F3F5FA}body.in tbody tr:last-child td{border-bottom:0}
+body.in .tools input,body.in .tools select{border:0;border-radius:14px;box-shadow:0 2px 8px rgba(20,30,60,.06);font-weight:500}
+body.in .pri{background:#0F1F3D;border-radius:14px}body.in .sec{border:0;border-radius:14px;box-shadow:0 2px 8px rgba(20,30,60,.08)}body.in .danger{border-radius:14px}
+body.in .sm{background:#0F1F3D;border-radius:12px}body.in .sm.ghost{background:#fff;color:#0F1F3D;border:1px solid #E1E6F0}
+body.in .chips{gap:14px;margin-bottom:16px}body.in .chip{border:0;border-radius:20px;box-shadow:0 4px 16px rgba(20,30,60,.07);padding:14px 18px;min-width:158px;position:relative;overflow:hidden}
+body.in .chip:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:#0B5FA5}body.in .chip.s-incomplete:before{background:#ffc93c}body.in .chip.s-pending:before{background:#3FA9E0}body.in .chip.s-active:before{background:#35c98a}body.in .chip.s-left:before{background:#9aa5bd}
+body.in .chip b{font-size:30px;font-weight:800;line-height:1.1}body.in .chip span{font-size:13px;font-weight:500}body.in .chip.on{box-shadow:0 0 0 3px #FFC93C,0 4px 16px rgba(20,30,60,.07)}
+body.in .dlg{background:rgba(15,31,61,.5)}body.in .sheet{border-radius:24px;box-shadow:0 24px 60px rgba(10,27,68,.3);padding:24px 24px 20px}body.in .sheet h2{font-weight:800;letter-spacing:-.2px}
+body.in .none{padding:44px 20px;font-size:15px}body.in .mrows li{border-bottom:1px solid #F3F5FA}body.in .mrows input{border-radius:12px}
+body.in td.nm .dz-av{width:28px;height:28px;border-radius:9px;font-size:10.5px}body.in #p_mast h2,body.in #p_mus>h2,body.in #p_mus h3:not(.dz-card h3){font-weight:800}
+body.in .who2{background:#fff;border-radius:14px;padding:8px 12px;box-shadow:0 2px 8px rgba(20,30,60,.06);font-weight:500}
+/* the head of every page, the employee's page and form (12-11-2026) */
+.embed .who2{display:none}body.in .bar{margin-bottom:12px}#p_head{margin:6px 0 16px}#p_head h2{font-size:26px}select.dz-pill{height:40px;max-width:260px;font-weight:600}
+.ep-head{display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,#0F1F3D,#1E3F78);color:#fff;margin:-24px -24px 16px;padding:22px 24px}.ep-head h2{margin:0;color:#fff;font-size:22px}.ep-head .sub{color:#C9D4EA;margin:2px 0 0}
+.ep-face{width:56px;height:56px;border-radius:18px;font-size:20px;margin:0;flex:none;border:2px solid rgba(255,255,255,.35)}.ep-st{margin-left:auto;font-size:13px;padding:6px 12px}
+.ep-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.ep-card{background:#F6F8FC;border-radius:16px;padding:12px 14px;min-width:0}.ep-card.full{grid-column:1/-1}.ep-card h4{margin:0 0 8px;font-size:13.5px;font-weight:800}
+.ep-card dl{margin:0;grid-template-columns:118px 1fr;font-size:14px;gap:6px 10px}.ep-card .hist li{background:#fff}.ep-acts{margin-top:18px;gap:8px}.ep-acts button{height:40px;padding:0 12px;font-size:14px}
+.sheet .grid.g3{grid-template-columns:1fr 1fr 1fr}.sheet .grid.g3 .two{grid-column:span 2}.fs{grid-column:1/-1;font-weight:800;font-size:14px;margin:8px 0 -4px;color:#0F1F3D;border-top:1px solid #EEF1F7;padding-top:12px}.fs:first-child{border:0;padding-top:0;margin-top:0}
+.sheet input:disabled{background:#F3F5FA;color:#7b839c}td.nm.pwho{display:flex;align-items:center}td.nm.pwho small{display:block;font-weight:500;color:#7b839c;font-size:12px}
+body.in .sheet{overflow-x:hidden}
+@media(max-width:760px){.ep-grid{grid-template-columns:1fr}.sheet .grid.g3{grid-template-columns:1fr}.sheet .grid.g3 .two{grid-column:auto}}
 #ph_img{max-width:100%;max-height:70vh;border-radius:14px;display:block;margin:0 auto}
 @media(max-width:640px){body.in{padding:12px}.grid{grid-template-columns:1fr}dl{grid-template-columns:110px 1fr}.who2{display:none}}
 </style>
@@ -116,15 +140,16 @@ table.mz td:first-child b{display:block;font-size:13px;font-weight:600}table.mz 
   <p id="go" hidden><a class="btn" id="link" href="#">Open the Portal</a></p>
 </main>
 <div id="app" hidden>
-  <div class="bar"><div id="tabs" style="display:flex;gap:8px;flex-wrap:wrap"></div><span style="display:flex;align-items:center;gap:10px;margin-left:auto"><select id="site_pick" aria-label="Site" hidden style="height:38px;border:1px solid #D7E0EF;border-radius:10px;padding:0 10px;background:#fff;font-weight:600;max-width:220px"></select><span class="who2" id="who2" style="margin-left:0"></span></span></div>
+  <div class="bar"><div id="tabs" style="display:flex;gap:8px;flex-wrap:wrap"></div><span class="who2" id="who2"></span></div>
+  <div class="dz-top" id="p_head"><div><h2 id="p_title"></h2><small id="p_sub"></small></div><div class="dz-pills"><span id="p_tools" style="display:contents"></span><select id="site_pick" class="dz-pill" aria-label="Site" hidden></select></div></div>
   <section id="p_emp">
     <div class="chips" id="chips"></div>
     <div class="tools">
       <input id="q" type="search" placeholder="Search name, code, mobile or e-mail" aria-label="Search">
       <select id="cat" aria-label="Category"><option value="">All categories</option><option value="staff">Staff</option><option value="operator">Operator</option><option value="driver">Driver</option><option value="labour">Labour</option></select>
-      <button class="sec" id="b_imp" type="button">Import Excel</button><button class="pri" id="b_add" type="button">+ Add employee</button>
+      <button class="sec" id="b_imp" type="button">Import Excel</button><button class="sec" id="b_exp" type="button">Export Excel</button><button class="pri" id="b_add" type="button">+ Add employee</button>
     </div>
-    <div class="box"><table><thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Designation</th><th>Department</th><th>Mobile</th><th>Status</th></tr></thead><tbody id="emp_rows"></tbody></table>
+    <div class="box"><table><thead><tr><th>Employee</th><th>Category</th><th>Designation</th><th>Department</th><th>Mobile</th><th>Active from</th><th>Relieving date</th><th>Status</th></tr></thead><tbody id="emp_rows"></tbody></table>
       <p class="none" id="emp_none" hidden></p><p class="none muted" id="emp_more" hidden>Only the first 500 are shown – search to find the others.</p></div>
   </section>
   <section id="p_dash" hidden></section>
@@ -137,32 +162,48 @@ table.mz td:first-child b{display:block;font-size:13px;font-weight:600}table.mz 
   </section>
 </div>
 
-<div class="dlg" id="dlg_emp" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="d_title">
-  <h2 id="d_title"></h2><p class="sub" id="d_code"></p><p class="warn" id="d_miss" hidden></p>
-  <dl id="d_list"></dl><label id="d_att_lab" hidden>Attendance</label><dl id="d_att" hidden></dl><label>History</label><ul class="hist" id="d_hist"></ul>
-  <p class="warn" id="d_docs_miss" hidden></p>
-  <div class="acts" style="justify-content:flex-start;margin-top:0"><button class="sec" id="d_kyc" type="button">Personal details &amp; KYC</button><button class="sec" id="d_docs" type="button">Documents</button></div>
-  <div class="acts"><button class="danger" id="d_exit" type="button">Has left…</button><button class="sec" id="d_tr" type="button">Transfer…</button><button class="sec" id="d_edit" type="button">Change</button><button class="pri" type="button" data-close="dlg_emp">Close</button></div>
+<div class="dlg" id="dlg_emp" hidden><div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="d_title">
+  <div class="ep-head"><span class="dz-av ep-face" id="d_face" aria-hidden="true"></span><div><h2 id="d_title"></h2><p class="sub" id="d_code"></p></div><span class="st ep-st" id="d_st"></span></div>
+  <p class="warn" id="d_miss" hidden></p><p class="warn" id="d_docs_miss" hidden></p>
+  <div class="ep-grid">
+    <div class="ep-card"><h4>Work · काम</h4><dl id="d_list"></dl></div>
+    <div class="ep-card"><h4>Contact · संपर्क</h4><dl id="d_list2"></dl></div>
+    <div class="ep-card full" id="d_att_lab" hidden><h4>Attendance · हजेरी</h4><dl id="d_att" hidden></dl></div>
+    <div class="ep-card full"><h4>History · इतिहास</h4><ul class="hist" id="d_hist"></ul></div>
+  </div>
+  <div class="acts ep-acts"><button class="sec" id="d_kyc" type="button">Personal details &amp; KYC</button><button class="sec" id="d_docs" type="button">Documents</button><span style="flex:1"></span>
+    <button class="danger" id="d_del" type="button">Delete…</button><button class="danger" id="d_exit" type="button">Relieve…</button><button class="sec" id="d_tr" type="button">Transfer…</button><button class="sec" id="d_edit" type="button">Change</button><button class="pri" type="button" data-close="dlg_emp">Close</button></div>
 </div></div>
 
-<div class="dlg" id="dlg_form" hidden><form class="sheet" id="f_form" role="dialog" aria-modal="true" aria-labelledby="f_title" novalidate>
+<div class="dlg" id="dlg_form" hidden><form class="sheet wide" id="f_form" role="dialog" aria-modal="true" aria-labelledby="f_title" novalidate>
   <h2 id="f_title"></h2><p class="sub">Date of birth, e-mail and mobile are compulsory – without them the employee is kept as Incomplete.</p><input type="hidden" id="f_id">
-  <div class="grid">
-    <div class="full"><label for="f_name">Name *</label><input id="f_name" maxlength="80" autocomplete="off"></div>
-    <div class="full"><label for="f_code">Employee code</label><input id="f_code" maxlength="20" autocomplete="off" placeholder="made by itself (RCL001, RCL002 …) – or type one" style="text-transform:uppercase"></div>
+  <div class="grid g3">
+    <p class="fs">Who · ओळख</p>
+    <div class="two"><label for="f_name">Name *</label><input id="f_name" maxlength="80" autocomplete="off"></div>
+    <div><label for="f_code">Employee code</label><input id="f_code" maxlength="20" autocomplete="off" placeholder="by itself (RCL001 …) or type one" style="text-transform:uppercase"></div>
     <div><label for="f_cat">Category *</label><select id="f_cat"><option value="">– choose –</option><option value="staff">Staff</option><option value="operator">Operator</option><option value="driver">Driver</option><option value="labour">Labour</option></select></div>
-    <div><label for="f_site">Site</label><select id="f_site"></select></div>
-    <div><label for="f_des">Designation</label><select id="f_des"></select></div>
-    <div><label for="f_dep">Department</label><select id="f_dep"></select></div>
-    <div class="pick"><label for="f_boss">Reports to</label><input id="f_boss" autocomplete="off" placeholder="Type a name"><div id="f_boss_list" hidden></div></div>
-    <div><label for="f_mobile">Mobile</label><input id="f_mobile" inputmode="numeric" maxlength="16" autocomplete="off"></div>
-    <div><label for="f_email">E-mail</label><input id="f_email" type="email" maxlength="120" autocomplete="off"></div>
-    <div><label for="f_dob">Date of birth</label><input id="f_dob" type="date"></div>
-    <div><label for="f_join">Joining date</label><input id="f_join" type="date"></div>
     <div><label for="f_gender">Gender</label><select id="f_gender"><option value="">–</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div>
+    <div><label for="f_dob">Date of birth</label><input id="f_dob" type="date"></div>
+    <p class="fs">Work · काम</p>
+    <div><label for="f_site">Site</label><select id="f_site"></select></div>
+    <div><label for="f_dep">Department</label><select id="f_dep"></select></div>
+    <div><label for="f_des">Designation</label><select id="f_des"></select></div>
+    <div class="pick"><label for="f_boss">Reports to</label><input id="f_boss" autocomplete="off" placeholder="Type a name"><div id="f_boss_list" hidden></div></div>
+    <div><label for="f_join">Active from (joining date)</label><input id="f_join" type="date"></div>
+    <div><label>Relieving date</label><input id="f_left" disabled placeholder="set by “Relieve…” on his page"></div>
+    <p class="fs">Contact · संपर्क</p>
+    <div><label for="f_mobile">Mobile</label><input id="f_mobile" inputmode="numeric" maxlength="16" autocomplete="off"></div>
+    <div class="two"><label for="f_email">E-mail</label><input id="f_email" type="email" maxlength="120" autocomplete="off"></div>
   </div>
   <p class="err" id="f_err" role="alert" hidden></p>
   <div class="acts"><button class="sec" type="button" data-close="dlg_form">Cancel</button><button class="pri" id="f_save" type="submit">Save</button></div>
+</form></div>
+
+<div class="dlg" id="dlg_del" hidden><form class="sheet" id="del_form" role="dialog" aria-modal="true" aria-labelledby="del_title" novalidate>
+  <h2 id="del_title"></h2><p class="sub">Only for an employee added by mistake. He is deleted for ever and cannot be brought back. If he has attendance, a phone, papers, personal details (KYC) or people reporting to him, he is not deleted – relieve him instead.</p>
+  <div class="grid"><div class="full"><label for="del_reason">Reason *</label><textarea id="del_reason" maxlength="200"></textarea></div></div>
+  <p class="err" id="del_err" role="alert" hidden></p>
+  <div class="acts"><button class="sec" type="button" data-close="dlg_del">Cancel</button><button class="danger" id="del_save" type="submit">Delete for ever</button></div>
 </form></div>
 
 <div class="dlg" id="dlg_tr" hidden><form class="sheet" id="t_form" role="dialog" aria-modal="true" aria-labelledby="t_title" novalidate>
@@ -177,10 +218,10 @@ table.mz td:first-child b{display:block;font-size:13px;font-weight:600}table.mz 
 </form></div>
 
 <div class="dlg" id="dlg_exit" hidden><form class="sheet" id="x_form" role="dialog" aria-modal="true" aria-labelledby="x_title" novalidate>
-  <h2 id="x_title"></h2><p class="sub">He is marked as Left. Nothing is deleted – his record and history stay.</p>
-  <div class="grid"><div><label for="x_on">Last working day *</label><input id="x_on" type="date"></div><div class="full"><label for="x_reason">Reason *</label><textarea id="x_reason" maxlength="200"></textarea></div></div>
+  <h2 id="x_title"></h2><p class="sub">He is marked as Relieved from this date. Nothing is deleted – his record, attendance and history stay.</p>
+  <div class="grid"><div><label for="x_on">Relieving date *</label><input id="x_on" type="date"></div><div class="full"><label for="x_reason">Reason *</label><textarea id="x_reason" maxlength="200"></textarea></div></div>
   <p class="err" id="x_err" role="alert" hidden></p>
-  <div class="acts"><button class="sec" type="button" data-close="dlg_exit">Cancel</button><button class="danger" id="x_save" type="submit">Mark as left</button></div>
+  <div class="acts"><button class="sec" type="button" data-close="dlg_exit">Cancel</button><button class="danger" id="x_save" type="submit">Relieve</button></div>
 </form></div>
 
 <div class="dlg" id="dlg_kyc" hidden><form class="sheet" id="k_form" role="dialog" aria-modal="true" aria-labelledby="k_title" novalidate>

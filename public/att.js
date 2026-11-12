@@ -20,6 +20,7 @@
   function btn(cls, text, fn) { var b = el('button', cls, text); b.type = 'button'; b.onclick = fn; return b; }
   function opt(sel, value, text, on) { var o = el('option', '', text); o.value = value; if (on) o.selected = true; sel.appendChild(o); return o; }
   function table(heads) { var box = el('div', 'box'), t = el('table'), h = el('thead'), r = el('tr'); heads.forEach(function (x) { r.appendChild(typeof x === 'string' ? el('th', '', x) : x); }); h.appendChild(r); t.appendChild(h); var b = el('tbody'); t.appendChild(b); box.appendChild(t); return { box: box, body: b }; }
+  function face(td, key) { if (window.HRDASH && window.HRDASH.face) td.insertBefore(window.HRDASH.face(td.textContent, key), td.firstChild); return td; }      // the letters of his name before it
   var nameOf = function (list, id) { var r = (list || []).filter(function (x) { return x.id === id; })[0]; return r ? r.name : ''; };
   function whom(p) {
     if (p.scope === 'all') return 'Everybody of the site';
@@ -37,12 +38,14 @@
     var note = el('p', 'muted', A.review ? 'Punches sent later (no network) whose clock or order was doubtful. Accept = it counts; Refuse = it does not. The punch itself is never changed.' : 'Every punch of the day, as it was taken: inside the work place, with a photo as proof. Nothing here can be changed.'); note.style.margin = '0 0 10px'; root.appendChild(note);
     api('punchDay', A.review ? { review: 1 } : { day: A.day }).then(function (r) {
       var t = table(['Code', 'Name', A.review ? 'Day' : 'Category', 'IN / OUT', 'Time', 'Work place', 'How', 'Photo', '']);
+      var shown = 0;      // the first 30 photos are fetched at once, the rest when pressed
       r.punches.forEach(function (p) {
-        var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', p.code)); tr.appendChild(el('td', 'nm', p.name)); tr.appendChild(el('td', '', A.review ? dmy(p.day) : CAT[p.category] || ''));
+        var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', p.code)); tr.appendChild(face(el('td', 'nm', p.name), p.code)); tr.appendChild(el('td', '', A.review ? dmy(p.day) : CAT[p.category] || ''));
         var k = el('td'); k.appendChild(el('span', 'st ' + (p.kind === 'in' ? 's-active' : 's-left'), p.kind === 'in' ? 'IN' : 'OUT')); tr.appendChild(k); tr.appendChild(el('td', '', p.time)); tr.appendChild(el('td', '', p.place));
         var how = el('td'); how.style.whiteSpace = 'normal'; how.appendChild(el('span', 'st ' + (p.status === 'review' ? 's-incomplete' : p.offline ? 's-pending' : 's-active'), p.status === 'review' ? (p.decided ? (p.decided.decision === 'accepted' ? 'Accepted' : 'Refused') : 'To be looked at') : p.offline ? 'Sent later' : 'On the spot'));
         if (p.why && p.why.length) how.appendChild(el('div', 'muted', p.why.join('; ') + (p.decided ? ' — ' + p.decided.by + (p.decided.note ? ': ' + p.decided.note : '') : ''))); tr.appendChild(how);
-        var ph = el('td'); ph.appendChild(btn('sm ghost', 'See', function () { api('punchSelfie', { id: p.id }).then(function (x) { $('ph_img').src = x.url; $('ph_title').textContent = p.name + ' – ' + (p.kind === 'in' ? 'IN' : 'OUT') + ' ' + p.time; show('dlg_photo'); }, fail); })); tr.appendChild(ph);
+        var ph = el('td'), see = function () { api('punchSelfie', { id: p.id }).then(function (x) { $('ph_img').src = x.url; $('ph_title').textContent = p.name + ' – ' + (p.kind === 'in' ? 'IN' : 'OUT') + ' ' + p.time; show('dlg_photo'); }, fail); };
+        if (window.HRDASH && window.HRDASH.thumb) ph.appendChild(window.HRDASH.thumb(p.id, p.name + ' – ' + (p.kind === 'in' ? 'IN' : 'OUT') + ' ' + p.time, shown++ < 30)); else ph.appendChild(btn('sm ghost', 'See', see)); tr.appendChild(ph);
         var act = el('td'); if (A.review && isAdmin()) { act.appendChild(btn('sm', 'Accept', function () { decide(p, 'accepted'); })); var no = btn('sm ghost', 'Refuse', function () { decide(p, 'refused'); }); no.style.marginLeft = '6px'; act.appendChild(no); } tr.appendChild(act);
         t.body.appendChild(tr);
       });
@@ -190,7 +193,7 @@
     api('devList').then(function (r) {
       var t = table(['Code', 'Name', 'Phone', 'Tied since', 'Status', '']);
       r.devices.forEach(function (d) {
-        var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', d.code)); tr.appendChild(el('td', 'nm', d.name)); tr.appendChild(el('td', '', (d.model || 'Phone') + (d.os ? ' · ' + d.os : '') + ' · …' + d.mark)); tr.appendChild(el('td', '', stamp(d.bound_at)));
+        var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', d.code)); tr.appendChild(face(el('td', 'nm', d.name), d.code)); tr.appendChild(el('td', '', (d.model || 'Phone') + (d.os ? ' · ' + d.os : '') + ' · …' + d.mark)); tr.appendChild(el('td', '', stamp(d.bound_at)));
         var s = el('td'); s.style.whiteSpace = 'normal'; s.appendChild(el('span', 'st ' + (d.active ? 's-active' : 's-left'), d.active ? 'In use' : 'Released')); if (!d.active) s.appendChild(el('div', 'muted', stamp(d.released_at) + ' · ' + d.released_by + ' · ' + d.release_reason)); tr.appendChild(s);
         var a = el('td'); if (d.active && isAdmin()) a.appendChild(btn('sm ghost', 'Release…', function () { release(d); })); tr.appendChild(a); t.body.appendChild(tr);
       });

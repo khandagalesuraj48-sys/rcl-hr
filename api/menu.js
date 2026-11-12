@@ -5,6 +5,7 @@
 const { handler, send } = require('../lib/http');
 const ses = require('../lib/session');
 const PAGES = [
+  { key: 'dashboard', name: 'Dashboard', who: 'all' },      // the attendance dashboard – the first page
   { key: 'employees', name: 'Employees', who: 'all' },
   { key: 'attendance', name: 'Attendance', who: 'all' },      // (step 4) the day's punches; work places (geofences); the phones
   { key: 'places', name: 'Work places', who: 'all' },
