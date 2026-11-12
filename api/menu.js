@@ -15,13 +15,14 @@ const PAGES = [
   { key: 'rules', name: 'Shifts & rules', who: 'all' },
   { key: 'leave', name: 'Leave', who: 'all' },      // (step 7) leave: requests, balances, the policy
   { key: 'month', name: 'Month verification', who: 'all' },      // (step 10) the month: the site's HR verifies, the HO HR approves
+  { key: 'payroll', name: 'Payroll', who: 'ho' },      // (step 12) the month's pay – the HO HR and the Super Admin only
   { key: 'lists', name: 'Lists', who: 'admin' },      // (step 6) the pick-lists of the profile and what is compulsory
   { key: 'departments', name: 'Departments', who: 'admin' },
   { key: 'designations', name: 'Designations', who: 'admin' },
 ];
-const mayOpen = (who, role) => role === 'self' ? false : who === 'all' || (who === 'admin' && (role === 'admin' || role === 'super'));
+const mayOpen = (who, role, ho) => role === 'self' ? false : who === 'all' || (who === 'admin' && (role === 'admin' || role === 'super')) || (who === 'ho' && (role === 'super' || ho === true));
 module.exports = handler(async (req, res) => {
-  let s = null; try { s = await ses.read(req); } catch (e) { s = null; }
-  send(res, 200, { module: 'hr', name: 'HR', pages: PAGES.filter(p => !s || mayOpen(p.who, s.role)).map(p => ({ key: p.key, name: p.name })) });
+  let s = null, ho = false; try { s = await ses.read(req); if (s && s.role !== 'self' && s.role !== 'super') ho = await require('../lib/act_month').isHo(s); } catch (e) { ho = false; }
+  send(res, 200, { module: 'hr', name: 'HR', pages: PAGES.filter(p => !s || mayOpen(p.who, s.role, ho)).map(p => ({ key: p.key, name: p.name })) });
 });
 module.exports.PAGES = PAGES; module.exports.mayOpen = mayOpen;
