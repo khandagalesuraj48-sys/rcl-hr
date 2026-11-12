@@ -238,7 +238,7 @@ const D = require('../lib/day'), RU = require('../lib/rules');
 const TODAY = RU.today(), ago = n => D.addDays(TODAY, -n), OFF = (D.weekday(TODAY) + 1) % 7;      // the weekly off: tomorrow's weekday – none of the last five days
 
 test('shifts, holidays and the rules with their date: only who has the power; a new version, the old days keep theirs', async () => {
-  let a = await ACT.attSetup(user); assert.deepStrictEqual([a.shifts.length, a.rules, Object.values(a.powers).every(v => v === true), a.power_list.length], [0, {}, true, 7]);
+  let a = await ACT.attSetup(user); assert.deepStrictEqual([a.shifts.length, a.rules, Object.values(a.powers).every(v => v === true), a.power_list.length], [0, {}, true, 8]);
   await no(ACT.attSetup(self(mail1)), /HR office only/, 403); await no(ACT.shiftSave(user, { name: 'G' }), /Only the HR Admin/, 403);
   await no(ACT.shiftSave(admin, { name: 'G', start_time: '9', end_time: '9:00' }), /Name: at least 2 letters\. Starts at: a time as HH:MM\./);
   a = await ACT.shiftSave(admin, { name: 'General ' + tag, start_time: '9:00', end_time: '18:00', valid_from: '2026-01-01' }); const sh = a.shifts[0];
@@ -562,4 +562,51 @@ test('(step 9) the face: registered once from five pictures of ONE person; a pun
   await no(FA.faceReset(ses('user'), { id: E1.id, reason: 'try' }), /Only the HR Admin/, 403); await no(FA.faceReset(admin, { id: E1.id, reason: '' }), /Reason/); await no(FA.faceInfo(ses('admin', SITE2), { id: E1.id }), /not found on this site/, 404);
   assert.deepStrictEqual(await FA.faceReset(admin, { id: E1.id, reason: 'Registered in bad light' }), { reset: true }); st = await FA.faceState(s1); assert.strictEqual(st.enrolled, false);
   assert.strictEqual((await FA.faceInfo(admin, { id: E1.id })).resets.length, 1); await ACT.rulesSave(sup, was);
+});
+
+test('(step 10) the month: the site\'s HR verifies people after the month ended – not one with something waiting; the HO HR sends back or approves; an approved month is closed; the Super Admin opens it again', async () => {
+  const SM = tag + 'M', aM = ses('admin', SM), uM = ses('user', SM), sM = ses('super', SM), D = require('../lib/day'), MO = require('../lib/month');
+  const today = require('../lib/rules').today(), month = D.addDays(today.slice(0, 8) + '01', -1).slice(0, 7), d5 = month + '-05', d6 = month + '-06', nDays = +MO.lastDay(month).slice(8);
+  const A = await ACT.empSave(aM, { name: 'Month One', category: 'staff', mobile: mob(), email: mail('m1'), dob: '1990-02-02', joined_on: '2024-01-01' });
+  const B = await ACT.empSave(aM, { name: 'Month Two', category: 'labour', mobile: mob(), email: mail('m2'), dob: '1990-03-03', joined_on: '2024-01-01' });
+  await ACT.daySet(sM, { id: A.id, day: d5, in_time: '09:00', out_time: '18:00', reason: 'rig month' });
+  await db('POST', 'hr_regularize', [{ employee_id: B.id, site: SM, day: d6, in_time: '09:00', out_time: '18:00', reason: 'rig waiting', level: 2, asked_by: 'x@rig.test' }], 'return=minimal');
+  // the month as it stands: nobody verified; the counts; who waits is said
+  let m = await ACT.monthList(uM, { month });
+  const a = () => m.rows.find(r => r.id === A.id), b = () => m.rows.find(r => r.id === B.id);
+  assert.deepStrictEqual([m.ended, m.approved, m.sum, m.can], [true, null, { people: 2, verified: 0, changed: 0, returned: 0, open: 2 }, { verify: false, ho: false, reopen: false }]);
+  assert.deepStrictEqual([a().counts.present, a().counts.absent, a().counts.paid, a().state, a().blocked], [1, nDays - 5, 1, 'open', '']);
+  assert.deepStrictEqual([b().counts.present, b().counts.absent, b().waiting], [0, nDays - 4, 1]); assert.match(b().blocked, /1 request\(s\) \/ doubtful punch\(es\) still wait/);
+  // who may verify: the HR Admin with the power – not an HR User, not a running month
+  await no(ACT.monthVerify(uM, { month, ids: [A.id] }), /Only the HR Admin or the Super Admin/, 403);
+  await no(ACT.monthVerify(aM, { month: today.slice(0, 7), ids: [A.id] }), /verified after its last day/, 400);
+  await no(ACT.monthVerify(aM, { month, ids: [] }), /Choose at least one person/, 400);
+  await ACT.powerSet(sM, { power: 'month', allowed: false }); await no(ACT.monthVerify(aM, { month, ids: [A.id] }), /has not given the HR Admin this power/, 403); await ACT.powerSet(sM, { power: 'month', allowed: true });
+  m = await ACT.monthVerify(aM, { month, ids: [A.id, B.id] });
+  assert.deepStrictEqual([m.saved, m.skipped.length, m.skipped[0].code, a().state, b().state, a().verified.by, a().verified.counts.present, m.can.verify], [1, 1, B.code, 'verified', 'open', 'admin@rig.test', 1, true]);
+  await db('PATCH', 'hr_regularize?employee_id=eq.' + B.id + '&status=eq.pending', { status: 'refused' }, 'return=minimal');
+  m = await ACT.monthVerify(aM, { month, ids: [B.id] }); assert.deepStrictEqual([m.saved, m.sum.verified], [1, 2]);
+  // the HO HR: only whom the Super Admin gave it
+  await no(ACT.monthApprove(aM, { month }), /Only the HO HR or the Super Admin/, 403); await no(ACT.monthSites(uM, { month }), /Only the HO HR/, 403);
+  await no(ACT.hoSet(aM, { email: 'user@rig.test', on: true }), /Only the Super Admin/, 403); await no(ACT.hoSet(sM, { email: 'nobody', on: true }), /E-mail/, 400);
+  const h = await ACT.hoSet(sM, { email: 'User@Rig.Test', on: true }); assert.ok(h.rows.some(r => r.email === 'user@rig.test' && r.active));
+  m = await ACT.monthList(uM, { month }); assert.strictEqual(m.can.ho, true);
+  const st = (await ACT.monthSites(uM, { month })).sites.find(x => x.code === SM); assert.deepStrictEqual([st.people, st.verified, st.returned, st.approved], [2, 2, 0, null]);
+  // a day changed after the verification: said, and the month is not approved with it
+  await ACT.daySet(sM, { id: A.id, day: d6, in_time: '09:00', out_time: '18:00', reason: 'rig month 2' });
+  m = await ACT.monthList(uM, { month }); assert.deepStrictEqual([a().state, a().counts.present, a().verified.counts.present], ['changed', 2, 1]);
+  await no(ACT.monthApprove(uM, { month }), new RegExp('1 of 2 people are not verified.*' + A.code), 400);
+  await no(ACT.monthReturn(uM, { month, ids: [B.id], reason: '' }), /Reason/, 400);
+  m = await ACT.monthReturn(uM, { month, ids: [B.id], reason: 'check the absent days' }); assert.deepStrictEqual([b().state, b().returned.reason, b().returned.by], ['returned', 'check the absent days', 'user@rig.test']);
+  m = await ACT.monthVerify(aM, { month, ids: [A.id, B.id] }); assert.deepStrictEqual([m.saved, a().state, b().state, b().returned], [2, 'verified', 'verified', null]);
+  m = await ACT.monthApprove(uM, { month, note: 'ok' }); assert.deepStrictEqual([m.approved.by, m.approved.people, m.approved.note, m.can.verify], ['user@rig.test', 2, 'ok', false]);
+  // approved: closed for everybody
+  await no(ACT.daySet(sM, { id: A.id, day: d5, none: true, reason: 'after approval' }), /approved by the HO HR – no day of that month is changed/, 409);
+  await no(ACT.monthVerify(aM, { month, ids: [A.id] }), /approved by the HO HR/, 409); await no(ACT.monthReturn(uM, { month, ids: [A.id], reason: 'late' }), /approved by the HO HR/, 409);
+  assert.strictEqual((await ACT.monthSites(uM, { month })).sites.find(x => x.code === SM).approved.by, 'user@rig.test');
+  await no(ACT.monthReopen(aM, { month, reason: 'x y z' }), /Only the Super Admin/, 403); await no(ACT.monthReopen(sM, { month, reason: '' }), /Reason/, 400);
+  m = await ACT.monthReopen(sM, { month, reason: 'one day was wrong' }); assert.deepStrictEqual([m.approved, m.reopened.reason, m.can.verify, a().state], [null, 'one day was wrong', true, 'verified']);
+  await ACT.hoSet(sM, { email: 'user@rig.test', on: false }); assert.strictEqual((await ACT.monthList(uM, { month })).can.ho, false);
+  const log = (await db('GET', 'hr_audit?select=action&site=eq.' + SM + '&order=id')).map(r => r.action);
+  for (const k of ['Month verified', 'Month sent back to the site\'s HR', 'Month approved (HO HR)', 'Approved month opened again', 'HO HR given', 'HO HR taken']) assert.ok(log.indexOf(k) > -1, k);
 });
