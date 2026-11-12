@@ -22,7 +22,30 @@ const EMP = 'id,code,name,category,gender,dob,mobile,email,site,department_id,de
 const NOT_READY3 = 'The employee\'s details and papers are not set up yet: the Super Admin runs sql/hr_step3_kyc_docs.sql once in the rcl-hr Supabase → SQL Editor.';
 const NOT_READY = 'The Employee Master is not set up yet: the Super Admin runs sql/hr_step2_employees.sql once in the rcl-hr Supabase → SQL Editor.';
 const MAST = { department: 'hr_departments', designation: 'hr_designations' };
-const codeOf = n => 'E' + String(n).padStart(5, '0');
+/* (asked 12-11-2026: "employee code … ase banayla haw RCL001 RCL002") the company's letters and the number, three digits at
+ * least (RCL001 … RCL999, RCL1000 …). The number comes from hr_next_no – never given twice. A code already given is not changed. */
+const codeOf = n => 'RCL' + String(n).padStart(3, '0');
+/* (asked 12-11-2026: "EMPLOYEE CODE CHANGE EDIT KRTA YAWET … FIX NASAWET") a code can be typed and changed by the HR office: capital
+ * letters, digits, "-" and "/", 2 to 20; never the code of another employee (the database refuses a double too). Punches, papers
+ * and the history hang on the employee himself, not on his code – a changed code moves nothing; the change is written down. */
+const CODE_OK = /^[A-Z0-9][A-Z0-9\-\/]{1,19}$/;
+const codeTyped = v => R.str(v, 40).toUpperCase().replace(/\s+/g, '');
+async function codeFree(code, exceptId) {
+  if (!CODE_OK.test(code)) throw fail(400, 'Employee code: 2 to 20 capital letters and digits (also - and /), e.g. RCL001.', 'code');
+  const o = ((await db('GET', 'hr_employees?select=id,name&code=eq.' + enc(code))) || [])[0];
+  if (o && o.id !== exceptId) throw fail(409, 'The code ' + code + ' already belongs to another employee.', 'codetaken');
+}
+// `count` codes made by themselves – a number whose code somebody typed by hand already is passed over
+async function newCodes(count) {
+  const out = [];
+  for (let round = 0; out.length < count && round < 20; round++) {
+    const need = count - out.length, first = Number(await db('POST', 'rpc/hr_next_no', { p_kind: 'emp', p_count: need })), all = Array.from({ length: need }, (_, i) => codeOf(first + i));
+    const used = {}; ((await db('GET', 'hr_employees?select=code&code=in.(' + all.map(c => '"' + c + '"').join(',') + ')')) || []).forEach(r => { used[r.code] = 1; });
+    all.forEach(c => { if (!used[c]) out.push(c); });
+  }
+  if (out.length < count) throw fail(500, 'No free employee code could be made – type the code yourself.', 'code');
+  return out;
+}
 const sitesOf = s => { const l = (s.info && Array.isArray(s.info.sites) ? s.info.sites : []).map(x => String(x.code)); if (l.indexOf(s.site) < 0) l.push(s.site); return l; };
 
 async function masters() {
@@ -105,18 +128,21 @@ const ACT = {
     const site = R.str(x.site, 12).toUpperCase() || (was ? was.site : s.site);
     if (sitesOf(s).indexOf(site) < 0) throw fail(403, 'Site: choose a site where you have HR.', 'site');
     if (was && site !== was.site) needAdmin(s);
+    const code = codeTyped(x.code);      // typed: his code (changed, or given at once); empty: as it is / made by itself
+    if (code && (!was || code !== was.code)) await codeFree(code, empId || '');
     if (was) {
       // the e-mail changed: it must be verified again (the activation step)
       const row = Object.assign({}, c.row, links, { status: R.statusOf(c.row, was.status === 'active' && c.row.email === was.email ? 'active' : ''), updated_by: s.email, updated_at: now });
       if (c.row.email !== was.email) row.email_verified_at = null;
-      row.site = site; const moved = site !== was.site || ['department_id', 'designation_id', 'reports_to'].some(k => (row[k] || null) !== (was[k] || null));
+      row.site = site; if (code && code !== was.code) row.code = code;
+      const moved = site !== was.site || ['department_id', 'designation_id', 'reports_to'].some(k => (row[k] || null) !== (was[k] || null));
       await db('PATCH', 'hr_employees?id=eq.' + empId + '&site=eq.' + enc(s.site), row, 'return=minimal');
       if (moved) { const d = R.today(); await db('PATCH', 'hr_employment?employee_id=eq.' + empId + '&valid_to=is.null', { valid_to: d }, 'return=minimal'); await db('POST', 'hr_employment', [Object.assign({ employee_id: empId, site: site, valid_from: d, note: site !== was.site ? 'Transfer' : 'Changed', created_by: s.email }, links)], 'return=minimal'); }
       const diff = {}; Object.keys(row).forEach(k => { if (['updated_by', 'updated_at'].indexOf(k) < 0 && String(row[k] === null ? '' : row[k]) !== String(was[k] === null || was[k] === undefined ? '' : was[k])) diff[k] = [was[k] === undefined ? null : was[k], row[k]]; });
       await audit(s.site, s.email, 'Employee changed', was.code, diff);
-      return { id: empId, code: was.code, status: row.status, missing: c.missing, site: site };
+      return { id: empId, code: row.code || was.code, status: row.status, missing: c.missing, site: site };
     }
-    const n = await db('POST', 'rpc/hr_next_no', { p_kind: 'emp', p_count: 1 }), row = Object.assign({ code: codeOf(n), site: site, status: R.statusOf(c.row, ''), created_by: s.email, updated_by: s.email }, c.row, links);
+    const row = Object.assign({ code: code || (await newCodes(1))[0], site: site, status: R.statusOf(c.row, ''), created_by: s.email, updated_by: s.email }, c.row, links);
     const made = (await db('POST', 'hr_employees', [row], 'return=representation'))[0];
     await db('POST', 'hr_employment', [Object.assign({ employee_id: made.id, site: site, valid_from: row.joined_on || R.today(), note: 'Joined', created_by: s.email }, links)], 'return=minimal');
     await audit(s.site, s.email, 'Employee added', made.code, { category: row.category, status: row.status, site: site });
@@ -238,15 +264,15 @@ const ACT = {
       if (gn && !(gn.toLowerCase() in des)) des[gn.toLowerCase()] = await masterId('designation', gn, s.email, made);
       p.links = { department_id: dn ? dep[dn.toLowerCase()] : null, designation_id: gn ? des[gn.toLowerCase()] : null, reports_to: null };
     }
-    const first = Number(await db('POST', 'rpc/hr_next_no', { p_kind: 'emp', p_count: good.length }));
-    const rows = good.map((p, i) => Object.assign({ code: codeOf(first + i), site: s.site, status: R.statusOf(p.row, ''), created_by: s.email, updated_by: s.email }, p.row, p.links));
+    const codes = await newCodes(good.length);
+    const rows = good.map((p, i) => Object.assign({ code: codes[i], site: s.site, status: R.statusOf(p.row, ''), created_by: s.email, updated_by: s.email }, p.row, p.links));
     let saved = 0;
     for (let i = 0; i < rows.length; i += 200) {
       const part = rows.slice(i, i + 200), back = await db('POST', 'hr_employees', part, 'return=representation');
       await db('POST', 'hr_employment', back.map(b => ({ employee_id: b.id, site: s.site, department_id: b.department_id, designation_id: b.designation_id, valid_from: b.joined_on || R.today(), note: 'Joined (import)', created_by: s.email })), 'return=minimal');
       saved += back.length;
     }
-    await audit(s.site, s.email, 'Employees imported', saved + ' employees', { first: codeOf(first), last: codeOf(first + rows.length - 1), incomplete: sum.incomplete, faults: out.length, made: made });
+    await audit(s.site, s.email, 'Employees imported', saved + ' employees', { first: codes[0], last: codes[rows.length - 1], incomplete: sum.incomplete, faults: out.length, made: made });
     return Object.assign({ saved: saved, checked: false, lines: out, made: made }, sum);
   },
 };

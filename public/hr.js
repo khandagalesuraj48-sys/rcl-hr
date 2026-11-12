@@ -92,7 +92,7 @@
   // ---------- add / change ----------
   function fill(sel, list, val, none) { sel.textContent = ''; var o = el('option', '', none); o.value = ''; sel.appendChild(o); list.forEach(function (x) { if (!x.active && x.id !== val) return; var p = el('option', '', x.name); p.value = x.id; sel.appendChild(p); }); sel.value = val || ''; }
   function form(e, boss) {
-    e = e || {}; $('f_title').textContent = e.id ? 'Change ' + e.code : 'Add employee'; $('f_id').value = e.id || '';
+    e = e || {}; $('f_title').textContent = e.id ? 'Change ' + e.code : 'Add employee'; $('f_id').value = e.id || ''; $('f_code').value = e.code || '';
     $('f_name').value = e.name || ''; $('f_cat').value = e.category || ''; $('f_gender').value = e.gender || ''; $('f_mobile').value = e.mobile || ''; $('f_email').value = e.email || '';
     $('f_dob').value = e.dob || ''; $('f_join').value = e.joined_on || '';
     fill($('f_dep'), S.init.departments, e.department_id, '– none –'); fill($('f_des'), S.init.designations, e.designation_id, '– none –');
@@ -111,7 +111,7 @@
   function save(ev) {
     ev.preventDefault(); var b = $('f_save'); if ($('f_boss').value && !$('f_boss').dataset.id) { $('f_err').textContent = 'Reporting person: choose a name from the list, or leave it empty.'; $('f_err').hidden = false; return; }
     busy(b, true);
-    api('empSave', { id: $('f_id').value, name: $('f_name').value, category: $('f_cat').value, gender: $('f_gender').value, mobile: $('f_mobile').value, email: $('f_email').value, dob: $('f_dob').value, joined_on: $('f_join').value, site: $('f_site').value,
+    api('empSave', { id: $('f_id').value, code: $('f_code').value, name: $('f_name').value, category: $('f_cat').value, gender: $('f_gender').value, mobile: $('f_mobile').value, email: $('f_email').value, dob: $('f_dob').value, joined_on: $('f_join').value, site: $('f_site').value,
       department_id: $('f_dep').value, designation_id: $('f_des').value, reports_to: $('f_boss').dataset.id }).then(function (r) {
       busy(b, false); hide('dlg_form'); toast(r.code + ' saved' + (r.site && r.site !== S.me.site ? ' at ' + siteName(r.site) + ' – choose that site (top right) to see him' : '') + (r.missing.length ? ' – incomplete: ' + r.missing.join(', ') + ' still needed.' : '.')); list();
     }, function (e) { busy(b, false); $('f_err').textContent = e.message; $('f_err').hidden = false; });

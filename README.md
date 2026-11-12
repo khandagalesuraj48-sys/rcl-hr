@@ -21,7 +21,7 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
 * `api/hr.js` – one door for every action: the sign-in first, then the action's access, then the work; only the site of the
   sign-in; **nothing is deleted** (left / switched off); every change in `hr_audit` with the old and the new value.
   * `masterSave` (HR Admin) – departments, designations.
-  * `empList`, `empGet`, `empPick`, `empSave` (HR User too) – code `E00001…` by itself; categories Staff / Operator / Driver /
+  * `empList`, `empGet`, `empPick`, `empSave` (HR User too) – code `RCL001, RCL002 …` by itself, or typed, and it can be changed (asked 12-11-2026 – never another employee's; the change is written down); categories Staff / Operator / Driver /
     Labour; a mobile number and an e-mail belong to ONE employee (they are what he will sign in with); under 18 is refused.
   * Status: **incomplete** (DOB, e-mail or mobile missing) → **pending** (complete – waits for his own e-mail OTP) → **active**
     (only by the activation step – not built yet) → **left**.
