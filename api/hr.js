@@ -312,7 +312,10 @@ const ACT = {
 };
 
 [ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT, LEAVE.ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
-const SELF = ATT.SELF.concat(MUS.SELF, LEAVE.SELF);
+// (12-11-2026) the app's "Me": a person's own record and papers – the office's own paper actions, for the employee the sign-in is
+const MINE = require('../lib/act_self')(ACT);
+Object.keys(MINE.ACT).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = MINE.ACT[k]; });
+const SELF = ATT.SELF.concat(MUS.SELF, LEAVE.SELF, MINE.SELF);
 module.exports = handler(async (req, res) => {
   if (req.method !== 'POST') return send(res, 405, { error: 'POST only.' });
   sameSite(req);
@@ -323,6 +326,6 @@ module.exports = handler(async (req, res) => {
   // "My HR" (an employee for himself): only his own attendance – nothing of the HR office's pages
   if (s.role === 'self' && SELF.indexOf(String(x.action)) < 0) throw fail(403, 'This is for the HR office only.', 'role');
   try { send(res, 200, Object.assign({ ok: true }, await fn(s, x))); }
-  catch (e) { if (e && e.code === 'notinstalled') throw fail(500, Object.prototype.hasOwnProperty.call(LEAVE.ACT, String(x.action)) ? LEAVE.NOT_READY7 : Object.prototype.hasOwnProperty.call(PROF.ACT, String(x.action)) ? PROF.NOT_READY6 : mus ? MUS.NOT_READY5 : att ? ATT.NOT_READY4 : /^(priv|doc)/.test(String(x.action)) ? NOT_READY3 : NOT_READY, 'notinstalled'); throw e; }
+  catch (e) { if (e && e.code === 'notinstalled') throw fail(500, Object.prototype.hasOwnProperty.call(LEAVE.ACT, String(x.action)) ? LEAVE.NOT_READY7 : Object.prototype.hasOwnProperty.call(PROF.ACT, String(x.action)) ? PROF.NOT_READY6 : mus ? MUS.NOT_READY5 : att ? ATT.NOT_READY4 : /^(priv|doc|myDoc)/.test(String(x.action)) ? NOT_READY3 : NOT_READY, 'notinstalled'); throw e; }
 });
 module.exports.ACT = ACT; module.exports.SELF = SELF;

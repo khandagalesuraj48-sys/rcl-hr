@@ -472,3 +472,22 @@ test('leave: the policy with its date; the balance counted; asked – refused be
   }
   assert.deepStrictEqual((await ACT.leavePolicy(ses('user', SITE2))).versions, [], 'another site has its own policy'); await no(ACT.empDelete(A, { id: w.id, reason: 'try' }), /leave/, 409);
 });
+
+test('(the app\'s "Me") my record and my papers: his own only – the id the phone sends is not used; numbers masked; he attaches and opens his own paper, never another person\'s', async () => {
+  const s1 = self(mail1), s2 = self(mail2), A = ses('admin');
+  await no(ACT.myHr(self(mail('nobody'))), /not in the Employee Master/, 403);
+  let h = await ACT.myHr(s1); assert.strictEqual(h.employee.code, E1.code); assert.strictEqual(h.details[0].name, 'Employee'); assert.ok(h.details[0].rows.some(r => r.label === 'Date of birth' && r.value === '01-01-1991'));
+  assert.ok(h.complete === null || (h.complete.pct >= 0 && h.complete.pct <= 100)); assert.ok(h.docs.missing.indexOf('PAN card') > -1); assert.strictEqual(typeof h.phone.bound, 'boolean');
+  { await ACT.profSave(A, { id: E1.id, group: 'secret', data: { bank_account: '123456789012', bank_ifsc: 'SBIN0001234' } }); h = await ACT.myHr(s1); const bank = h.details.find(g => g.name === 'Statutory & bank');
+    assert.deepStrictEqual(bank.rows.map(r => r.value).sort(), ['SBIN0001234', 'XXXX9012'], 'his account number is masked for him too'); }
+  const body = Buffer.from('%PDF-1.4 rig mine'), u = await ACT.myDocUploadUrl(s1, { id: E2.id, kind: 'pan', type: 'application/pdf', bytes: body.length });
+  assert.match(u.path, new RegExp('^' + E1.id + '/[0-9a-f]{24}\\.pdf$'), 'his own folder – not the id the phone sent');
+  const r = await fetch(u.url, { method: 'PUT', headers: { 'Content-Type': 'application/pdf', 'x-upsert': 'false' }, body }); assert.ok(r.ok);
+  await no(ACT.myDocAdd(s2, { kind: 'pan', path: u.path, bytes: body.length }), /does not belong to this employee/);
+  const made = await ACT.myDocAdd(s1, { id: E2.id, kind: 'pan', path: u.path, bytes: body.length, number: 'abcde1234f' }); assert.ok(made.id);
+  const l = await ACT.myDocs(s1); assert.ok(l.docs.some(d => d.id === made.id && d.kind === 'pan' && d.number === 'ABCDE1234F')); assert.ok(l.docsMissing.indexOf('PAN card') < 0);
+  assert.ok(!(await ACT.myDocs(s2)).docs.some(d => d.id === made.id), 'another person does not see it');
+  const k = await ACT.myDocLink(s1, { doc: made.id }); assert.match((await (await fetch(k.url)).text()), /rig mine/);
+  await no(ACT.myDocLink(s2, { doc: made.id }), /not found/, 404); await no(ACT.myDocLink(s1, { doc: 'x' }), /not found/, 404);
+  assert.ok((await ACT.docList(A, { id: E1.id })).docs.some(d => d.id === made.id), 'the HR office sees the paper he attached');
+});
