@@ -176,7 +176,7 @@ test('the actions: every one asks the sign-in first; the Admin\'s ones are refus
   const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
   assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'empDelete', 'empExport', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'docRemove', 'empImport',
     'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'selfieUrl', 'punch',
-    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave']);
+    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
   assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n[^\n]+\n  if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'empDelete', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   // (12-11-2026) ONE action deletes: empDelete – an employee added by mistake, after the check that nothing hangs on him, with the reason, written in the audit
@@ -263,7 +263,7 @@ test('a work place as typed; for whom it is; the moment of a punch sent later', 
 
 test('attendance actions: the office\'s ones are closed to "My HR"; changes are the Admin\'s; a punch is never changed', () => {
   const { ACT, SELF } = require('../api/hr'), src = fs.readFileSync(path.join(root, 'lib', 'act_attend.js'), 'utf8');
-  assert.deepStrictEqual(SELF, ['myAttend', 'selfieUrl', 'punch', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide']);
+  assert.deepStrictEqual(SELF, ['myAttend', 'selfieUrl', 'punch', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
   for (const [a, p] of [['projSave', 'places'], ['placeSave', 'places'], ['placeBulk', 'places'], ['placeImport', 'places'], ['placeRemove', 'places'], ['devRelease', 'phones'], ['punchReview', 'review'], ['shiftSave', 'shifts'], ['shiftRemove', 'shifts'], ['holidaySave', 'shifts'], ['holidayRemove', 'shifts'], ['rulesSave', 'shifts'], ['regDecide', 'regularize']]) assert.ok(String(ACT[a]).indexOf("await power.need(s, '" + p + "')") > -1, a + ': the power ' + p);
   assert.match(String(ACT.daySet), /await power\.need\(s, has \? 'correct' : 'manual'\)/); assert.match(String(ACT.powerSet), /s\.role !== 'super'/);
   for (const a of ['placeList', 'devList', 'punchDay', 'punchSelfie', 'attSetup', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'attDash']) assert.match(String(ACT[a]), /needOffice\(s\)/, a);
@@ -413,4 +413,14 @@ test('leave (step 7): the balance is walked day by day – monthly leaves, carry
   const lj = fs.readFileSync(path.join(root, 'public', 'leave.js'), 'utf8'), lw = {}; new Function('window', 'document', lj)(lw, { getElementById: () => null }); assert.deepStrictEqual(lw.HRLEAVE.pages, [['leave', 'Leave']]);
   assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|\b(alert|confirm|prompt)\(/.test(lj), 'only textContent, no browser dialog');
   assert.match(q, /grant select, insert on public\.hr_leave_policy, public\.hr_leave_adjust to service_role;/); assert.match(q, /grant select, insert, update on public\.hr_leave_requests to service_role;/);
+});
+
+test('(the app\'s "Me") a person\'s own record and papers: always the employee the sign-in is, never an id from the phone; numbers masked; he removes nothing', () => {
+  const { ACT, SELF } = require('../api/hr'), src = fs.readFileSync(path.join(root, 'lib', 'act_self.js'), 'utf8');
+  for (const a of ['myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']) { assert.ok(SELF.indexOf(a) > -1, a); assert.match(String(ACT[a]), /const emp = await me\(s\)/, a); assert.ok(!/x\.id\b/.test(String(ACT[a])), a + ': no employee id is taken from the phone'); }
+  assert.match(String(ACT.myDocUploadUrl), /Object\.assign\(\{\}, x, \{ id: emp\.id \}\)/); assert.match(String(ACT.myDocAdd), /Object\.assign\(\{\}, x, \{ id: emp\.id \}\)/);
+  assert.match(String(ACT.myDocLink), /&employee_id=eq\.' \+ emp\.id/, 'only a paper of his own');
+  assert.ok(!/docRemove|DELETE|PATCH|POST/.test(src), 'nothing is removed or changed here – a paper is attached through the office\'s own action');
+  assert.match(src, /const MASKED = \['pf_no', 'uan', 'esic_no', 'bank_account'\];/); assert.match(src, /secret && MASKED\.indexOf\(d\.key\) > -1 \? P\.mask\(v\) : String\(v\)/);
+  assert.ok(SELF.indexOf('docRemove') < 0 && SELF.indexOf('docList') < 0 && SELF.indexOf('profGet') < 0);
 });
