@@ -491,3 +491,14 @@ test('(the app\'s "Me") my record and my papers: his own only – the id the pho
   await no(ACT.myDocLink(s2, { doc: made.id }), /not found/, 404); await no(ACT.myDocLink(s1, { doc: 'x' }), /not found/, 404);
   assert.ok((await ACT.docList(A, { id: E1.id })).docs.some(d => d.id === made.id), 'the HR office sees the paper he attached');
 });
+
+test('the profile picture: the newest paper "Photo" that is a picture – he sets it himself; the office sees the faces of its own site only; a PDF is not a face', async () => {
+  const s1 = self(mail1), A = ses('admin'), png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+  assert.strictEqual((await ACT.myHr(s1)).photo, '', 'none yet'); assert.deepStrictEqual((await ACT.empPhotos(A, { ids: [E1.id] })).photos, {});
+  const u = await ACT.myDocUploadUrl(s1, { kind: 'photo', type: 'image/png', bytes: png.length }); assert.ok((await fetch(u.url, { method: 'PUT', headers: { 'Content-Type': 'image/png', 'x-upsert': 'false' }, body: png })).ok);
+  await ACT.myDocAdd(s1, { kind: 'photo', path: u.path, bytes: png.length });
+  const h = await ACT.myHr(s1); assert.match(h.photo, /^http/); assert.strictEqual(Buffer.from(await (await fetch(h.photo)).arrayBuffer()).length, png.length);
+  const f = await ACT.empPhotos(A, { ids: [E1.id, E2.id, 'x'] }); assert.deepStrictEqual(Object.keys(f.photos), [E1.id]); assert.ok((await fetch(f.photos[E1.id])).ok);
+  assert.deepStrictEqual((await ACT.empPhotos(ses('admin', SITE2), { ids: [E1.id] })).photos, {}, 'another site does not get his face');
+  await no(ACT.empPhotos(s1, { ids: [E1.id] }), /HR office only/, 403);
+});
