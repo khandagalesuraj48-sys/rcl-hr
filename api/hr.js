@@ -11,6 +11,7 @@ const { audit } = require('../lib/audit');
 const R = require('../lib/rules');
 const store = require('../lib/store');
 const crypto = require('crypto');
+const ATT = require('../lib/act_attend');      // (step 4) attendance: work places, phones, punches
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const id = v => { v = String(v || '').toLowerCase(); return UUID.test(v) ? v : ''; };
@@ -244,13 +245,16 @@ const ACT = {
   },
 };
 
+Object.keys(ATT.ACT).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = ATT.ACT[k]; });
 module.exports = handler(async (req, res) => {
   if (req.method !== 'POST') return send(res, 405, { error: 'POST only.' });
   sameSite(req);
   const x = await readBody(req), fn = Object.prototype.hasOwnProperty.call(ACT, String(x.action)) ? ACT[x.action] : null;
   if (!fn) return send(res, 400, { error: 'Unknown action.' });
-  const s = await ses.need(req);
+  const s = await ses.need(req), att = Object.prototype.hasOwnProperty.call(ATT.ACT, String(x.action));
+  // "My HR" (an employee for himself): only his own attendance – nothing of the HR office's pages
+  if (s.role === 'self' && ATT.SELF.indexOf(String(x.action)) < 0) throw fail(403, 'This is for the HR office only.', 'role');
   try { send(res, 200, Object.assign({ ok: true }, await fn(s, x))); }
-  catch (e) { if (e && e.code === 'notinstalled') throw fail(500, /^(priv|doc)/.test(String(x.action)) ? NOT_READY3 : NOT_READY, 'notinstalled'); throw e; }
+  catch (e) { if (e && e.code === 'notinstalled') throw fail(500, att ? ATT.NOT_READY4 : /^(priv|doc)/.test(String(x.action)) ? NOT_READY3 : NOT_READY, 'notinstalled'); throw e; }
 });
-module.exports.ACT = ACT;
+module.exports.ACT = ACT; module.exports.SELF = ATT.SELF;

@@ -19,16 +19,17 @@
   // ---------- the frame of the pages ----------
   function tabs() {
     var t = $('tabs'); t.textContent = '';
-    [['employees', 'Employees', true], ['departments', 'Departments', isAdmin()], ['designations', 'Designations', isAdmin()]].forEach(function (p) {
+    [['employees', 'Employees', true]].concat((window.HRATT ? window.HRATT.pages : []).map(function (p) { return [p[0], p[1], true]; }), [['departments', 'Departments', isAdmin()], ['designations', 'Designations', isAdmin()]]).forEach(function (p) {
       if (!p[2]) return; var b = el('button', 'tab' + (S.page === p[0] ? ' on' : ''), p[1]); b.type = 'button'; b.onclick = function () { go(p[0]); }; t.appendChild(b);
     });
   }
   function go(page) {
     if ((page === 'departments' || page === 'designations') && !isAdmin()) page = 'employees';
-    S.page = page === 'departments' || page === 'designations' ? page : 'employees'; tabs();
-    $('p_emp').hidden = S.page !== 'employees'; $('p_mast').hidden = S.page === 'employees';
+    var att = !!window.HRATT && window.HRATT.has(page);      // (step 4) Attendance, Work places, Phones – att.js
+    S.page = att || page === 'departments' || page === 'designations' ? page : 'employees'; tabs();
+    $('p_emp').hidden = S.page !== 'employees'; $('p_att').hidden = !att; $('p_mast').hidden = att || S.page === 'employees';
     try { history.replaceState(null, '', location.pathname + location.search + '#page=' + S.page); } catch (e) { /* the page still works */ }
-    if (S.page === 'employees') list(); else masters();
+    if (att) window.HRATT.open(S.page, S.me, S.init); else if (S.page === 'employees') list(); else masters();
   }
 
   // ---------- Employees: the list ----------
@@ -215,6 +216,8 @@
   window.HR = {
     open: function (me, page) {
       S.me = me; if (S.init) return; 
+      // "My HR" (an employee for himself): his attendance is in the phone app – the office's pages are not his
+      if (me && me.user && me.user.role === 'self') { window.HRMSG('Your attendance is marked in the phone app (One Click Solution → HR). These pages are for the HR office. · तुमची हजेरी phone app मध्ये लावायची आहे. ही pages HR office साठी आहेत. · आपकी हाज़िरी phone app में लगानी है। ये pages HR office के लिए हैं।'); return; }
       api('init').then(function (i) {
         S.init = i; $('app').hidden = false;
         var t; $('q').oninput = function () { clearTimeout(t); t = setTimeout(function () { S.q = $('q').value; list(); }, 300); };

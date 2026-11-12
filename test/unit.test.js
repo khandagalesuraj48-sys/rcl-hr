@@ -131,7 +131,7 @@ test('the SQL step: only adds, four tables, row level security on and nothing fo
 test('the menu, the page and the hosting: one page, nothing of an employee, never listed by a search engine, Mumbai', async () => {
   const menu = require('../api/menu'); const res = { h: {}, setHeader(k, v) { this.h[k] = v; }, end(b) { this.body = JSON.parse(b); } };
   await menu({ method: 'GET', headers: {} }, res);
-  assert.deepStrictEqual(res.body, { module: 'hr', name: 'HR', pages: [{ key: 'employees', name: 'Employees' }, { key: 'departments', name: 'Departments' }, { key: 'designations', name: 'Designations' }] }, 'nobody signed in here yet: every page is listed');
+  assert.deepStrictEqual(res.body, { module: 'hr', name: 'HR', pages: [{ key: 'employees', name: 'Employees' }, { key: 'attendance', name: 'Attendance' }, { key: 'places', name: 'Work places' }, { key: 'phones', name: 'Phones' }, { key: 'departments', name: 'Departments' }, { key: 'designations', name: 'Designations' }] }, 'nobody signed in here yet: every page is listed');
   assert.ok(menu.mayOpen('all', 'user') && !menu.mayOpen('admin', 'user') && menu.mayOpen('admin', 'admin') && menu.mayOpen('admin', 'super'));
   const page = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   for (const m of page.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)) new Function(m[1]);
@@ -174,8 +174,9 @@ test('the pages\' script: the Excel / CSV columns are found by their usual names
 
 test('the actions: every one asks the sign-in first; the Admin\'s ones are refused to an HR User; nothing deletes an employee', () => {
   const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
-  assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'docRemove', 'empImport']);
-  assert.match(src, /const s = await ses\.need\(req\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
+  assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'docRemove', 'empImport',
+    'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'myMonth', 'selfieUrl', 'punch']);
+  assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n  if \(s\.role === 'self' && ATT\.SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   assert.ok(!/db\('DELETE'/.test(src), 'no row is ever deleted by an action');
 });
@@ -223,4 +224,69 @@ test('no secret and no code of another HR product in any file', () => {
     assert.ok(!/sb_secret_[A-Za-z0-9_-]{8,}|eyJhbGciOi[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|re_[A-Za-z0-9]{20,}/.test(t), path.relative(root, f) + ': a key');
     assert.ok(!/[a-z0-9]{12,}\.supabase\.co/.test(t), path.relative(root, f) + ': the database\'s address belongs in Vercel only');
   }
+});
+
+/* ───────────── step 4: attendance ───────────── */
+test('where a person is: a circle, an area, along the road – inside or how many metres outside', () => {
+  const G = require('../lib/geo'), c = { shape: 'circle', lat: 18.5, lng: 73.8, radius_m: 100 };
+  assert.ok(Math.abs(G.dist(18.5, 73.8, 18.5009, 73.8) - 100.08) < 0.5);
+  assert.deepStrictEqual(G.check(c, 18.5005, 73.8), { inside: true, distance: 0 }); const out = G.check(c, 18.502, 73.8); assert.ok(!out.inside && Math.abs(out.distance - 122) <= 1);
+  const sq = { shape: 'polygon', points: [[18.5, 73.8], [18.5, 73.81], [18.51, 73.81], [18.51, 73.8]] };
+  assert.ok(G.check(sq, 18.505, 73.805).inside); const o2 = G.check(sq, 18.505, 73.811); assert.ok(!o2.inside && Math.abs(o2.distance - 105) <= 2);
+  const road = { shape: 'corridor', radius_m: 50, points: [[18.5, 73.8], [18.5, 73.9]] };
+  assert.ok(G.check(road, 18.5003, 73.85).inside); assert.ok(!G.check(road, 18.501, 73.85).inside); assert.ok(!G.check(road, 18.5, 73.91).inside, 'past the end of the road');
+  assert.strictEqual(G.points([[1, 2]], 2), null); assert.strictEqual(G.points([[1, 2], [91, 2]], 2), null); assert.deepStrictEqual(G.points([{ lat: '1', lng: 2 }, [3, 4]], 2), [[1, 2], [3, 4]]);
+  assert.strictEqual(G.nearest([c, Object.assign({}, c, { lat: 19 })], 18.5001, 73.8).place, c);
+});
+
+test('a work place as typed; for whom it is; the moment of a punch sent later', () => {
+  const A = require('../lib/attend');
+  assert.match(A.place({ name: 'C', shape: 'circle', radius_m: 5 }).errors.join(' '), /Name.*Place it on the map.*Radius: 20 to 5000/);
+  assert.match(A.place({ name: 'Area', shape: 'polygon', points: [[1, 1], [2, 2]] }).errors.join(' '), /at least 3 corners/);
+  assert.match(A.place({ name: 'Camp', lat: 1, lng: 1, radius_m: 100, scope: 'category', scope_values: ['boss'] }).errors.join(' '), /at least one category/);
+  const p = { id: 'p1', active: true, removed_at: null, valid_from: '2026-11-10', scope: 'category', scope_values: ['labour'] }, lab = { category: 'labour', department_id: 'd1' }, st = { category: 'staff', department_id: 'd1' };
+  assert.deepStrictEqual([A.applies(p, lab, '2026-11-12'), A.applies(p, st, '2026-11-12'), A.applies(p, lab, '2026-11-09'), A.applies(Object.assign({}, p, { active: false }), lab, '2026-11-12'), A.applies(Object.assign({}, p, { removed_at: 'x' }), lab, '2026-11-12')], [true, false, false, false, false]);
+  assert.deepStrictEqual([A.applies(Object.assign({}, p, { scope: 'people' }), st, '2026-11-12', { p1: 1 }), A.applies(Object.assign({}, p, { scope: 'people' }), st, '2026-11-12', {}), A.applies(Object.assign({}, p, { scope: 'department', scope_values: ['d1'] }), st, '2026-11-12')], [true, false, true]);
+  const now = Date.UTC(2026, 10, 12, 6), base = { offline: true, anchor_server: now - 3600000, anchor_elapsed: 1000000, elapsed: 2800000, at_device: new Date(now - 1800000 + 5000).toISOString() };
+  assert.deepStrictEqual(A.moment({}, now), { at: now, ok: true, why: [] }, 'online: the server\'s clock only');
+  assert.deepStrictEqual([A.moment(base, now).ok, A.moment(base, now).at], [true, now - 1800000]);
+  assert.match(A.moment(Object.assign({}, base, { elapsed: 5000 }), now).why.join(), /restarted/);
+  assert.match(A.moment(Object.assign({}, base, { at_device: new Date(now).toISOString() }), now).why.join(), /does not agree/, 'the phone\'s clock was changed');
+  assert.match(A.moment(Object.assign({}, base, { anchor_server: now - 80 * 3600000, at_device: new Date(now - 79.5 * 3600000).toISOString() }), now).why.join(), /older than 72 hours/);
+  assert.strictEqual(A.moment({ offline: true }, now).ok, false);
+});
+
+test('attendance actions: the office\'s ones are closed to "My HR"; changes are the Admin\'s; a punch is never changed', () => {
+  const { ACT, SELF } = require('../api/hr'), src = fs.readFileSync(path.join(root, 'lib', 'act_attend.js'), 'utf8');
+  assert.deepStrictEqual(SELF, ['myAttend', 'myMonth', 'selfieUrl', 'punch']);
+  for (const a of ['projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'devRelease', 'punchReview']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
+  for (const a of ['placeList', 'devList', 'punchDay', 'punchSelfie']) assert.match(String(ACT[a]), /needOffice\(s\)/, a);
+  for (const a of SELF) assert.match(String(ACT[a]), /const emp = await me\(s\)/, a + ': only for the employee the sign-in is');
+  assert.ok(!/db\('(PATCH|DELETE)', 'hr_punch/.test(src), 'no punch and no decision is changed or deleted');
+  assert.deepStrictEqual(src.match(/db\('DELETE', '(\w+)/g), ["db('DELETE', 'hr_place_people"], 'only "for whom" of a place is taken back');
+  const P = require('../lib/portal'); assert.deepStrictEqual([P.AUD, P.AUD_SELF], ['hr', 'hrme']);
+});
+
+test('SQL step 4: only adds; row level security; a punch can only be added; one phone a person', () => {
+  const sql = fs.readFileSync(path.join(root, 'sql', 'hr_step4_attendance.sql'), 'utf8').replace(/--.*$/gm, '');
+  assert.deepStrictEqual((sql.match(/create table if not exists public\.(\w+)/g) || []).map(x => x.split('.')[1]), ['hr_projects', 'hr_places', 'hr_place_people', 'hr_devices', 'hr_device_tries', 'hr_punches', 'hr_punch_reviews']);
+  assert.ok(!/\b(drop table|drop column|truncate|delete from)/i.test(sql)); assert.deepStrictEqual((sql.match(/drop constraint (\w+)/g) || []), ['drop constraint hr_sessions_role_check', 'drop constraint hr_people_role_check'], 'only the two role lists are widened');
+  assert.match(sql, /grant select, insert on public\.hr_device_tries, public\.hr_punches, public\.hr_punch_reviews to service_role;/);
+  assert.match(sql, /foreach t in array array\['hr_projects', 'hr_places', 'hr_place_people', 'hr_devices', 'hr_device_tries', 'hr_punches', 'hr_punch_reviews'\] loop\s+execute format\('alter table public\.%I enable row level security', t\);\s+execute format\('revoke all on public\.%I from public, anon, authenticated', t\);/);
+  assert.match(sql, /client_id text not null unique/); assert.match(sql, /values \('hr-selfies', 'hr-selfies', false, 1048576, array\['image\/jpeg'\]\)/);
+  assert.ok(!/\b(portal_|users\b|access\b|vehicles|store_|eng_|pur_)/.test(sql.replace(/hr_\w+/g, '')), 'nothing of another database');
+});
+
+test('the attendance pages: the script runs; three pages; a person\'s text only as text; the menu lists them, not for "My HR"', () => {
+  const src = fs.readFileSync(path.join(root, 'public', 'att.js'), 'utf8'), win = {}; new Function('window', 'document', src)(win, { getElementById: () => null });
+  assert.deepStrictEqual(win.HRATT.pages.map(p => p[0]), ['attendance', 'places', 'phones']); assert.ok(win.HRATT.has('places') && !win.HRATT.has('employees'));
+  assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|\b(alert|confirm|prompt)\(/.test(src), 'only textContent, no browser dialog');
+  assert.strictEqual(win.HRATT._size({ shape: 'corridor', radius_m: 60 }), '60 m each side of the road');
+  assert.strictEqual(win.HRATT._whom({ scope: 'category', scope_values: ['labour', 'driver'] }, { departments: [] }), 'Labour, Driver');
+  const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'); for (const id of src.match(/\$\('([a-z_0-9]+)'\)/g).map(x => x.slice(3, -2))) assert.ok(html.indexOf('id="' + id + '"') > -1, 'the page has #' + id);
+  const M = require('../api/menu'); assert.deepStrictEqual(M.PAGES.map(p => p.key), ['employees', 'attendance', 'places', 'phones', 'departments', 'designations']);
+  assert.deepStrictEqual([M.mayOpen('all', 'user'), M.mayOpen('admin', 'user'), M.mayOpen('all', 'self'), M.mayOpen('admin', 'super')], [true, false, false, true]);
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')).headers[0].headers.find(h => h.key === 'Content-Security-Policy').value;
+  assert.match(v, /img-src 'self' data: https:\/\/tile\.openstreetmap\.org https:\/\/\*\.supabase\.co;/); assert.match(v, /script-src 'self' 'unsafe-inline';/);
+  assert.match(fs.readFileSync(path.join(root, 'public', 'vendor', 'leaflet', 'LICENSE.txt'), 'utf8'), /BSD 2-Clause License/);
 });
