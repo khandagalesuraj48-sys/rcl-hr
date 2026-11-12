@@ -19,7 +19,7 @@
   // ---------- the frame of the pages ----------
   function tabs() {
     var t = $('tabs'); t.textContent = '';
-    [['employees', 'Employees', true]].concat((window.HRATT ? window.HRATT.pages : []).concat(window.HRMUS ? window.HRMUS.pages : []).map(function (p) { return [p[0], p[1], true]; }), [['departments', 'Departments', isAdmin()], ['designations', 'Designations', isAdmin()]]).forEach(function (p) {
+    (window.HRDASH ? window.HRDASH.pages.map(function (p) { return [p[0], p[1], true]; }) : []).concat([['employees', 'Employees', true]]).concat((window.HRATT ? window.HRATT.pages : []).concat(window.HRMUS ? window.HRMUS.pages : []).map(function (p) { return [p[0], p[1], true]; }), [['departments', 'Departments', isAdmin()], ['designations', 'Designations', isAdmin()]]).forEach(function (p) {
       if (!p[2]) return; var b = el('button', 'tab' + (S.page === p[0] ? ' on' : ''), p[1]); b.type = 'button'; b.onclick = function () { go(p[0]); }; t.appendChild(b);
     });
   }
@@ -27,10 +27,12 @@
     if ((page === 'departments' || page === 'designations') && !isAdmin()) page = 'employees';
     var att = !!window.HRATT && window.HRATT.has(page);      // (step 4) Attendance, Work places, Phones – att.js
     var mus = !!window.HRMUS && window.HRMUS.has(page);      // (step 5) Muster, Requests, Shifts & rules – mus.js
-    S.page = att || mus || page === 'departments' || page === 'designations' ? page : 'employees'; tabs();
-    $('p_emp').hidden = S.page !== 'employees'; $('p_att').hidden = !att; $('p_mus').hidden = !mus; $('p_mast').hidden = att || mus || S.page === 'employees';
+    var dash = !!window.HRDASH && window.HRDASH.has(page);      // the attendance dashboard – dash.js
+    S.page = att || mus || dash || page === 'departments' || page === 'designations' ? page : 'employees'; tabs();
+    $('p_emp').hidden = S.page !== 'employees'; $('p_att').hidden = !att; $('p_mus').hidden = !mus; $('p_dash').hidden = !dash; $('p_mast').hidden = att || mus || dash || S.page === 'employees';
+    $('app').classList.toggle('wide', dash || S.page === 'muster');      // the dashboard and the muster use the whole width
     try { history.replaceState(null, '', location.pathname + location.search + '#page=' + S.page); } catch (e) { /* the page still works */ }
-    if (att) window.HRATT.open(S.page, S.me, S.init); else if (mus) window.HRMUS.open(S.page, S.me, S.init); else if (S.page === 'employees') list(); else masters();
+    if (dash) window.HRDASH.open(S.me, go); else if (att) window.HRATT.open(S.page, S.me, S.init); else if (mus) window.HRMUS.open(S.page, S.me, S.init); else if (S.page === 'employees') list(); else masters();
   }
 
   // ---------- Employees: the list ----------
@@ -249,9 +251,10 @@
         $('i_file').onchange = function () { importFile($('i_file').files[0]); }; $('i_save').onclick = importSave;
         Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (b) { b.onclick = function () { hide(b.dataset.close); }; });
         document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') ['dlg_form', 'dlg_tr', 'dlg_exit', 'dlg_imp', 'dlg_kyc', 'dlg_docs', 'dlg_emp'].some(function (d) { if (!$(d).hidden) { hide(d); return true; } return false; }); });
-        go(page || 'employees');
+        go(page || (window.HRDASH ? 'dashboard' : 'employees'));
       }, function (e) { window.HRMSG(e.message); });
     },
+    emp: function (id) { go('employees'); openEmp(id); },      // an employee's page, from the muster's day panel
     _mapRows: mapRows, _csv: csv, _dmy: dmy
   };
 })();

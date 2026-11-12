@@ -360,3 +360,17 @@ test('the employee code: made by itself as RCL…, or typed; changed by the HR o
   const h = await ACT.empSave(user, { name: 'Code Hand', category: 'staff', code: hand }); assert.strictEqual(h.code, hand);
   const auto = await ACT.empSave(user, { name: 'Code Auto', category: 'staff' }); assert.match(auto.code, /^RCL\d{3,}$/); assert.notStrictEqual(auto.code, hand);
 });
+
+test('the attendance dashboard: the HR office only; today counted like the muster; only its own site; the day\'s punches carry their place', async () => {
+  await no(ACT.attDash(self(mail1)), /HR office only/, 403);
+  const d = await ACT.attDash(user), c = d.count, m = await ACT.muster(user, { month: TODAY.slice(0, 7) }), i = m.days.indexOf(TODAY);
+  assert.strictEqual(d.today, TODAY); assert.match(d.now, /^\d\d:\d\d$/); assert.strictEqual(c.total, d.who.length); assert.strictEqual(c.on + c.out + c.off + c.none, c.total);
+  for (const e of [E1, E2]) { const w = d.who.find(x => x.id === e.id), code = m.rows.find(r => r.id === e.id).codes[i]; assert.ok(w, e.code); assert.strictEqual(w.state, code === 'IN' ? 'on' : 'out', e.code + ' as in the muster'); assert.match(w.in, /^\d\d:\d\d$/); assert.match(w.punch, /^[0-9a-f-]{36}$/); }
+  assert.strictEqual(d.who.find(x => x.id === E1.id).place, 'Office ' + tag); assert.ok(d.places.some(p => p.name === 'Office ' + tag && p.on >= 1));
+  assert.strictEqual(c.on, d.who.filter(w => w.state === 'on').length); assert.strictEqual(d.arc.slots.length, 32); assert.strictEqual(d.arc.slots.reduce((a, b) => a + b, 0), c.present); assert.match(c.first_in, /^\d\d:\d\d$/);
+  assert.deepStrictEqual(d.week.map(w => w.day), [6, 5, 4, 3, 2, 1, 0].map(ago)); assert.ok(d.week[6].P >= c.on);
+  for (const k of ['requests', 'review', 'phones', 'no_phone']) assert.ok(Number.isInteger(d.needs[k]) && d.needs[k] >= 0, k);
+  assert.strictEqual(d.needs.requests, (await ACT.regList(user, { status: 'pending' })).rows.length);
+  const other = await ACT.attDash(ses('user', SITE2)); assert.ok(!other.who.some(w => w.id === E1.id || w.id === E2.id), 'another site sees nothing of this one');
+  const day = await ACT.dayGet(user, { id: E1.id, day: TODAY }); assert.ok(day.punches.length && day.punches.every(p => typeof p.place === 'string')); assert.ok(day.punches.some(p => p.place === 'Office ' + tag)); assert.strictEqual(day.employee.category, 'staff');
+});

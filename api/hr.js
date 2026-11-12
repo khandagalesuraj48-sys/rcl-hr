@@ -13,6 +13,7 @@ const store = require('../lib/store');
 const crypto = require('crypto');
 const ATT = require('../lib/act_attend');      // (step 4) attendance: work places, phones, punches
 const MUS = require('../lib/act_muster');      // (step 5) shifts, holidays, rules, the muster, requests
+const DASH = require('../lib/act_dash');      // the attendance dashboard of the HR office (reads only)
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const id = v => { v = String(v || '').toLowerCase(); return UUID.test(v) ? v : ''; };
@@ -277,7 +278,7 @@ const ACT = {
   },
 };
 
-[ATT.ACT, MUS.ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
+[ATT.ACT, MUS.ACT, DASH.ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
 const SELF = ATT.SELF.concat(MUS.SELF);
 module.exports = handler(async (req, res) => {
   if (req.method !== 'POST') return send(res, 405, { error: 'POST only.' });
@@ -285,7 +286,7 @@ module.exports = handler(async (req, res) => {
   const x = await readBody(req), fn = Object.prototype.hasOwnProperty.call(ACT, String(x.action)) ? ACT[x.action] : null;
   if (!fn) return send(res, 400, { error: 'Unknown action.' });
   const s = await ses.need(req), att = Object.prototype.hasOwnProperty.call(ATT.ACT, String(x.action));
-  const mus = Object.prototype.hasOwnProperty.call(MUS.ACT, String(x.action));
+  const mus = Object.prototype.hasOwnProperty.call(MUS.ACT, String(x.action)) || Object.prototype.hasOwnProperty.call(DASH.ACT, String(x.action));
   // "My HR" (an employee for himself): only his own attendance – nothing of the HR office's pages
   if (s.role === 'self' && SELF.indexOf(String(x.action)) < 0) throw fail(403, 'This is for the HR office only.', 'role');
   try { send(res, 200, Object.assign({ ok: true }, await fn(s, x))); }
