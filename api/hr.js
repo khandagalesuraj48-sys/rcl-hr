@@ -17,6 +17,7 @@ const MUS = require('../lib/act_muster');      // (step 5) shifts, holidays, rul
 const DASH = require('../lib/act_dash');      // the attendance dashboard of the HR office (reads only)
 const LEAVE = require('../lib/act_leave');      // (step 7) leave: the policy, balances, requests
 const MONTH = require('../lib/act_month');      // (step 10) the month: verified by the site's HR, approved by the HO HR
+const PAY = require('../lib/act_pay');      // (step 11) an employee's salary: proposed by the site's HR, approved by the HO HR
 const PROF = require('../lib/act_profile');      // (step 6) the full profile, the lists, what is compulsory
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -325,7 +326,7 @@ const ACT = {
   },
 };
 
-[ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT, LEAVE.ACT, MONTH.ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
+[ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT, LEAVE.ACT, MONTH.ACT, PAY.ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
 // (12-11-2026) the app's "Me": a person's own record and papers – the office's own paper actions, for the employee the sign-in is
 const MINE = require('../lib/act_self')(ACT);
 Object.keys(MINE.ACT).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = MINE.ACT[k]; });
@@ -340,6 +341,6 @@ module.exports = handler(async (req, res) => {
   // "My HR" (an employee for himself): only his own attendance – nothing of the HR office's pages
   if (s.role === 'self' && SELF.indexOf(String(x.action)) < 0) throw fail(403, 'This is for the HR office only.', 'role');
   try { send(res, 200, Object.assign({ ok: true }, await fn(s, x))); }
-  catch (e) { if (e && e.code === 'notinstalled') throw fail(500, Object.prototype.hasOwnProperty.call(MONTH.ACT, String(x.action)) ? MONTH.NOT_READY10 : Object.prototype.hasOwnProperty.call(LEAVE.ACT, String(x.action)) ? LEAVE.NOT_READY7 : Object.prototype.hasOwnProperty.call(PROF.ACT, String(x.action)) ? PROF.NOT_READY6 : mus ? MUS.NOT_READY5 : att ? ATT.NOT_READY4 : /^(priv|doc|myDoc)/.test(String(x.action)) ? NOT_READY3 : NOT_READY, 'notinstalled'); throw e; }
+  catch (e) { if (e && e.code === 'notinstalled') throw fail(500, Object.prototype.hasOwnProperty.call(PAY.ACT, String(x.action)) ? PAY.NOT_READY11 : Object.prototype.hasOwnProperty.call(MONTH.ACT, String(x.action)) ? MONTH.NOT_READY10 : Object.prototype.hasOwnProperty.call(LEAVE.ACT, String(x.action)) ? LEAVE.NOT_READY7 : Object.prototype.hasOwnProperty.call(PROF.ACT, String(x.action)) ? PROF.NOT_READY6 : mus ? MUS.NOT_READY5 : att ? ATT.NOT_READY4 : /^(priv|doc|myDoc)/.test(String(x.action)) ? NOT_READY3 : NOT_READY, 'notinstalled'); throw e; }
 });
 module.exports.ACT = ACT; module.exports.SELF = SELF;

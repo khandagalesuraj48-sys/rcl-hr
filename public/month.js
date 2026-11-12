@@ -24,11 +24,11 @@
 
   function draw() {
     var root = $('p_month'); root.textContent = ''; var d = V.data, tools = el('div', 'tools');
-    var views = [['site', 'This site']]; if (d && d.can.ho) views.push(['sites', 'All sites']); if (V.me && V.me.user && V.me.user.role === 'super') views.push(['ho', 'HO HR']);
+    var views = [['site', 'This site']]; if (d && d.can.ho) { views.push(['sites', 'All sites']); views.push(['pay', 'Salary approvals']); } if (V.me && V.me.user && V.me.user.role === 'super') views.push(['ho', 'HO HR']);
     if (views.length > 1) views.forEach(function (k) { tools.appendChild(btn(V.view === k[0] ? 'pri' : 'sec', k[1], function () { V.view = k[0]; draw(); })); });
-    if (V.view !== 'ho') tools.appendChild(monthPick());
+    if (V.view !== 'ho' && V.view !== 'pay') tools.appendChild(monthPick());
     root.appendChild(tools); var body = el('div'); root.appendChild(body);
-    if (V.view === 'sites') return sites(body); if (V.view === 'ho') return hoPeople(body);
+    if (V.view === 'sites') return sites(body); if (V.view === 'ho') return hoPeople(body); if (V.view === 'pay') return window.HRPAY.waiting(body);
     api('monthList', { month: V.month }).then(function (r) { var first = !V.data; V.data = r; if (first && (r.can.ho || (V.me && V.me.user && V.me.user.role === 'super'))) return draw(); site(body, r); }, function (e) { body.appendChild(el('p', 'none', e.message)); });
   }
   function site(root, r) {

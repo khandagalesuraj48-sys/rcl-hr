@@ -121,10 +121,11 @@
       var h = $('d_hist'); h.textContent = '';
       r.history.forEach(function (x) { var li = el('li'); li.appendChild(el('b', '', dmy(x.valid_from) + ' → ' + (x.valid_to ? dmy(x.valid_to) : 'today'))); li.appendChild(el('span', '', ' ' + x.site + ' · ' + (nameOf(S.init.designations, x.designation_id) || '–') + ' · ' + (nameOf(S.init.departments, x.department_id) || '–') + (x.note ? ' · ' + x.note : ''))); h.appendChild(li); });
       var left = e.status === 'left'; $('d_edit').hidden = left; $('d_tr').hidden = left || !isAdmin(); $('d_exit').hidden = left || !isAdmin(); $('d_del').hidden = !isAdmin();
+      $('d_salary').hidden = !isAdmin();      // (step 11) his salary: the HR Admin's or the Super Admin's to see and propose
       $('d_login').hidden = left || !isAdmin();      // his sign-in: the HR Admin's or the Super Admin's to give
       if (!full) h.appendChild(el('li', '', '…'));
       // nothing of him is opened or changed before the server's own answer is here
-      ['d_prof', 'd_kyc', 'd_docs', 'd_login', 'd_facebtn', 'd_del', 'd_exit', 'd_tr', 'd_edit'].forEach(function (b) { $(b).disabled = !full; });
+      ['d_prof', 'd_kyc', 'd_docs', 'd_login', 'd_facebtn', 'd_salary', 'd_del', 'd_exit', 'd_tr', 'd_edit'].forEach(function (b) { $(b).disabled = !full; });
   }
 
   /* ---------- his sign-in for the app (12-11-2026: "ADMIN … LA EK TEMP PASSWORD DEU SHAKEL NANTR USER SWATACHA PASS SET KRU SHAKEL") ----------
@@ -316,7 +317,7 @@
         $('cat').onchange = function () { S.category = $('cat').value; list(); };
         $('b_add').onclick = function () { form(null, null); }; $('b_imp').onclick = function () { $('i_file').value = ''; $('i_err').hidden = true; $('i_res').hidden = true; $('i_save').hidden = true; show('dlg_imp'); };
         $('d_edit').onclick = function () { form(S.open.employee, S.open.boss); }; $('d_tr').onclick = transfer; $('d_exit').onclick = exit; $('d_del').onclick = del; $('d_prof').onclick = function () { var id = S.open.employee.id; hide('dlg_emp'); if (window.HRPROF) window.HRPROF.profile(id, function () { openEmp(id); }); }; $('del_form').onsubmit = delSave; $('b_exp').onclick = exportList;
-        $('d_login').onclick = login; $('lg_go').onclick = loginGive; $('d_facebtn').onclick = function () { if (window.HRMUS && window.HRMUS.face) window.HRMUS.face(S.open.employee); };
+        $('d_login').onclick = login; $('lg_go').onclick = loginGive; $('d_salary').onclick = function () { if (window.HRPAY) window.HRPAY.sheet(S.open.employee); }; $('d_facebtn').onclick = function () { if (window.HRMUS && window.HRMUS.face) window.HRMUS.face(S.open.employee); };
         $('d_kyc').onclick = kyc; $('d_docs').onclick = docs; $('k_form').onsubmit = kycSave; $('o_add').onclick = docAdd;
         $('f_form').onsubmit = save; $('t_form').onsubmit = transferSave; $('x_form').onsubmit = exitSave;
         var bt; $('f_boss').oninput = function () { clearTimeout(bt); bt = setTimeout(pickBoss, 250); };

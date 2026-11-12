@@ -71,6 +71,15 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
   * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
     count, requests waiting.
+* **An employee's salary – onboarding (step 11, 12-11-2026)** – his words: "SITE HR EMPLOYEE ON BORD KRU SHAKEL … TYACHI SALARY PN
+  MENTION KARU SHAKEL JI BASIC SALARY ASEL ANI … APPROVAL SATHI JAIL"; decided: straight to the HO HR; a month's salary or a day's
+  rate, chosen per person. The employee's page → **Salary…** (HR Admin with the power `salary`, Super Admin): type, amount, from
+  which date → it waits for the HO HR (**Month verification → Salary approvals**: a new employee is said; approve / send back
+  with the reason – never the person who proposed it). The newest approved salary that began by a day counts on that day; a
+  later salary is a new proposal, the old ones stay (`hr_salaries`, `lib/act_pay.js`). A salary is seen by the HR Admin of the
+  site, the HO HR and the Super Admin – never an HR User, never the app; the amount is not written into the audit.
+  `sql/hr_step11_salary.sql` – one new table, run by the owner. Payroll (the month's pay from the approved month and this salary)
+  is the next piece – not built.
 * **The month: verified by the site's HR, approved by the HO HR (step 10, 12-11-2026)** – his words: "MONTH END LA JYA TYA SITE CHA HR
   ATTENDANCE VERIFY KAREL USER WISE BULK VERIFY … SITE HR NI VERIFY KEL KI DIRECT HO HR KADE DATA JAIL". Page **Month verification**
   (web only): everybody of a month with his counts – present, half, absent, leave, **extra days** (worked on a weekly off / a

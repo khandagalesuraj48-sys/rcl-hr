@@ -238,7 +238,7 @@ const D = require('../lib/day'), RU = require('../lib/rules');
 const TODAY = RU.today(), ago = n => D.addDays(TODAY, -n), OFF = (D.weekday(TODAY) + 1) % 7;      // the weekly off: tomorrow's weekday – none of the last five days
 
 test('shifts, holidays and the rules with their date: only who has the power; a new version, the old days keep theirs', async () => {
-  let a = await ACT.attSetup(user); assert.deepStrictEqual([a.shifts.length, a.rules, Object.values(a.powers).every(v => v === true), a.power_list.length], [0, {}, true, 8]);
+  let a = await ACT.attSetup(user); assert.deepStrictEqual([a.shifts.length, a.rules, Object.values(a.powers).every(v => v === true), a.power_list.length], [0, {}, true, 9]);
   await no(ACT.attSetup(self(mail1)), /HR office only/, 403); await no(ACT.shiftSave(user, { name: 'G' }), /Only the HR Admin/, 403);
   await no(ACT.shiftSave(admin, { name: 'G', start_time: '9', end_time: '9:00' }), /Name: at least 2 letters\. Starts at: a time as HH:MM\./);
   a = await ACT.shiftSave(admin, { name: 'General ' + tag, start_time: '9:00', end_time: '18:00', valid_from: '2026-01-01' }); const sh = a.shifts[0];
@@ -609,4 +609,40 @@ test('(step 10) the month: the site\'s HR verifies people after the month ended 
   await ACT.hoSet(sM, { email: 'user@rig.test', on: false }); assert.strictEqual((await ACT.monthList(uM, { month })).can.ho, false);
   const log = (await db('GET', 'hr_audit?select=action&site=eq.' + SM + '&order=id')).map(r => r.action);
   for (const k of ['Month verified', 'Month sent back to the site\'s HR', 'Month approved (HO HR)', 'Approved month opened again', 'HO HR given', 'HO HR taken']) assert.ok(log.indexOf(k) > -1, k);
+});
+
+test('(step 11) a salary: proposed by the HR Admin (not an HR User), one waiting a person; approved by the HO HR – never by who proposed it; sent back with the reason; the newest approved one counts; the amount is not in the audit', async () => {
+  const SP = tag + 'P', aP = ses('admin', SP), uP = ses('user', SP), sP = ses('super', SP), today = require('../lib/rules').today();
+  aP.info = uP.info = sP.info = { sites: [{ code: SP, name: 'Rig pay' }] };
+  const E = await ACT.empSave(aP, { name: 'Pay One', category: 'operator', mobile: mob(), email: mail('pay1'), dob: '1992-04-04', joined_on: '2026-01-10' });
+  await no(ACT.salaryGet(uP, { id: E.id }), /seen only by the HR Admin of the site, the HO HR and the Super Admin/, 403);
+  await no(ACT.salaryAsk(uP, { id: E.id, pay_type: 'monthly', amount: '18000' }), /Only the HR Admin or the Super Admin/, 403);
+  let g = await ACT.salaryGet(aP, { id: E.id }); assert.deepStrictEqual([g.current, g.waiting, g.history, g.can], [null, null, [], { ask: true, decide: false }]);
+  await no(ACT.salaryAsk(aP, { id: E.id, pay_type: 'weekly', amount: '18000' }), /Salary type/, 400);
+  for (const bad of ['', '0', '-5', '12.345', 'abc', '100000000']) await no(ACT.salaryAsk(aP, { id: E.id, pay_type: 'monthly', amount: bad }), /Amount: a number above 0/, 400);
+  await ACT.powerSet(sP, { power: 'salary', allowed: false }); await no(ACT.salaryAsk(aP, { id: E.id, pay_type: 'monthly', amount: '18000' }), /has not given the HR Admin this power/, 403); await ACT.powerSet(sP, { power: 'salary', allowed: true });
+  g = await ACT.salaryAsk(aP, { id: E.id, pay_type: 'monthly', amount: '18,000.50', note: 'joining' });
+  assert.deepStrictEqual([g.current, g.waiting.amount, g.waiting.pay_type, g.waiting.valid_from, g.waiting.asked_by, g.can.ask], [null, 18000.5, 'monthly', '2026-01-10', 'admin@rig.test', false]);
+  await no(ACT.salaryAsk(aP, { id: E.id, pay_type: 'daily', amount: '700' }), /already waits for the HO HR/, 409);
+  // the HO HR only; never his own proposal
+  await no(ACT.salaryWaiting(aP), /Only the HO HR/, 403); await no(ACT.salaryDecide(aP, { id: g.waiting.id, decision: 'approved' }), /Only the HO HR/, 403);
+  await ACT.hoSet(sP, { email: 'user@rig.test', on: true }); await ACT.hoSet(sP, { email: 'admin@rig.test', on: true });
+  await no(ACT.salaryDecide(aP, { id: g.waiting.id, decision: 'approved' }), /another person than the one who proposed it/, 403);
+  let w = await ACT.salaryWaiting(uP); const row = w.rows.find(r => r.id === g.waiting.id);
+  assert.deepStrictEqual([row.code, row.name, row.is_new, row.now, row.amount, row.site, row.mine], [E.code, 'Pay One', true, null, 18000.5, SP, false]);
+  assert.strictEqual((await ACT.salaryWaiting(aP)).rows.find(r => r.id === g.waiting.id).mine, true);
+  await no(ACT.salaryDecide(ses('user', SITE), { id: g.waiting.id, decision: 'approved' }), /not found on your sites/, 404);
+  await no(ACT.salaryDecide(uP, { id: g.waiting.id, decision: 'returned', note: '' }), /Reason/, 400);
+  await ACT.salaryDecide(uP, { id: g.waiting.id, decision: 'returned', note: 'too high' });
+  g = await ACT.salaryGet(aP, { id: E.id }); assert.deepStrictEqual([g.current, g.waiting, g.history[0].status, g.history[0].decide_note, g.can.ask], [null, null, 'returned', 'too high', true]);
+  g = await ACT.salaryAsk(aP, { id: E.id, pay_type: 'monthly', amount: '17000' }); await ACT.salaryDecide(uP, { id: g.waiting.id, decision: 'approved' });
+  await no(ACT.salaryDecide(uP, { id: g.waiting.id, decision: 'approved' }), /already decided/, 409);
+  g = await ACT.salaryGet(aP, { id: E.id }); assert.deepStrictEqual([g.current.amount, g.current.decided_by, g.waiting, g.history.length], [17000, 'user@rig.test', null, 2]);
+  // a later salary: it counts from its date – until then the old one
+  const next = require('../lib/day').addDays(today, 30); g = await ACT.salaryAsk(aP, { id: E.id, pay_type: 'daily', amount: '800', valid_from: next });
+  w = await ACT.salaryWaiting(uP); assert.deepStrictEqual([w.rows.find(r => r.id === g.waiting.id).is_new, w.rows.find(r => r.id === g.waiting.id).now], [false, { pay_type: 'monthly', amount: 17000 }]);
+  await ACT.salaryDecide(sP, { id: g.waiting.id, decision: 'approved' }); g = await ACT.salaryGet(sP, { id: E.id }); assert.deepStrictEqual([g.current.amount, g.history.length, g.history[0].status], [17000, 3, 'approved']);
+  await ACT.hoSet(sP, { email: 'user@rig.test', on: false }); await ACT.hoSet(sP, { email: 'admin@rig.test', on: false });
+  const log = await db('GET', 'hr_audit?select=action,detail&site=eq.' + SP + '&action=like.Salary*'); assert.ok(log.length >= 5); assert.ok(!/17000|18000|800/.test(JSON.stringify(log)), 'no amount in the audit');
+  await no(db('DELETE', 'hr_salaries?employee_id=eq.' + E.id), /Database|refused|permission/);
 });
