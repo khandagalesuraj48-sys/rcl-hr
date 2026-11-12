@@ -178,7 +178,7 @@ body.in .sheet{overflow-x:hidden}
     <div class="ep-card full" id="d_att_lab" hidden><h4>Attendance · हजेरी</h4><dl id="d_att" hidden></dl></div>
     <div class="ep-card full"><h4>History · इतिहास</h4><ul class="hist" id="d_hist"></ul></div>
   </div>
-  <div class="acts ep-acts"><button class="pri" id="d_prof" type="button">Full profile</button><button class="sec" id="d_kyc" type="button">Personal details &amp; KYC</button><button class="sec" id="d_docs" type="button">Documents</button><span style="flex:1"></span>
+  <div class="acts ep-acts"><button class="pri" id="d_prof" type="button">Full profile</button><button class="sec" id="d_kyc" type="button">Personal details &amp; KYC</button><button class="sec" id="d_docs" type="button">Documents</button><button class="sec" id="d_login" type="button" hidden>Sign-in for the app…</button><span style="flex:1"></span>
     <button class="danger" id="d_del" type="button">Delete…</button><button class="danger" id="d_exit" type="button">Relieve…</button><button class="sec" id="d_tr" type="button">Transfer…</button><button class="sec" id="d_edit" type="button">Change</button><button class="pri" type="button" data-close="dlg_emp">Close</button></div>
 </div></div>
 
@@ -332,6 +332,15 @@ body.in .sheet{overflow-x:hidden}
   <h2 id="ph_title"></h2><p class="sub">The photo taken with the punch – kept as proof for 90 days.</p><img id="ph_img" alt="Photo of the punch">
   <div class="acts"><button class="pri" type="button" data-aclose="dlg_photo">Close</button></div>
 </div></div>
+<div class="dlg" id="dlg_login" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="lg_title">
+  <h2 id="lg_title"></h2>
+  <p class="sub" id="lg_sub">He gets a <b>one-time password</b>: he signs in with his e-mail and this password (app or web), sets his own password at once, and then marks his attendance under HR. He sees only his own attendance – nothing else of the ERP. Forgot his password? Give a new one-time password here: the old one and his sign-ins end.</p>
+  <dl><dt>E-mail</dt><dd id="lg_email"></dd></dl>
+  <div id="lg_done" hidden><label>One-time password – shown only now</label><p id="lg_pw" style="font:700 26px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:2px;background:#F6F9FF;border-radius:14px;padding:14px 16px;margin:6px 0 8px;user-select:all"></p><p class="muted">Tell it to him yourself. It is kept nowhere – when this box is closed it cannot be seen again; a new one can always be given.</p></div>
+  <p class="err" id="lg_err" role="alert" hidden></p>
+  <div class="acts"><button class="sec" type="button" data-close="dlg_login">Close</button><button class="pri" id="lg_go" type="button">Give a one-time password</button></div>
+</div></div>
+
 <p id="toast" role="status" hidden></p>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="dash.js"></script>
@@ -439,6 +448,14 @@ body.in .sheet{overflow-x:hidden}
     }).catch(later).then(done, done);
   }
   window.HRAPI = api; window.HRMSG = function (t) { msg(t, '', '', false); };
+  /* (12-11-2026) a request to the PORTAL from this page, with the person's own Portal sign-in (the same address – as the ticket is
+   * asked): an employee's sign-in is the Portal's to give (its api/hrlogin). */
+  window.HRPORTAL = function (path, body) {
+    if (!PORTAL) return Promise.reject(new Error('HR is not linked to the Portal here.'));
+    return fetch(PORTAL + '/' + path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return { error: 'The Portal did not answer properly (' + r.status + ').' }; }).then(function (j) { if (!r.ok || j.error) { var e = new Error(j.code === 'session' ? ENDED[0] : (j.error || ('Error ' + r.status))); e.code = j.code; throw e; } return j; }); },
+        function () { throw new Error('The Portal could not be reached from this address – open HR from the ERP\'s own address.'); });
+  };
   function start() {
     // 1. the Portal sent the person here with a ticket after "#sso=" (it never reaches a server log): taken out of the address at once
     var m = /(?:^#|&)sso=([A-Za-z0-9_.-]+)/.exec(location.hash);

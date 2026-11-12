@@ -38,6 +38,10 @@ Store, Engineering and Purchase; the short version:
 * **An employee is not a sign-in:** the Employee Master is HR's; an employee who uses the app is linked to a Portal user.
   Categories: Staff, Operator, Driver, Labour (not the designation). DOB and a verified e-mail (OTP by Resend) are compulsory
   for everybody before activation.
+* **An employee's sign-in until the OTP is there (12-11-2026):** the **HR Admin of the site or the Super Admin** (not an HR
+  User) gives it from the employee's page – the PORTAL makes it (`rcl-portal/api/hrlogin.js`): a one-time password shown once, his
+  own password at the first sign-in, "My HR" only; forgotten = a new one-time password. HR keeps and sees no password. Sign-in is
+  by e-mail (by mobile number: a change of the Portal's database – not decided).
 * **Attendance (his decisions of 12-11-2026 – the later ones win):** each person punches for himself, **today only** (the
   server's clock decides the day); GPS + a selfie with every punch – the selfie is **proof only, never checked by a machine; no
   face recognition**; **nothing outside a work place** (geofence): no punch, no request, nothing is saved; **one phone a person**
