@@ -8,7 +8,10 @@ const PAGES = [
   { key: 'employees', name: 'Employees', who: 'all' },
   { key: 'attendance', name: 'Attendance', who: 'all' },      // (step 4) the day's punches; work places (geofences); the phones
   { key: 'places', name: 'Work places', who: 'all' },
+  { key: 'muster', name: 'Muster', who: 'all' },      // (step 5) the month; requests; shifts, holidays, rules
+  { key: 'requests', name: 'Requests', who: 'all' },
   { key: 'phones', name: 'Phones', who: 'all' },
+  { key: 'rules', name: 'Shifts & rules', who: 'all' },
   { key: 'departments', name: 'Departments', who: 'admin' },
   { key: 'designations', name: 'Designations', who: 'admin' },
 ];

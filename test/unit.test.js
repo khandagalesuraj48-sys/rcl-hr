@@ -131,7 +131,7 @@ test('the SQL step: only adds, four tables, row level security on and nothing fo
 test('the menu, the page and the hosting: one page, nothing of an employee, never listed by a search engine, Mumbai', async () => {
   const menu = require('../api/menu'); const res = { h: {}, setHeader(k, v) { this.h[k] = v; }, end(b) { this.body = JSON.parse(b); } };
   await menu({ method: 'GET', headers: {} }, res);
-  assert.deepStrictEqual(res.body, { module: 'hr', name: 'HR', pages: [{ key: 'employees', name: 'Employees' }, { key: 'attendance', name: 'Attendance' }, { key: 'places', name: 'Work places' }, { key: 'phones', name: 'Phones' }, { key: 'departments', name: 'Departments' }, { key: 'designations', name: 'Designations' }] }, 'nobody signed in here yet: every page is listed');
+  assert.deepStrictEqual(res.body, { module: 'hr', name: 'HR', pages: [{ key: 'employees', name: 'Employees' }, { key: 'attendance', name: 'Attendance' }, { key: 'places', name: 'Work places' }, { key: 'muster', name: 'Muster' }, { key: 'requests', name: 'Requests' }, { key: 'phones', name: 'Phones' }, { key: 'rules', name: 'Shifts & rules' }, { key: 'departments', name: 'Departments' }, { key: 'designations', name: 'Designations' }] }, 'nobody signed in here yet: every page is listed');
   assert.ok(menu.mayOpen('all', 'user') && !menu.mayOpen('admin', 'user') && menu.mayOpen('admin', 'admin') && menu.mayOpen('admin', 'super'));
   const page = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   for (const m of page.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)) new Function(m[1]);
@@ -175,8 +175,9 @@ test('the pages\' script: the Excel / CSV columns are found by their usual names
 test('the actions: every one asks the sign-in first; the Admin\'s ones are refused to an HR User; nothing deletes an employee', () => {
   const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
   assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'docRemove', 'empImport',
-    'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'myMonth', 'selfieUrl', 'punch']);
-  assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n  if \(s\.role === 'self' && ATT\.SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
+    'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'selfieUrl', 'punch',
+    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide']);
+  assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n[^\n]+\n  if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   assert.ok(!/db\('DELETE'/.test(src), 'no row is ever deleted by an action');
 });
@@ -258,12 +259,14 @@ test('a work place as typed; for whom it is; the moment of a punch sent later', 
 
 test('attendance actions: the office\'s ones are closed to "My HR"; changes are the Admin\'s; a punch is never changed', () => {
   const { ACT, SELF } = require('../api/hr'), src = fs.readFileSync(path.join(root, 'lib', 'act_attend.js'), 'utf8');
-  assert.deepStrictEqual(SELF, ['myAttend', 'myMonth', 'selfieUrl', 'punch']);
-  for (const a of ['projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'devRelease', 'punchReview']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
-  for (const a of ['placeList', 'devList', 'punchDay', 'punchSelfie']) assert.match(String(ACT[a]), /needOffice\(s\)/, a);
-  for (const a of SELF) assert.match(String(ACT[a]), /const emp = await me\(s\)/, a + ': only for the employee the sign-in is');
+  assert.deepStrictEqual(SELF, ['myAttend', 'selfieUrl', 'punch', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide']);
+  for (const [a, p] of [['projSave', 'places'], ['placeSave', 'places'], ['placeBulk', 'places'], ['placeImport', 'places'], ['placeRemove', 'places'], ['devRelease', 'phones'], ['punchReview', 'review'], ['shiftSave', 'shifts'], ['shiftRemove', 'shifts'], ['holidaySave', 'shifts'], ['holidayRemove', 'shifts'], ['rulesSave', 'shifts'], ['regDecide', 'regularize']]) assert.ok(String(ACT[a]).indexOf("await power.need(s, '" + p + "')") > -1, a + ': the power ' + p);
+  assert.match(String(ACT.daySet), /await power\.need\(s, has \? 'correct' : 'manual'\)/); assert.match(String(ACT.powerSet), /s\.role !== 'super'/);
+  for (const a of ['placeList', 'devList', 'punchDay', 'punchSelfie', 'attSetup', 'muster', 'dayGet', 'daySet', 'regList']) assert.match(String(ACT[a]), /needOffice\(s\)/, a);
+  for (const a of SELF) assert.match(String(ACT[a]), /const (emp|boss) = await me\(s\)/, a + ': only for the employee the sign-in is');
   assert.ok(!/db\('(PATCH|DELETE)', 'hr_punch/.test(src), 'no punch and no decision is changed or deleted');
   assert.deepStrictEqual(src.match(/db\('DELETE', '(\w+)/g), ["db('DELETE', 'hr_place_people"], 'only "for whom" of a place is taken back');
+  const mus = fs.readFileSync(path.join(root, 'lib', 'act_muster.js'), 'utf8'); assert.deepStrictEqual(mus.match(/db\('DELETE', '(\w+)/g), ["db('DELETE', 'hr_shift_people"]); assert.ok(!/db\('PATCH', 'hr_(punch|day_entries|att_rules)/.test(mus), 'a punch, a day\'s entry and a rule version are never changed');
   const P = require('../lib/portal'); assert.deepStrictEqual([P.AUD, P.AUD_SELF], ['hr', 'hrme']);
 });
 
@@ -284,9 +287,48 @@ test('the attendance pages: the script runs; three pages; a person\'s text only 
   assert.strictEqual(win.HRATT._size({ shape: 'corridor', radius_m: 60 }), '60 m each side of the road');
   assert.strictEqual(win.HRATT._whom({ scope: 'category', scope_values: ['labour', 'driver'] }, { departments: [] }), 'Labour, Driver');
   const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'); for (const id of src.match(/\$\('([a-z_0-9]+)'\)/g).map(x => x.slice(3, -2))) assert.ok(html.indexOf('id="' + id + '"') > -1, 'the page has #' + id);
-  const M = require('../api/menu'); assert.deepStrictEqual(M.PAGES.map(p => p.key), ['employees', 'attendance', 'places', 'phones', 'departments', 'designations']);
+  const M = require('../api/menu'); assert.deepStrictEqual(M.PAGES.map(p => p.key), ['employees', 'attendance', 'places', 'muster', 'requests', 'phones', 'rules', 'departments', 'designations']);
   assert.deepStrictEqual([M.mayOpen('all', 'user'), M.mayOpen('admin', 'user'), M.mayOpen('all', 'self'), M.mayOpen('admin', 'super')], [true, false, false, true]);
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')).headers[0].headers.find(h => h.key === 'Content-Security-Policy').value;
   assert.match(v, /img-src 'self' data: https:\/\/tile\.openstreetmap\.org https:\/\/\*\.supabase\.co;/); assert.match(v, /script-src 'self' 'unsafe-inline';/);
   assert.match(fs.readFileSync(path.join(root, 'public', 'vendor', 'leaflet', 'LICENSE.txt'), 'utf8'), /BSD 2-Clause License/);
+});
+
+/* ───────────── step 5: the muster ───────────── */
+test('one day: present / half / absent by the hours, late and early by the shift, weekly off, holiday, at work, IN without OUT; no rule = nothing applied', () => {
+  const D = require('../lib/day'), day = '2026-11-10', today = '2026-11-12', t = h => D.at(day, h);
+  assert.deepStrictEqual(D.status({ day, today, in: t('09:00'), out: t('18:00') }), { code: 'P', hours: 9, late_min: 0, early_min: 0 }, 'no rules: IN and OUT = present');
+  const r = D.rules({ full_hours: 8, half_hours: '4', grace_min: 10, early_min: 0, late_to_half: 3, week_off: [0, '0', 9] }); assert.deepStrictEqual(r.errors, []); assert.deepStrictEqual(r.rules.week_off, [0]);
+  const sh = { start_time: '09:00', end_time: '18:00', break_min: 60 };
+  assert.deepStrictEqual(D.status({ day, today, in: t('09:11'), out: t('18:00'), rules: r.rules, shift: sh }), { code: 'HD', hours: 7.82, late_min: 11, early_min: 0 });
+  assert.strictEqual(D.status({ day, today, in: t('09:10'), out: t('18:10'), rules: r.rules, shift: sh }).code, 'P'); assert.strictEqual(D.status({ day, today, in: t('09:00'), out: t('12:00'), rules: r.rules, shift: sh }).code, 'A');
+  assert.strictEqual(D.status({ day, today, in: t('09:00'), out: t('17:30'), rules: r.rules, shift: sh }).early_min, 30);
+  assert.deepStrictEqual(['2026-11-10', '2026-11-08'].map(d => D.status({ day: d, today, in: null, rules: r.rules }).code), ['A', 'WO']); assert.strictEqual(D.status({ day: '2026-11-08', today, in: t('09:00'), out: t('18:00'), rules: r.rules }).code, 'WOP');
+  assert.deepStrictEqual([D.status({ day, today, in: null, holiday: 'Festival' }).code, D.status({ day, today, in: t('09:00'), out: t('18:00'), holiday: 'Festival' }).code], ['H', 'HP']);
+  assert.deepStrictEqual([D.status({ day: today, today, in: null }).code, D.status({ day: today, today, in: 1 }).code, D.status({ day, today, in: t('09:00') }).code, D.status({ day: '2026-11-13', today, in: null }).code], ['', 'IN', 'MIS', '']);
+  assert.deepStrictEqual(D.status({ day, today, in: t('20:05'), out: D.at('2026-11-11', '05:00'), rules: { grace_min: 10, early_min: 15 }, shift: { start_time: '20:00', end_time: '06:00' } }), { code: 'P', hours: 8.92, late_min: 0, early_min: 60 }, 'a night shift ends the next morning');
+  assert.match(D.rules({ full_hours: 4, half_hours: 6 }).errors.join(), /less than/); assert.match(D.rules({ grace_min: 5.5 }).errors.join(), /Grace minutes/);
+  assert.deepStrictEqual(D.shift({ name: 'General', start_time: '9:00', end_time: '18:00' }).row, { name: 'General', start_time: '09:00', end_time: '18:00', break_min: 0 }); assert.match(D.shift({ name: 'G', start_time: '9', end_time: '25:00' }).errors.join(' '), /Name.*Starts at.*Ends at/);
+});
+
+test('the version of the day; a person\'s most exact shift; a month\'s count', () => {
+  const D = require('../lib/day'), day = '2026-11-10';
+  assert.strictEqual(D.validOn([{ valid_from: '2026-01-01', n: 1 }, { valid_from: '2026-11-11', n: 2 }], day).n, 1, 'a day is measured with the version of that day'); assert.strictEqual(D.validOn([{ valid_from: '2026-11-11' }], day), null);
+  assert.strictEqual(D.validOn([{ valid_from: '2026-01-01', created_at: '2026-01-01T00:00:00Z', n: 1 }, { valid_from: '2026-01-01', created_at: '2026-02-01T00:00:00Z', n: 2 }], day).n, 2, 'the same date twice: the one made later');
+  const S = [{ id: 'a', scope: 'all', valid_from: '2026-01-01', active: true }, { id: 'c', scope: 'category', scope_values: ['labour'], valid_from: '2026-01-01', active: true }, { id: 'p', scope: 'people', valid_from: '2026-01-01', active: true }, { id: 'x', scope: 'all', valid_from: '2026-12-01', active: true }, { id: 'o', scope: 'department', scope_values: ['d1'], valid_from: '2026-01-01', active: false }];
+  assert.deepStrictEqual([D.shiftOf(S, { category: 'labour' }, day, {}).id, D.shiftOf(S, { category: 'staff', department_id: 'd1' }, day, {}).id, D.shiftOf(S, { category: 'labour' }, day, { p: 1 }).id, D.shiftOf([], {}, day, {})], ['c', 'a', 'p', null]);
+  assert.deepStrictEqual(D.total([{ code: 'P', late_min: 5 }, { code: 'P', late_min: 5 }, { code: 'HD', late_min: 9 }, { code: 'A' }, { code: 'WO' }, { code: 'H' }, { code: 'WOP' }, { code: 'MIS' }, { code: '' }], { late_to_half: 3 }), { P: 3, HD: 1, A: 1, WO: 1, H: 1, MIS: 1, late: 3, paid: 5, late_half: 1 });
+  assert.strictEqual(D.total([{ code: 'P', late_min: 5 }], {}).paid, 1, 'no rule for late coming: nothing taken off');
+});
+
+test('SQL step 5: only adds; row level security; a rule version and a day\'s entry can only be added; the powers; the pages', () => {
+  const sql = fs.readFileSync(path.join(root, 'sql', 'hr_step5_muster.sql'), 'utf8').replace(/--.*$/gm, '');
+  assert.deepStrictEqual((sql.match(/create table if not exists public\.(\w+)/g) || []).map(x => x.split('.')[1]), ['hr_shifts', 'hr_shift_people', 'hr_holidays', 'hr_att_rules', 'hr_regularize', 'hr_day_entries', 'hr_admin_powers']);
+  assert.ok(!/\b(drop |truncate|delete from|alter table public\.hr_(?!shifts|shift_people|holidays|att_rules|regularize|day_entries|admin_powers))/i.test(sql), 'nothing of the steps before is touched');
+  assert.match(sql, /grant select, insert on public\.hr_att_rules, public\.hr_day_entries to service_role;/); assert.match(sql, /create unique index if not exists hr_regularize_one_waiting on public\.hr_regularize \(employee_id, day\) where status = 'pending'/);
+  assert.match(sql, /foreach t in array array\['hr_shifts', 'hr_shift_people', 'hr_holidays', 'hr_att_rules', 'hr_regularize', 'hr_day_entries', 'hr_admin_powers'\] loop\s+execute format\('alter table public\.%I enable row level security', t\);\s+execute format\('revoke all on public\.%I from public, anon, authenticated', t\);/);
+  const P = require('../lib/powers'); assert.deepStrictEqual(P.KEYS, ['places', 'phones', 'review', 'shifts', 'manual', 'correct', 'regularize']);
+  const src = fs.readFileSync(path.join(root, 'public', 'mus.js'), 'utf8'), win = {}; new Function('window', 'document', src)(win, { getElementById: () => null });
+  assert.deepStrictEqual(win.HRMUS.pages.map(p => p[0]), ['muster', 'requests', 'rules']); assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|\b(alert|confirm|prompt)\(/.test(src), 'only textContent, no browser dialog');
+  assert.deepStrictEqual(Object.keys(win.HRMUS._code), ['P', 'HD', 'A', 'WO', 'H', 'WOP', 'HP', 'IN', 'MIS']);
 });

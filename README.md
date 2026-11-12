@@ -57,9 +57,29 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
   * **Phones** (`devList`, `devRelease` – HR Admin / Super Admin, with a reason); tries from another phone are listed.
   * **"My HR"** – the Portal's second module key `hrme` gives the role `self`: only the four actions above, no page of the office.
   * `hr_punches`, `hr_punch_reviews`, `hr_device_tries`: the server's key may only read and add – never change or delete.
-  * Not built yet: shifts, holidays, the late / half-day rules, the muster, regularization, manual entry, the correction of a
-    punch, the removal of photos after 90 days, the check of the phone by Play Integrity; until the e-mail OTP is there an
-    employee whose details are complete ("pending") may punch (`MAY_PUNCH` in `lib/act_attend.js`).
+  * Not built yet: the removal of photos after 90 days, the check of the phone by Play Integrity; until the e-mail OTP is there
+    an employee whose details are complete ("pending") may punch (`MAY_PUNCH` in `lib/act_attend.js`).
+* **The muster, shifts, rules, requests (12-11-2026)** – `sql/hr_step5_muster.sql` (run by the owner in rcl-hr, after step 4):
+  `hr_shifts`, `hr_shift_people`, `hr_holidays`, `hr_att_rules`, `hr_regularize`, `hr_day_entries`, `hr_admin_powers`.
+  `lib/day.js` (one day → its code), `lib/powers.js`, `lib/act_muster.js` (the actions), `public/mus.js` (the pages).
+  * **A day's code** – P, HD, A, WO, H, WOP / HP (worked on a weekly off / a holiday), IN (at work now), MIS (IN without OUT on
+    a day gone). **The rules are settings with a date** (`rulesSave` → a new version; a day is measured with the version and the
+    shift of THAT day): hours for a full / a half day, grace minutes, early-leaving minutes, late days for one half day, the
+    weekly off, who decides a request (1 or 2 levels). **A rule left empty is not applied** – no number is in the code. Days
+    before the site's first recorded attendance stay empty.
+  * **Shifts** (from – to, also over midnight; break; for everybody / categories / departments / chosen people – the most exact
+    wins), **holidays** (one, or a list – all or none).
+  * **Muster** (`muster`, `dayGet`): the month of everybody, a CSV. What counts for a day: the newest `hr_day_entries` row, else
+    the first IN and last OUT of the punches in order (a doubtful punch only when accepted; an OUT after midnight closes the IN
+    of the evening before).
+  * **A day set by the office** (`daySet`): a manual entry (a day without a punch) or a correction (a day with punches or an
+    entry; also "no attendance on this day") – always a NEW row with the old times, the new times, the reason, who and when.
+    The punches are never touched. The HR Admin: 60 days back; the Super Admin: any day.
+  * **Requests** (`regAsk`, `myRegs` – a person for a day gone; `regList`, `regDecide` – the HR office; `teamRegs`,
+    `teamRegDecide` – the reporting person when the rules say 2 levels): approved = the day's new entry.
+  * **The HR Admin's powers** (`powerSet`, Super Admin only; no row = allowed): work places, phones, doubtful punches, shifts /
+    holidays / rules, manual entry, correction, requests – each can be switched off per site.
+  * Not built yet: the app's screens for a request and the reporting person; payroll's lock of a month; leave.
   * Today HR fills these. The employee filling them himself comes with his own sign-in (the activation step).
 * **Not built yet (the next steps of Phase 1):** activation by e-mail OTP (Resend) and the sign-in with mobile number or e-mail
   (a change in the Portal – asked for separately), the Payroll-only details (bank account, PF…), the finer roles and powers,
