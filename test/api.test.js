@@ -502,3 +502,25 @@ test('the profile picture: the newest paper "Photo" that is a picture – he set
   assert.deepStrictEqual((await ACT.empPhotos(ses('admin', SITE2), { ids: [E1.id] })).photos, {}, 'another site does not get his face');
   await no(ACT.empPhotos(s1, { ids: [E1.id] }), /HR office only/, 403);
 });
+
+test('(12-11-2026) the late rule of a month, very late, a forgotten OUT closed at the shift\'s time; once a day – on the days as the muster reads them and for the phone', async () => {
+  const S2 = ses('super', SITE2), now = new Date(Date.now() + 19800000), lm = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString().slice(0, 7), d = n => lm + '-' + String(n).padStart(2, '0');
+  const w = await ACT.empSave(S2, { name: 'Late Rule', category: 'staff', mobile: mob(), email: mail('late'), dob: '1990-01-01', joined_on: lm + '-01' });
+  let a = await ACT.shiftSave(S2, { name: 'Day ' + tag, start_time: '08:30', end_time: '18:00', auto_out: '23:50', valid_from: lm + '-01' }); assert.strictEqual(a.shifts.find(x => x.name === 'Day ' + tag).auto_out, '23:50');
+  await no(ACT.shiftSave(S2, { name: 'Bad ' + tag, start_time: '08:30', end_time: '18:00', auto_out: '08:30' }), /not the time the shift starts/);
+  a = await ACT.rulesSave(S2, { valid_from: lm + '-01', grace_min: 0, late_free: 3, half_after_min: 120, once: 'yes' }); assert.deepStrictEqual([a.rules.late_free, a.rules.half_after_min, a.rules.once], [3, 120, true]);
+  // days 10–13: a little late each; 14: on time; 15: late again (the 5th); 16: three hours late; 17: IN only – he forgot OUT
+  for (const [n, i, o] of [[10, '08:40', '18:00'], [11, '08:41', '18:00'], [12, '08:42', '18:00'], [13, '08:43', '18:00'], [14, '08:30', '18:00'], [15, '08:45', '18:00'], [16, '11:30', '19:00'], [17, '08:20', '']]) await ACT.daySet(S2, { id: w.id, day: d(n), in_time: i, out_time: o, reason: 'Rig – the late rule' });
+  const m = await ACT.muster(S2, { month: lm }), row = m.rows.find(r => r.id === w.id), at = n => row.codes[m.days.indexOf(d(n))];
+  assert.deepStrictEqual([10, 11, 12, 13, 14, 15, 16, 17].map(at), ['P', 'P', 'P', 'HD', 'P', 'HD', 'HD', 'A'], 'three late days only marked; the 4th and 5th a half day; very late a half day; no OUT = closed by itself, absent');
+  const one = await ACT.dayGet(S2, { id: w.id, day: d(17) }), four = await ACT.dayGet(S2, { id: w.id, day: d(13) });
+  assert.strictEqual(one.day.auto, true); assert.strictEqual(four.day.late_half, true);
+  // a week in the middle of the month is read with the month's own count (the late days before it are counted)
+  const mm = await ACT.myMonth(self(mail('late'), SITE2), { month: lm }); assert.strictEqual(mm.all.find(x => x.day === d(13)).code, 'HD'); assert.strictEqual(mm.all.find(x => x.day === d(17)).auto, true);
+  // the phone: what the server says of today – and "once a day" at the first site, where he was IN and OUT today already
+  const me1 = await ACT.myAttend(self(mail('late'), SITE2), {}); assert.deepStrictEqual([me1.next, me1.once, me1.shift.name, me1.shift.auto_out], ['in', true, 'Day ' + tag, '23:50']);
+  await ACT.rulesSave(ses('super'), Object.assign({}, (await ACT.attSetup(ses('admin'))).rules, { once: 'yes' }));
+  const s1 = self(mail1), st = await ACT.myAttend(s1, { device_id: 'rig-phone-' + tag + '-1' });
+  if (st.punches.some(p => p.kind === 'in') && st.next !== 'out') { assert.strictEqual(st.next, 'done'); await no(ACT.punch(s1, P({ client_id: cid() })), /attendance is done – one IN and one OUT a day/, 409); }
+  else assert.ok(['in', 'out'].indexOf(st.next) > -1);
+});

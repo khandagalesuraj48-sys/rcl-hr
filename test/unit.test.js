@@ -312,7 +312,7 @@ test('one day: present / half / absent by the hours, late and early by the shift
   assert.deepStrictEqual([D.status({ day: today, today, in: null }).code, D.status({ day: today, today, in: 1 }).code, D.status({ day, today, in: t('09:00') }).code, D.status({ day: '2026-11-13', today, in: null }).code], ['', 'IN', 'MIS', '']);
   assert.deepStrictEqual(D.status({ day, today, in: t('20:05'), out: D.at('2026-11-11', '05:00'), rules: { grace_min: 10, early_min: 15 }, shift: { start_time: '20:00', end_time: '06:00' } }), { code: 'P', hours: 8.92, late_min: 0, early_min: 60 }, 'a night shift ends the next morning');
   assert.match(D.rules({ full_hours: 4, half_hours: 6 }).errors.join(), /less than/); assert.match(D.rules({ grace_min: 5.5 }).errors.join(), /Grace minutes/);
-  assert.deepStrictEqual(D.shift({ name: 'General', start_time: '9:00', end_time: '18:00' }).row, { name: 'General', start_time: '09:00', end_time: '18:00', break_min: 0 }); assert.match(D.shift({ name: 'G', start_time: '9', end_time: '25:00' }).errors.join(' '), /Name.*Starts at.*Ends at/);
+  assert.deepStrictEqual(D.shift({ name: 'General', start_time: '9:00', end_time: '18:00' }).row, { name: 'General', start_time: '09:00', end_time: '18:00', auto_out: null, break_min: 0 }); assert.match(D.shift({ name: 'G', start_time: '9', end_time: '25:00' }).errors.join(' '), /Name.*Starts at.*Ends at/);
 });
 
 test('the version of the day; a person\'s most exact shift; a month\'s count', () => {
@@ -442,4 +442,42 @@ test('an employee\'s page opens at once from the list; nothing of him is changed
   assert.match(js, /\['d_prof', 'd_kyc', 'd_docs', 'd_login', 'd_del', 'd_exit', 'd_tr', 'd_edit'\]\.forEach\(function \(b\) \{ \$\(b\)\.disabled = !full; \}\);/);
   assert.ok(!/localStorage|sessionStorage/.test(js.slice(js.indexOf('function openEmp'), js.indexOf('function login()'))), 'kept in the page\'s memory only');
   for (const a of ['empList', 'empGet', 'privGet']) { const i = api.indexOf('async ' + a + '('); assert.match(api.slice(i, i + 1400), /await Promise\.all\(\[db\('GET'/, a); }
+});
+
+test('(12-11-2026) once a day; a forgotten OUT closed at the shift\'s own time = absent; 3 late days only marked, then a half day; very late = a half day; a night shift', () => {
+  const D = require('../lib/day'), T = (day, hm) => D.at(day, hm), day = '2026-11-10', next = '2026-11-11', dayS = { start_time: '08:30', end_time: '18:00', auto_out: '23:50' }, night = { start_time: '20:00', end_time: '06:00', auto_out: '11:50' };
+  // the rules as typed
+  assert.deepStrictEqual(D.rules({ once: 'yes', late_free: 3, half_after_min: 120, grace_min: 0 }).rules, { grace_min: 0, late_free: 3, half_after_min: 120, once: true });
+  assert.match(D.rules({ grace_min: 30, half_after_min: 30 }).errors.join(), /more than the grace/); assert.deepStrictEqual(D.rules({}).rules, {}, 'nothing typed = nothing applied');
+  assert.strictEqual(D.shift({ name: 'Day', start_time: '08:30', end_time: '18:00', auto_out: '23:50' }).row.auto_out, '23:50'); assert.match(D.shift({ name: 'Day', start_time: '08:30', end_time: '18:00', auto_out: '25:00' }).errors.join(), /Closed by itself/);
+  // closed by itself: the day shift the same night, the night shift the next morning
+  assert.strictEqual(D.autoOutAt(dayS, day), T(day, '23:50')); assert.strictEqual(D.autoOutAt(night, day), T(next, '11:50')); assert.strictEqual(D.autoOutAt({ start_time: '08:30', end_time: '18:00' }, day), null);
+  const st = (x) => D.status(Object.assign({ day: day, today: next, in: T(day, '08:20'), out: null, holiday: '', rules: {}, shift: dayS }, x));
+  assert.deepStrictEqual([st({ now: T(day, '23:49'), today: day }).code, st({ now: T(day, '23:50'), today: day }).code, st({ now: T(day, '23:50'), today: day }).auto], ['IN', 'A', true]);
+  assert.deepStrictEqual([st({ now: T(next, '09:00'), shift: night, in: T(day, '20:05') }).code, st({ now: T(next, '11:50'), shift: night, in: T(day, '20:05') }).code], ['MIS', 'A'], 'a night shift is still open the next morning');
+  assert.strictEqual(st({ now: T(next, '09:00'), shift: { start_time: '08:30', end_time: '18:00' } }).code, 'MIS', 'no closing time: as before');
+  assert.strictEqual(st({ now: T(next, '09:00'), out: T(day, '18:05') }).code, 'P', 'with its OUT nothing is closed');
+  assert.strictEqual(st({ now: T(next, '09:00'), in: T(day, '23:55') }).code, 'MIS', 'an IN after the closing time is not closed by it');
+  // very late = a half day at once
+  const late = D.status({ day: day, today: next, now: T(next, '09:00'), in: T(day, '10:45'), out: T(day, '19:00'), holiday: '', rules: { grace_min: 0, half_after_min: 120 }, shift: dayS });
+  assert.deepStrictEqual([late.code, late.late_half, late.late_min], ['HD', true, 135]);
+  assert.strictEqual(D.status({ day: day, today: next, now: T(next, '09:00'), in: T(day, '09:00'), out: T(day, '19:00'), holiday: '', rules: { grace_min: 0, half_after_min: 120 }, shift: dayS }).code, 'P');
+  // the late days of a month: the first 3 only marked, the 4th and later a half day; a new month starts again; an absent day is not a late day
+  const mk = list => list.map(x => ({ day: x[0], code: x[1], late_min: x[2] })), got = D.lateHalves(mk([['2026-11-02', 'P', 5], ['2026-11-03', 'P', 0], ['2026-11-04', 'P', 9], ['2026-11-05', 'A', 0], ['2026-11-06', 'P', 1], ['2026-11-07', 'P', 2], ['2026-11-09', 'HD', 3], ['2026-11-10', 'P', 4], ['2026-12-01', 'P', 7]]), () => ({ late_free: 3 }));
+  assert.deepStrictEqual(got.map(d => d.code), ['P', 'P', 'P', 'A', 'P', 'HD', 'HD', 'HD', 'P']); assert.deepStrictEqual(got.filter(d => d.late_half).map(d => d.day), ['2026-11-07', '2026-11-10']);
+  assert.deepStrictEqual(D.lateHalves(mk([['2026-11-02', 'P', 5], ['2026-11-03', 'P', 5]]), () => ({})).map(d => d.code), ['P', 'P'], 'no such rule: late days are only marked');
+  assert.deepStrictEqual(D.lateHalves(mk([['2026-11-02', 'P', 5]]), () => ({ late_free: 0 })).map(d => d.code), ['HD'], '0 allowed: the first late day is a half day');
+  // where his day stands: once a day; the OUT of a night shift the morning after; closed by itself
+  const P = (kind, d, hm) => ({ kind: kind, day: d, at: new Date(T(d, hm)).toISOString() }), on = sh => () => sh, S = (list, now, r, sh) => { const x = D.stand(list, now, next, r, on(sh)); return [x.next, x.open ? x.open.day : '', x.closed ? 1 : 0, x.shown.length]; };
+  assert.deepStrictEqual(S([], T(next, '08:00'), { once: true }, dayS), ['in', '', 0, 0]);
+  assert.deepStrictEqual(S([P('in', next, '08:20')], T(next, '12:00'), { once: true }, dayS), ['out', next, 0, 1]);
+  assert.deepStrictEqual(S([P('in', next, '08:20'), P('out', next, '18:00')], T(next, '18:05'), { once: true }, dayS), ['done', '', 0, 2], 'once a day: no second IN');
+  assert.deepStrictEqual(S([P('in', next, '08:20'), P('out', next, '18:00')], T(next, '18:05'), {}, dayS), ['in', '', 0, 2], 'without the rule: as before');
+  assert.deepStrictEqual(S([P('in', next, '08:20')], T(next, '23:51'), { once: true }, dayS), ['done', '', 1, 1], 'closed by itself: nothing more today');
+  assert.deepStrictEqual(S([P('in', day, '20:05')], T(next, '06:10'), { once: true }, night), ['out', day, 0, 1], 'the night shift\'s OUT the morning after');
+  assert.deepStrictEqual(S([P('in', day, '20:05'), P('out', next, '06:10')], T(next, '19:55'), { once: true }, night), ['in', '', 0, 1], 'and its IN the same evening');
+  assert.deepStrictEqual(S([P('in', day, '20:05')], T(next, '12:00'), { once: true }, night), ['in', '', 0, 0], 'yesterday\'s night was closed by itself: today starts new');
+  assert.deepStrictEqual(S([P('in', day, '08:20')], T(next, '08:00'), {}, { start_time: '08:30', end_time: '18:00' }), ['in', '', 0, 0], 'no closing time: yesterday\'s IN is open for 20 hours only');
+  const src = fs.readFileSync(path.join(root, 'lib', 'act_attend.js'), 'utf8');
+  assert.match(src, /if \(kind === 'in' && st\.next === 'done'\) throw fail\(409, 'Today\\'s attendance is done – one IN and one OUT a day\./); assert.ok(!/PATCH', 'hr_punches|DELETE', 'hr_punches/.test(src), 'a punch is never changed or deleted – a closed day is only read so');
 });
