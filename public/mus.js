@@ -19,6 +19,7 @@
   var may = function (p) { return role() === 'super' || (role() === 'admin' && (!M.cfg || M.cfg.powers[p] !== false)); };
   var dmy = function (d) { return d ? String(d).slice(0, 10).split('-').reverse().join('-') : ''; };
   var stamp = function (iso) { var t = Date.parse(iso); return isNaN(t) ? '' : dmy(new Date(t + 19800000).toISOString()) + ' ' + new Date(t + 19800000).toISOString().slice(11, 16); };
+  function face(td, key) { if (window.HRDASH && window.HRDASH.face) td.insertBefore(window.HRDASH.face(td.textContent, key), td.firstChild); return td; }      // the letters of his name before it
   function toast(t, bad) { var e = $('toast'); e.textContent = t; e.className = bad ? 'bad' : ''; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { e.hidden = true; }, bad ? 8000 : 3500); }
   function fail(e) { toast(e && e.message ? e.message : 'HR did not answer – try again.', true); }
   function btn(cls, text, fn) { var b = el('button', cls, text); b.type = 'button'; b.onclick = fn; return b; }
@@ -149,7 +150,7 @@
     api('regList', { status: M.reg }).then(function (r) {
       var t = table(['Code', 'Name', 'Day', 'IN', 'OUT', 'Reason', 'Asked', 'Where it stands', '']);
       r.rows.forEach(function (q) {
-        var tr = el('tr'); tr.style.cursor = 'default'; [q.code, q.name, dmy(q.day), q.in_time || '–', (q.out_time || '–') + (q.out_next_day ? ' (next day)' : '')].forEach(function (v, i) { tr.appendChild(el('td', i === 1 ? 'nm' : '', v)); });
+        var tr = el('tr'); tr.style.cursor = 'default'; [q.code, q.name, dmy(q.day), q.in_time || '–', (q.out_time || '–') + (q.out_next_day ? ' (next day)' : '')].forEach(function (v, i) { var td = el('td', i === 1 ? 'nm' : '', v); if (i === 1) face(td, q.code); tr.appendChild(td); });
         var why = el('td', '', q.reason); why.style.whiteSpace = 'normal'; tr.appendChild(why); tr.appendChild(el('td', '', stamp(q.asked_at)));
         var st = el('td'); st.style.whiteSpace = 'normal'; st.appendChild(el('span', 'st ' + (q.status === 'pending' ? 's-incomplete' : q.status === 'approved' ? 's-active' : 's-left'), q.status === 'pending' ? (q.level === 1 ? 'With the reporting person' : 'With the HR office') : q.status === 'approved' ? 'Approved' : 'Refused'));
         q.steps.forEach(function (p) { st.appendChild(el('div', 'muted', (p.level === 1 ? 'Reporting person' : 'HR office') + ': ' + p.decision + ' – ' + p.by + (p.note ? ' – ' + p.note : ''))); }); tr.appendChild(st);

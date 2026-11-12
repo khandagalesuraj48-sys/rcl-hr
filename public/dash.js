@@ -134,6 +134,6 @@
       load(true); clearInterval(Z.timer);
       Z.timer = setInterval(function () { if ($('p_dash').hidden) { clearInterval(Z.timer); return; } if (!document.hidden) load(false); }, 60000);
     },
-    photo: photo, thumb: thumb, _initials: initials, _minOf: minOf
+    photo: photo, thumb: thumb, face: function (name, key) { var a = el('span', 'dz-av', initials(name)); a.style.background = tintOf(key || name); a.setAttribute('aria-hidden', 'true'); return a; }, _initials: initials, _minOf: minOf
   };
 })();

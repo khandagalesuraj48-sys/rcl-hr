@@ -55,7 +55,6 @@ table.mus td:first-child,table.mus th:first-child{min-width:74px;max-width:74px}
 .mc{display:inline-block;min-width:30px;border:0;border-radius:8px;padding:5px 3px;font-size:11.5px;font-weight:700;cursor:pointer;background:#EEF0F4;color:#566589}span.mc{cursor:default;padding:2px 6px}
 .mc.c-P,.mc.c-WOP,.mc.c-HP{background:#DDF3E4;color:#146C2E}.mc.c-HD{background:#FFF1DA;color:#8A5300}.mc.c-A{background:#FDE3E0;color:#B42318}.mc.c-MIS{background:#B42318;color:#fff}.mc.c-IN{background:#E0ECFF;color:#0B4FD8}.mc.c-WO,.mc.c-H{background:#EEF0F4;color:#566589}.mc.c-none{background:transparent;color:#B9C2D4}
 /* the attendance dashboard and the muster's new look (dash.js, mus.js) */
-#app.wide{max-width:1560px}
 .dz-top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:2px 0 14px}.dz-top h2{margin:0;font-size:24px;font-weight:800;letter-spacing:-.4px}.dz-top small{display:block;font-size:13px;color:#66708c;font-weight:500;margin-top:2px}
 .dz-pills{margin-left:auto;display:flex;flex-wrap:wrap;gap:10px;align-items:center}.dz-pill{background:#fff;border:0;border-radius:14px;padding:9px 14px;font-size:13.5px;font-weight:600;box-shadow:0 2px 8px rgba(20,30,60,.06)}
 .dz-pills select.dz-pill,.dz-pills input.dz-pill{height:40px}.dz-pills button.dz-pill{cursor:pointer;height:40px}.dz-pill.dark{background:#0F1F3D;color:#fff}
@@ -100,6 +99,21 @@ table.mz td:first-child b{display:block;font-size:13px;font-weight:600}table.mz 
 .mz-ok{height:38px;border:0;border-radius:10px;background:#1f9d57;color:#fff;font-weight:600;padding:0 14px;cursor:pointer;margin-right:8px}.mz-no{height:38px;border:1px solid #F3C1BC;border-radius:10px;background:#fff;color:#c22a1b;font-weight:600;padding:0 14px;cursor:pointer}
 @media(max-width:1180px){.dz-hero{grid-template-columns:1fr 1fr}.dz-arc{display:none}.dz-glass{padding:22px 22px 22px 12px}.dz-grid{grid-template-columns:1fr}.mz-wrap.open{grid-template-columns:minmax(0,1fr)}.mz-side{position:static;max-height:none;order:-1}}
 @media(max-width:640px){.dz-hero{grid-template-columns:1fr}.dz-glass{padding:0 16px 16px}.dz-big{padding:20px 16px 12px}}
+/* the same look on every HR page (asked 12-11-2026: "baki jitke pages aahet te saglenceh designs hawwet") – only the look */
+body.in{background:#EEF1F7}body.in #app{max-width:1560px}
+body.in .tab{border:0;box-shadow:0 2px 8px rgba(20,30,60,.06);padding:9px 16px;font-size:14px;color:#55607c}body.in .tab.on{background:#0F1F3D;color:#fff}
+body.in .box{border:0;border-radius:22px;box-shadow:0 4px 16px rgba(20,30,60,.07);padding:6px 12px}.dz-card .box{box-shadow:none!important;padding:0!important}
+body.in th{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600;color:#7b839c;border-bottom:1px solid #EEF1F7}body.in td{border-bottom:1px solid #F3F5FA}body.in tbody tr:last-child td{border-bottom:0}
+body.in .tools input,body.in .tools select{border:0;border-radius:14px;box-shadow:0 2px 8px rgba(20,30,60,.06);font-weight:500}
+body.in .pri{background:#0F1F3D;border-radius:14px}body.in .sec{border:0;border-radius:14px;box-shadow:0 2px 8px rgba(20,30,60,.08)}body.in .danger{border-radius:14px}
+body.in .sm{background:#0F1F3D;border-radius:12px}body.in .sm.ghost{background:#fff;color:#0F1F3D;border:1px solid #E1E6F0}
+body.in .chips{gap:14px;margin-bottom:16px}body.in .chip{border:0;border-radius:20px;box-shadow:0 4px 16px rgba(20,30,60,.07);padding:14px 18px;min-width:158px;position:relative;overflow:hidden}
+body.in .chip:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:#0B5FA5}body.in .chip.s-incomplete:before{background:#ffc93c}body.in .chip.s-pending:before{background:#3FA9E0}body.in .chip.s-active:before{background:#35c98a}body.in .chip.s-left:before{background:#9aa5bd}
+body.in .chip b{font-size:30px;font-weight:800;line-height:1.1}body.in .chip span{font-size:13px;font-weight:500}body.in .chip.on{box-shadow:0 0 0 3px #FFC93C,0 4px 16px rgba(20,30,60,.07)}
+body.in .dlg{background:rgba(15,31,61,.5)}body.in .sheet{border-radius:24px;box-shadow:0 24px 60px rgba(10,27,68,.3);padding:24px 24px 20px}body.in .sheet h2{font-weight:800;letter-spacing:-.2px}
+body.in .none{padding:44px 20px;font-size:15px}body.in .mrows li{border-bottom:1px solid #F3F5FA}body.in .mrows input{border-radius:12px}
+body.in td.nm .dz-av{width:28px;height:28px;border-radius:9px;font-size:10.5px}body.in #p_mast h2,body.in #p_mus>h2,body.in #p_mus h3:not(.dz-card h3){font-weight:800}
+body.in .who2{background:#fff;border-radius:14px;padding:8px 12px;box-shadow:0 2px 8px rgba(20,30,60,.06);font-weight:500}
 #ph_img{max-width:100%;max-height:70vh;border-radius:14px;display:block;margin:0 auto}
 @media(max-width:640px){body.in{padding:12px}.grid{grid-template-columns:1fr}dl{grid-template-columns:110px 1fr}.who2{display:none}}
 </style>
@@ -117,6 +131,7 @@ table.mz td:first-child b{display:block;font-size:13px;font-weight:600}table.mz 
 </main>
 <div id="app" hidden>
   <div class="bar"><div id="tabs" style="display:flex;gap:8px;flex-wrap:wrap"></div><span style="display:flex;align-items:center;gap:10px;margin-left:auto"><select id="site_pick" aria-label="Site" hidden style="height:38px;border:1px solid #D7E0EF;border-radius:10px;padding:0 10px;background:#fff;font-weight:600;max-width:220px"></select><span class="who2" id="who2" style="margin-left:0"></span></span></div>
+  <div class="dz-top" id="p_head" hidden><div><h2 id="p_title"></h2><small id="p_sub"></small></div></div>
   <section id="p_emp">
     <div class="chips" id="chips"></div>
     <div class="tools">
