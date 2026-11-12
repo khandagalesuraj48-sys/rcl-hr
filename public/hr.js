@@ -84,9 +84,24 @@
       r.history.forEach(function (x) { var li = el('li'); li.appendChild(el('b', '', dmy(x.valid_from) + ' → ' + (x.valid_to ? dmy(x.valid_to) : 'today'))); li.appendChild(el('span', '', ' ' + x.site + ' · ' + (nameOf(S.init.designations, x.designation_id) || '–') + ' · ' + (nameOf(S.init.departments, x.department_id) || '–') + (x.note ? ' · ' + x.note : ''))); h.appendChild(li); });
       $('d_docs_miss').hidden = true; api('privGet', { id: e.id }).then(function (p) { S.open.priv = p; var m = p.docsMissing; $('d_docs_miss').hidden = !m.length || e.status === 'left'; $('d_docs_miss').textContent = 'Documents still to attach: ' + m.join(', ') + '.'; }, function () { /* the details are asked again when their page is opened */ });
       around(e.id);
+      $('d_login').hidden = e.status === 'left' || !isAdmin();      // his sign-in: the HR Admin's or the Super Admin's to give
       var left = e.status === 'left'; $('d_edit').hidden = left; $('d_tr').hidden = left || !isAdmin(); $('d_exit').hidden = left || !isAdmin();
       show('dlg_emp');
     }, fail);
+  }
+
+  /* ---------- his sign-in for the app (12-11-2026: "ADMIN … LA EK TEMP PASSWORD DEU SHAKEL NANTR USER SWATACHA PASS SET KRU SHAKEL") ----------
+   * Given by the Portal (its api/hrlogin) to the HR Admin of the site or the Super Admin: a one-time password, and "My HR" only. */
+  function login() {
+    var e = S.open.employee; $('lg_title').textContent = 'Sign-in for ' + e.name + ' (' + e.code + ')'; $('lg_email').textContent = e.email || '– none: put his e-mail in his record first –';
+    $('lg_done').hidden = true; $('lg_pw').textContent = ''; $('lg_err').hidden = true; $('lg_go').hidden = !e.email; $('lg_go').disabled = false; $('lg_go').textContent = 'Give a one-time password';
+    hide('dlg_emp'); show('dlg_login');
+  }
+  function loginGive() {
+    var e = S.open.employee, b = $('lg_go'); b.disabled = true; $('lg_err').hidden = true;
+    window.HRPORTAL('api/hrlogin', { site: e.site, email: e.email, name: e.name }).then(function (r) {
+      $('lg_pw').textContent = r.password; $('lg_done').hidden = false; b.disabled = false; b.textContent = 'Give another one';
+    }, function (x) { b.disabled = false; $('lg_err').textContent = x.message; $('lg_err').hidden = false; });
   }
 
   // ---------- add / change ----------
@@ -243,11 +258,12 @@
         $('cat').onchange = function () { S.category = $('cat').value; list(); };
         $('b_add').onclick = function () { form(null, null); }; $('b_imp').onclick = function () { $('i_file').value = ''; $('i_err').hidden = true; $('i_res').hidden = true; $('i_save').hidden = true; show('dlg_imp'); };
         $('d_edit').onclick = function () { form(S.open.employee, S.open.boss); }; $('d_tr').onclick = transfer; $('d_exit').onclick = exit;
+        $('d_login').onclick = login; $('lg_go').onclick = loginGive;
         $('d_kyc').onclick = kyc; $('d_docs').onclick = docs; $('k_form').onsubmit = kycSave; $('o_add').onclick = docAdd;
         $('f_form').onsubmit = save; $('t_form').onsubmit = transferSave; $('x_form').onsubmit = exitSave;
         var bt; $('f_boss').oninput = function () { clearTimeout(bt); bt = setTimeout(pickBoss, 250); };
         $('i_file').onchange = function () { importFile($('i_file').files[0]); }; $('i_save').onclick = importSave;
-        Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (b) { b.onclick = function () { hide(b.dataset.close); }; });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (b) { b.onclick = function () { hide(b.dataset.close); if (b.dataset.close === 'dlg_login') { $('lg_pw').textContent = ''; $('lg_done').hidden = true; } }; });      // (the one-time password leaves the page with its box)
         document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') ['dlg_form', 'dlg_tr', 'dlg_exit', 'dlg_imp', 'dlg_kyc', 'dlg_docs', 'dlg_emp'].some(function (d) { if (!$(d).hidden) { hide(d); return true; } return false; }); });
         go(page || 'employees');
       }, function (e) { window.HRMSG(e.message); });

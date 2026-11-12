@@ -341,3 +341,13 @@ test('the site is chosen in HR among the Portal\'s sites of the person; the form
   assert.match(js, /site: \$\('f_site'\)\.value,/); assert.match(js, /fs\.disabled = !!e\.id && !isAdmin\(\);/); assert.match(js, /api\('empAround', \{ id: id \}\)/);
   assert.match(api, /if \(sitesOf\(s\)\.indexOf\(site\) < 0\) throw fail\(403, 'Site: choose a site where you have HR\.', 'site'\);\n    if \(was && site !== was\.site\) needAdmin\(s\);/);
 });
+
+test('an employee\'s sign-in is asked of the Portal from the page; HR\'s server keeps no password; only the Admin sees the button', () => {
+  const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), js = fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8');
+  for (const id of ['d_login', 'dlg_login', 'lg_title', 'lg_email', 'lg_done', 'lg_pw', 'lg_err', 'lg_go']) assert.ok(html.indexOf('id="' + id + '"') > -1, '#' + id);
+  assert.match(html, /window\.HRPORTAL = function \(path, body\) \{[\s\S]+?fetch\(PORTAL \+ '\/' \+ path, \{ method: 'POST', credentials: 'same-origin', headers: \{ 'Content-Type': 'application\/json', 'X-RCL': '1' \}/);
+  assert.match(js, /\$\('d_login'\)\.hidden = e\.status === 'left' \|\| !isAdmin\(\);/); assert.match(js, /window\.HRPORTAL\('api\/hrlogin', \{ site: e\.site, email: e\.email, name: e\.name \}\)/);
+  assert.match(js, /if \(b\.dataset\.close === 'dlg_login'\) \{ \$\('lg_pw'\)\.textContent = ''; \$\('lg_done'\)\.hidden = true; \}/, 'the one-time password leaves the page with its box');
+  assert.ok(!/localStorage|sessionStorage/.test(js.slice(js.indexOf('function loginGive'), js.indexOf('// ---------- add / change'))), 'kept nowhere');
+  for (const f of fs.readdirSync(path.join(root, 'api')).concat(fs.readdirSync(path.join(root, 'lib')).map(x => '../lib/' + x))) assert.ok(!/password/i.test(fs.readFileSync(path.join(root, 'api', f), 'utf8').replace(/No secret, key, password[^\n]*/g, '')), f + ': HR\'s server has nothing to do with passwords');
+});

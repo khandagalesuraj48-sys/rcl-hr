@@ -67,6 +67,10 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
   * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
     count, requests waiting.
+* **An employee's sign-in for the app (12-11-2026)** – the employee's page: "Sign-in for the app…" (HR Admin / Super Admin). The
+  page asks the Portal (`<portal>/api/hrlogin`, with the person's own Portal sign-in – `HRPORTAL` in `public/index.html`); the
+  Portal makes the user, gives "My HR" (`hrme`) on the employee's site and answers a one-time password, shown once. HR's server
+  has no part in it and keeps nothing. Needs the module `hrme` in the Portal.
 * **The muster, shifts, rules, requests (12-11-2026)** – `sql/hr_step5_muster.sql` (run by the owner in rcl-hr, after step 4):
   `hr_shifts`, `hr_shift_people`, `hr_holidays`, `hr_att_rules`, `hr_regularize`, `hr_day_entries`, `hr_admin_powers`.
   `lib/day.js` (one day → its code), `lib/powers.js`, `lib/act_muster.js` (the actions), `public/mus.js` (the pages).
