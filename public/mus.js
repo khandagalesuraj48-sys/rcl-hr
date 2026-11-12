@@ -184,7 +184,9 @@
       late_free: field(g, 'Late days allowed in a month – every late day after them is a half day (empty = only marked)', inp('number', num(r.late_free), { min: 0, max: 31 })),
       half_after_min: field(g, 'Half day at once when later than the shift\'s start + minutes (empty = never)', inp('number', num(r.half_after_min), { min: 1, max: 720 })),
       late_to_half: field(g, 'So many late days in a month = one half day less in the days for pay (empty = never)', inp('number', num(r.late_to_half), { min: 0, max: 31 })),
-      once: field(g, 'Sign IN / OUT in a day', inp('select')), reg_levels: field(g, 'Who decides a request', inp('select')) };
+      once: field(g, 'Sign IN / OUT in a day', inp('select')), reg_levels: field(g, 'Who decides a request', inp('select')),
+      face: field(g, 'The face at every attendance', inp('select')), face_min: field(g, 'Face: at least so much must match, percent (empty = 90)', inp('number', num(r.face_min), { min: 50, max: 99 })) };
+    opt(f.face, '', 'Not asked – the photo is proof only', !r.face); opt(f.face, 'yes', 'Needed – no attendance without the registered face', !!r.face);
     opt(f.once, '', 'As often as needed (out and in again)', !r.once); opt(f.once, 'yes', 'Once – one IN and one OUT a day', !!r.once);
     opt(f.reg_levels, '1', 'The HR office', r.reg_levels !== 2); opt(f.reg_levels, '2', 'First the reporting person, then the HR office', r.reg_levels === 2);
     var wo = el('div', 'full'); wo.appendChild(el('label', '', 'Weekly off')); var days = []; WD.forEach(function (n, i) { var l = el('label', 'ck'), cb = inp('checkbox'); cb.checked = (r.week_off || []).indexOf(i) > -1; days.push(cb); l.appendChild(cb); l.appendChild(document.createTextNode(' ' + n)); wo.appendChild(l); }); g.appendChild(wo);
@@ -225,7 +227,24 @@
       api('holidaySave', { rows: rows }).then(function (n) { if (n.saved) { M.cfg = n; s.close(); toast(n.saved + ' holidays added.'); drawRules(); return; } res.textContent = ''; res.appendChild(el('p', 'sum', 'Nothing was saved – set these lines right first:')); var ul = el('ul', 'faults'); n.lines.forEach(function (x) { ul.appendChild(el('li', '', 'Line ' + x.line + ': ' + x.error)); }); res.appendChild(ul); }, function (e) { s.err(e); }); }));
   }
 
+  /* ───────────── an employee's face for attendance (step 9) – opened from his page ─────────────
+   * Is it registered, when, on which phone; the five pictures of the registration (HR Admin / Super Admin); his last checks with
+   * how far each matched; "Reset" with the reason – then he registers again. The face endpoint is its own (api/face). */
+  var faceApi = function (action, body) { return window.HRAPI('api/face', Object.assign({ action: action }, body || {})); };
+  function faceSheet(emp) {
+    var s = sheet('Face for attendance – ' + emp.name + ' (' + emp.code + ')', 'He registers his own face in the app, once. At every attendance the photo is compared with it – it must match at least the site\'s percentage (Shifts & rules).', true);
+    faceApi('faceInfo', { id: emp.id }).then(function (r) {
+      var b = s.body; b.appendChild(el('p', '', r.required ? 'On this site the face is NEEDED – at least ' + r.min + ' % must match.' : 'On this site the face is not asked yet (Shifts & rules → "The face at every attendance").'));
+      b.appendChild(el('p', '', r.enrolled ? 'Registered on ' + stamp(r.enrolled_at) + (r.model ? ' – ' + r.model : '') + '.' : 'Not registered yet.'));
+      if (r.pictures.length) { var row = el('div'); row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:8px 0'; r.pictures.forEach(function (p) { var f = el('figure'); f.style.cssText = 'margin:0;text-align:center;font-size:12px;color:#66708c'; var im = document.createElement('img'); im.alt = p.pose; im.src = p.url; im.style.cssText = 'width:96px;height:120px;object-fit:cover;border-radius:12px;display:block'; f.appendChild(im); f.appendChild(document.createTextNode(p.pose)); row.appendChild(f); }); b.appendChild(row); }
+      if (r.tries.length) { b.appendChild(el('label', '', 'The last checks')); var t = table(['When', 'What', 'Result', 'Matched', 'Needed']); r.tries.forEach(function (x) { var tr = el('tr'); tr.style.cursor = 'default'; [stamp(x.at), x.kind === 'enrol' ? 'Registration' : 'Attendance', { ok: 'His face', nomatch: 'NOT his face', noface: 'No face in the picture', manyfaces: 'More than one face' }[x.result] || x.result, x.match_pct === null || x.match_pct === undefined ? '–' : x.match_pct + ' %', x.min_pct ? x.min_pct + ' %' : '–'].forEach(function (v) { tr.appendChild(el('td', '', v)); }); t.body.appendChild(tr); }); b.appendChild(t.box); }
+      r.resets.forEach(function (x) { b.appendChild(el('p', 'muted', 'Reset on ' + stamp(x.reset_at) + ' by ' + x.reset_by + ' – ' + x.reason)); });
+      if (r.enrolled && r.can_reset) { var why = inp('text', '', { maxlength: 200, placeholder: 'Why is the face reset?' }); why.hidden = true; b.appendChild(why); var del = btn('danger', 'Reset the face…', function () { if (why.hidden) { why.hidden = false; why.focus(); return; } faceApi('faceReset', { id: emp.id, reason: why.value }).then(function () { s.close(); toast('Reset – he registers his face again in the app.'); }, function (e) { s.err(e); }); }); del.style.marginRight = 'auto'; s.acts.insertBefore(del, s.acts.firstChild); }
+    }, function (e) { s.err(e); });
+  }
+
   window.HRMUS = {
+    face: faceSheet,
     pages: PAGES,
     has: function (page) { return PAGES.some(function (p) { return p[0] === page; }); },
     open: function (page, me, init) {
