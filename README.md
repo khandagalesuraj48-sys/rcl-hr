@@ -71,6 +71,20 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
   * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
     count, requests waiting.
+* **Payroll (step 12, 12-11-2026)** – his words: "HO HR … SALARY CALCULATE KRU SHAKEL JYAT PT PF DEDUCTION SALARY ADVANCE HE SAGLE HO
+  WARUN KARTA YEIL"; decided: a day's pay = the month's salary ÷ the days of that month, an extra day = one day's pay. Page
+  **Payroll** (web; the HO HR and the Super Admin only – `init.ho`, menu `who: 'ho'`). **Pay sheet:** a site's month, only after
+  its attendance is approved (step 10) – counted fresh from the verified counts and each person's approved salary of the month's
+  last day (`lib/pay.js`: a month's salary → the days counted for pay; a day's rate → present + half days as ½ + leave; extra days
+  one day's pay each). "Set…" per person: ticks PF / ESIC / Profession Tax (kept for the months to come, `hr_pay_emp`), another
+  earning / deduction with its note and the advance of this month (`hr_pay_adjust`). **PF · ESIC · PT** are the company's own
+  settings with their date (`hr_pay_settings`, the accountant's numbers – none is in the code; empty = not applied; PF to the
+  nearest rupee, ESIC rounded up, PT by the highest slab reached; no special month, no difference by gender – use "another
+  deduction"). **Advances:** one running advance a person, taken back a month, never more than what is left or than the pay.
+  **Lock:** the run, every payslip and the advances in ONE piece (`hr_pay_lock`); a locked month is never counted again nor
+  changed (the database gives no update on a payslip) – a mistake is set right in the next month. A person without an approved
+  salary is said and left out. **His own payslips:** `mySlips` (the app's "Salary slips"). `sql/hr_step12_payroll.sql` – six new
+  tables and one function, run by the owner. Run beside the present method for two months before it is trusted.
 * **An employee's salary – onboarding (step 11, 12-11-2026)** – his words: "SITE HR EMPLOYEE ON BORD KRU SHAKEL … TYACHI SALARY PN
   MENTION KARU SHAKEL JI BASIC SALARY ASEL ANI … APPROVAL SATHI JAIL"; decided: straight to the HO HR; a month's salary or a day's
   rate, chosen per person. The employee's page → **Salary…** (HR Admin with the power `salary`, Super Admin): type, amount, from

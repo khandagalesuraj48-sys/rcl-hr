@@ -646,3 +646,47 @@ test('(step 11) a salary: proposed by the HR Admin (not an HR User), one waiting
   const log = await db('GET', 'hr_audit?select=action,detail&site=eq.' + SP + '&action=like.Salary*'); assert.ok(log.length >= 5); assert.ok(!/17000|18000|800/.test(JSON.stringify(log)), 'no amount in the audit');
   await no(db('DELETE', 'hr_salaries?employee_id=eq.' + E.id), /Database|refused|permission/);
 });
+
+test('(step 12) payroll: only the HO HR; only after the month is approved; counted from the verified days and the approved salary; PF / ESIC / PT as set and ticked; the advance; locked in one piece – never changed again; his own payslip', async () => {
+  const SQ = tag + 'Q', aQ = ses('admin', SQ), uQ = ses('user', SQ), sQ = ses('super', SQ), D = require('../lib/day'), MO = require('../lib/month');
+  aQ.info = uQ.info = sQ.info = { sites: [{ code: SQ, name: 'Rig roll' }] };
+  const today = require('../lib/rules').today(), month = D.addDays(today.slice(0, 8) + '01', -1).slice(0, 7), nDays = +MO.lastDay(month).slice(8), d5 = month + '-05', d6 = month + '-06';
+  const mk = async (name, cat, k) => ACT.empSave(aQ, { name, category: cat, mobile: mob(), email: mail(k), dob: '1990-05-05', joined_on: '2024-01-01' });
+  const A = await mk('Roll One', 'staff', 'roll1'), B = await mk('Roll Two', 'labour', 'roll2'), C = await mk('Roll Three', 'driver', 'roll3');
+  for (const [e, d] of [[A, d5], [A, d6], [B, d5], [C, d5]]) await ACT.daySet(sQ, { id: e.id, day: d, in_time: '09:00', out_time: '18:00', reason: 'rig roll' });
+  await ACT.hoSet(sQ, { email: 'user@rig.test', on: true });
+  for (const [e, t, amt] of [[A, 'monthly', nDays * 1000], [B, 'daily', 500]]) { const g = await ACT.salaryAsk(aQ, { id: e.id, pay_type: t, amount: String(amt) }); await ACT.salaryDecide(uQ, { id: g.waiting.id, decision: 'approved' }); }
+  // only the HO HR; only after the month's attendance is approved
+  await no(ACT.payList(aQ, { month }), /only for the HO HR and the Super Admin/, 403); for (const k of ['paySettings', 'advList']) await no(ACT[k](aQ, {}), /only for the HO HR/, 403);
+  let p = await ACT.payList(uQ, { month }); assert.strictEqual(p.ready, false); assert.match(p.reason, /not approved by the HO HR yet/); await no(ACT.payLock(uQ, { month }), /not approved by the HO HR yet/, 400);
+  await ACT.monthVerify(aQ, { month, ids: [A.id, B.id, C.id] }); await ACT.monthApprove(uQ, { month });
+  // the settings (made-up numbers of the test), the ticks, an advance, an addition
+  await no(ACT.paySettingsSave(uQ, { pf_pct: 'twelve' }), /PF %: a number/, 400);
+  const st = await ACT.paySettingsSave(uQ, { valid_from: '2020-01-01', pf_pct: '12', pf_cap: '15000', esic_pct: '0.75', esic_limit: '21000', pt_slabs: [{ from: '1000', amount: '200' }] }); assert.ok(st.versions.length >= 1);
+  await ACT.payFlags(uQ, { id: A.id, pf: true, esic: true, pt: true }); await ACT.payFlags(uQ, { id: B.id, esic: true, pt: true });
+  await no(ACT.advGive(uQ, { id: A.id, amount: '1000', monthly: '5000' }), /not more than the advance/, 400);
+  let ad = await ACT.advGive(uQ, { id: A.id, amount: '1000', monthly: '400', given_on: d5 }); assert.deepStrictEqual([ad.rows[0].left, ad.rows[0].status, ad.rows[0].code], [1000, 'active', A.code]);
+  await no(ACT.advGive(uQ, { id: A.id, amount: '500', monthly: '100' }), /one advance at a time/, 409);
+  await no(ACT.payAdjust(uQ, { month, id: A.id, other_earn: '100' }), /Another earning: write what it is for/, 400);
+  p = await ACT.payAdjust(uQ, { month, id: A.id, other_earn: '100', earn_note: 'arrear of last month' });
+  const row = e => p.rows.find(r => r.id === e.id);
+  assert.deepStrictEqual([p.ready, p.locked, p.rows.length, p.problems], [true, null, 3, 1]);
+  assert.deepStrictEqual([row(A).day, row(A).pay_days, row(A).earned, row(A).gross, row(A).pf, row(A).esic, row(A).pt, row(A).advance, row(A).net], [1000, 2, 2000, 2100, 240, 0, 200, 400, 1260]);
+  assert.deepStrictEqual([row(B).pay_type, row(B).pay_days, row(B).earned, row(B).pf, row(B).esic, row(B).pt, row(B).net], ['daily', 1, 500, 0, 4, 0, 496]);
+  assert.match(row(C).problem, /No approved salary/); assert.deepStrictEqual([p.totals.gross, p.totals.net], [2600, 1756]);
+  // the lock: said who cannot be paid; then without him – everything in one piece
+  await no(ACT.payLock(uQ, { month }), new RegExp('1 people cannot be paid.*' + C.code), 400); await no(ACT.payLock(aQ, { month, without: true }), /only for the HO HR/, 403);
+  p = await ACT.payLock(uQ, { month, without: true }); assert.deepStrictEqual([p.locked.by, p.locked.people, p.rows.length, p.totals.net, row(A).net, row(A).advance_left_before], ['user@rig.test', 2, 2, 1756, 1260, 1000]);
+  await no(ACT.payLock(uQ, { month, without: true }), /already locked/, 409); await no(ACT.payAdjust(uQ, { month, id: A.id, other_ded: '50', ded_note: 'late fine' }), /is locked – nothing of it is changed/, 409);
+  ad = await ACT.advList(uQ); assert.deepStrictEqual([ad.rows[0].recovered, ad.rows[0].left, ad.rows[0].status], [400, 600, 'active']);
+  await no(ACT.advClose(uQ, { id: ad.rows[0].id, reason: '' }), /Reason/, 400); ad = await ACT.advClose(uQ, { id: ad.rows[0].id, reason: 'paid back in cash' }); assert.deepStrictEqual([ad.rows[0].status, ad.rows[0].recovered], ['closed', 400]);
+  // a changed setting does not touch the locked month; the database refuses a change of a payslip
+  await ACT.paySettingsSave(uQ, { valid_from: '2020-01-01', pf_pct: '50' }); assert.strictEqual((await ACT.payList(uQ, { month })).rows.find(r => r.id === A.id).pf, 240);
+  await no(db('PATCH', 'hr_payslips?employee_id=eq.' + A.id, { net: 1 }), /Database|refused|permission/); await no(db('DELETE', 'hr_pay_runs?site=eq.' + SQ), /Database|refused|permission/);
+  // his own payslip – only his
+  const mine = await ACT.mySlips({ site: SQ, email: mail('roll1'), name: 'x', role: 'self', info: {} });
+  assert.deepStrictEqual([mine.slips.length, mine.slips[0].month, mine.slips[0].net, mine.slips[0].gross, mine.slips[0].earnings.map(l => l.label), mine.slips[0].deductions.map(l => l.label + ' ' + l.amount)], [1, month, 1260, 2100, ['Earned pay', 'arrear of last month'], ['PF 240', 'Profession Tax 200', 'Advance 400']]);
+  assert.strictEqual((await ACT.mySlips({ site: SQ, email: mail('roll3'), name: 'x', role: 'self', info: {} })).slips.length, 0);
+  await ACT.paySettingsSave(uQ, { valid_from: '2020-01-01' }); await ACT.hoSet(sQ, { email: 'user@rig.test', on: false });
+  const log = JSON.stringify(await db('GET', 'hr_audit?select=action,detail&site=eq.' + SQ + '&action=like.*dvance*')); assert.ok(!/"1000"|:1000\b|400\b/.test(log), 'no amount of an advance in the audit');
+});
