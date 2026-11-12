@@ -91,3 +91,49 @@ test('import: faults come back with their line and are not saved; missing DOB / 
   const again = await ACT.empImport(s, { rows: rows }); assert.strictEqual(again.saved, 0, 'the same file again adds nobody'); assert.strictEqual(again.faults, 5);
   await no(ACT.empImport(s, { rows: [] }), /no rows/); await no(ACT.empImport(s, { rows: new Array(1001).fill({ name: 'x' }) }), /At most 1000/);
 });
+
+// a made-up Aadhaar-like number with a right check digit (not a real person's): tried until the rule accepts it
+const R2 = require('../lib/rules'); const fakeAadhaar = seed => { for (let i = 0; i < 10; i++) { const a = String(seed) + i; if (R2.aadhaar(a)) return a; } throw new Error('no check digit'); };
+
+test('his own details: Aadhaar checked and shown whole only to the Admin; one Aadhaar / PAN = one employee; the record never holds the number', async () => {
+  const s = ses('user', tag + 'K'), sa = ses('admin', tag + 'K');
+  const a = await ACT.empSave(s, { name: 'Kyc One', category: 'driver', mobile: mob() }), b = await ACT.empSave(s, { name: 'Kyc Two', category: 'staff', mobile: mob() });
+  const aad = fakeAadhaar('9' + String(Date.now()).slice(-10)), panNo = 'ABCDE' + String(Date.now()).slice(-4) + 'F';
+  await no(ACT.privSave(s, { id: a.id, aadhaar: aad.slice(0, 11) + ((+aad[11] + 1) % 10), pan: 'bad', mobile2: '12', family_mobile: '13' }), /Aadhaar: 12 digits.*PAN: 10 letters.*Second mobile.*Family member's mobile/, 400);
+  await ACT.privSave(s, { id: a.id, aadhaar: aad.replace(/(\d{4})(\d{4})/, '$1 $2 '), pan: panNo.toLowerCase(), mobile2: mob(), family_name: 'Kyc Parent', family_relation: 'Father', family_mobile: mob(), address_current: 'Camp, Rig Road', address_permanent: 'Village Rig' });
+  let g = await ACT.privGet(s, { id: a.id });
+  assert.deepStrictEqual([g.personal.aadhaar, g.personal.aadhaar_mask, g.personal.pan, g.personal.family_relation, g.personal.address_current], ['', 'XXXX XXXX ' + aad.slice(-4), panNo, 'father', 'Camp, Rig Road'], 'an HR User sees the Aadhaar only as a mask');
+  assert.strictEqual((await ACT.privGet(sa, { id: a.id })).personal.aadhaar, aad, 'the HR Admin sees it whole');
+  assert.deepStrictEqual(g.docsMissing, ['Photo', 'Aadhaar card', 'PAN card', 'Driving licence', 'Bank passbook / cancelled cheque'], 'a driver: the licence is expected');
+  // the User changes the address and leaves the Aadhaar box as it was: the number is kept
+  await ACT.privSave(s, { id: a.id, aadhaar: 'XXXX XXXX ' + aad.slice(-4), pan: panNo, address_current: 'New camp' });
+  assert.strictEqual((await ACT.privGet(sa, { id: a.id })).personal.aadhaar, aad);
+  await no(ACT.privSave(s, { id: b.id, aadhaar: aad }), new RegExp('This Aadhaar already belongs to employee ' + a.code), 409);
+  await no(ACT.privSave(s, { id: b.id, pan: panNo }), new RegExp('This PAN already belongs to employee ' + a.code), 409);
+  const au = await db('GET', 'hr_audit?select=action,detail&site=eq.' + s.site + '&action=eq.Employee%20details%20changed&order=id');
+  assert.strictEqual(au.length, 2); assert.deepStrictEqual(au[0].detail.aadhaar, ['…', '…' + aad.slice(-4)]); assert.ok(!JSON.stringify(au).includes(aad) && !JSON.stringify(au).includes(panNo), 'never the whole number');
+  assert.ok(!JSON.stringify((await ACT.empList(s, {})).rows).includes(aad), 'not in the list');
+  await no(ACT.privGet(ses('admin', tag + 'Z'), { id: a.id }), /not found on this site/, 404);
+});
+
+test('his papers: sent to the private store, opened by a short link; pay papers only by the Admin; removed = kept with who and why', async () => {
+  const s = ses('user', tag + 'K'), sa = ses('admin', tag + 'K'), a = (await ACT.empList(s, { q: 'Kyc One' })).rows[0];
+  await no(ACT.docUploadUrl(s, { id: a.id, kind: 'licence', type: 'application/zip', bytes: 10 }), /Only a photo .* or a PDF/); await no(ACT.docUploadUrl(s, { id: a.id, kind: 'licence', type: 'application/pdf', bytes: 11 * 1048576 }), /at most 10 MB/);
+  await no(ACT.docUploadUrl(s, { id: a.id, kind: 'passport', type: 'application/pdf', bytes: 10 }), /what kind of paper/);
+  const put = async (kind, extra) => { const body = Buffer.from('%PDF-1.4 rig ' + kind), u = await ACT.docUploadUrl(s, { id: a.id, kind: kind, type: 'application/pdf', bytes: body.length });
+    assert.match(u.path, new RegExp('^' + a.id + '/[0-9a-f]{24}\\.pdf$')); const r = await fetch(u.url, { method: 'PUT', headers: { 'Content-Type': 'application/pdf', 'x-upsert': 'false' }, body }); assert.ok(r.ok, 'the file is taken: ' + r.status);
+    return ACT.docAdd(s, Object.assign({ id: a.id, kind: kind, path: u.path, bytes: body.length }, extra || {})); };
+  const lic = await put('licence', { number: 'mh12 2020 0001234', expires_on: '31-12-2030', title: 'Heavy vehicle' }), slip = await put('salary_slip');
+  await no(ACT.docAdd(s, { id: a.id, kind: 'pan', path: a.id + '/' + 'a'.repeat(24) + '.pdf', bytes: 10 }), /did not arrive/); await no(ACT.docAdd(s, { id: a.id, kind: 'pan', path: 'other/' + 'a'.repeat(24) + '.pdf', bytes: 10 }), /does not belong to this employee/);
+  let l = await ACT.docList(s, { id: a.id });
+  assert.deepStrictEqual(l.docs.map(d => [d.kind, d.number, d.expires_on, d.canOpen]).sort(), [['licence', 'MH12 2020 0001234', '2030-12-31', true], ['salary_slip', '', null, false]]);
+  assert.ok(l.docsMissing.indexOf('Driving licence') < 0 && l.docsMissing.indexOf('PAN card') > -1);
+  const link = await ACT.docLink(s, { doc: lic.id }); assert.strictEqual(await (await fetch(link.url)).text(), '%PDF-1.4 rig licence', 'the link gives the file');
+  await no(ACT.docLink(s, { doc: slip.id }), /Only the HR Admin or the Super Admin opens the pay papers/, 403); assert.ok((await ACT.docLink(sa, { doc: slip.id })).url);
+  await no(ACT.docLink(ses('admin', tag + 'Z'), { doc: lic.id }), /not found on this site/, 404);
+  await no(ACT.docRemove(s, { doc: lic.id, reason: 'Wrong file' }), /Only the HR Admin/, 403); await no(ACT.docRemove(sa, { doc: lic.id, reason: '' }), /write why/);
+  await ACT.docRemove(sa, { doc: lic.id, reason: 'Wrong file' }); await no(ACT.docLink(sa, { doc: lic.id }), /not found/, 404);
+  l = await ACT.docList(sa, { id: a.id }); const gone = l.docs.find(d => d.id === lic.id);
+  assert.deepStrictEqual([gone.active, gone.removed_by, gone.removed_reason, gone.canOpen], [false, 'admin@rig.test', 'Wrong file', false], 'the row stays'); assert.ok(l.docsMissing.indexOf('Driving licence') > -1);
+  assert.deepStrictEqual((await db('GET', 'hr_audit?select=action&site=eq.' + s.site + '&action=like.Paper*&order=id')).map(x => x.action), ['Paper attached', 'Paper attached', 'Paper opened', 'Paper opened', 'Paper removed']);
+});

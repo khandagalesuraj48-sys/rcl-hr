@@ -6,7 +6,8 @@
   var el = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null) e.textContent = String(text); return e; };
   var S = { me: null, init: null, page: 'employees', q: '', status: '', category: '', rows: [], open: null, imp: null };
   var api = function (action, body) { return window.HRAPI('api/hr', Object.assign({ action: action }, body || {})); };
-  var dmy = function (d) { return d ? String(d).slice(0, 10).split('-').reverse().join('-') : ''; };
+  // a date as DD-MM-YYYY; a moment (…T…Z) is shown as its day in India
+  var dmy = function (d) { if (!d) return ''; d = String(d); if (d.indexOf('T') > 0) { var t = Date.parse(d); if (!isNaN(t)) d = new Date(t + 19800000).toISOString(); } return d.slice(0, 10).split('-').reverse().join('-'); };
   var STATUS = { incomplete: 'Incomplete', pending: 'Waiting for OTP', active: 'Active', left: 'Left' };
   var CAT = { staff: 'Staff', operator: 'Operator', driver: 'Driver', labour: 'Labour' };
   var isAdmin = function () { return S.me && (S.me.user.role === 'admin' || S.me.user.role === 'super'); };
@@ -64,6 +65,7 @@
       $('d_miss').hidden = !miss.length || e.status === 'left'; $('d_miss').textContent = 'Incomplete – still needed: ' + miss.join(', ') + '. He cannot be activated until then.';
       var h = $('d_hist'); h.textContent = '';
       r.history.forEach(function (x) { var li = el('li'); li.appendChild(el('b', '', dmy(x.valid_from) + ' → ' + (x.valid_to ? dmy(x.valid_to) : 'today'))); li.appendChild(el('span', '', ' ' + x.site + ' · ' + (nameOf(S.init.designations, x.designation_id) || '–') + ' · ' + (nameOf(S.init.departments, x.department_id) || '–') + (x.note ? ' · ' + x.note : ''))); h.appendChild(li); });
+      $('d_docs_miss').hidden = true; api('privGet', { id: e.id }).then(function (p) { S.open.priv = p; var m = p.docsMissing; $('d_docs_miss').hidden = !m.length || e.status === 'left'; $('d_docs_miss').textContent = 'Documents still to attach: ' + m.join(', ') + '.'; }, function () { /* the details are asked again when their page is opened */ });
       var left = e.status === 'left'; $('d_edit').hidden = left; $('d_tr').hidden = left || !isAdmin(); $('d_exit').hidden = left || !isAdmin();
       show('dlg_emp');
     }, fail);
@@ -112,6 +114,50 @@
     ev.preventDefault(); var e = S.open.employee, b = $('x_save'); busy(b, true);
     api('empExit', { id: e.id, on: $('x_on').value, reason: $('x_reason').value }).then(function () { busy(b, false); hide('dlg_exit'); toast(e.code + ' marked as left. Nothing was deleted.'); list(); }, function (x) { busy(b, false); $('x_err').textContent = x.message; $('x_err').hidden = false; });
   }
+
+  // ---------- his own details (Aadhaar, PAN, numbers, addresses) ----------
+  function kyc() {
+    var e = S.open.employee; api('privGet', { id: e.id }).then(function (r) {
+      var p = r.personal; $('k_title').textContent = e.name + ' (' + e.code + ') – personal details'; $('k_aadhaar').value = p.aadhaar || p.aadhaar_mask || ''; $('k_pan').value = p.pan; $('k_mobile2').value = p.mobile2; $('k_fmobile').value = p.family_mobile; $('k_fname').value = p.family_name;
+      var sel = $('k_frel'); sel.textContent = ''; var o = el('option', '', '–'); o.value = ''; sel.appendChild(o); r.relations.forEach(function (x) { var q = el('option', '', x.charAt(0).toUpperCase() + x.slice(1)); q.value = x; sel.appendChild(q); }); sel.value = p.family_relation;
+      $('k_addr').value = p.address_current; $('k_addr2').value = p.address_permanent; $('k_same').checked = false; $('k_err').hidden = true;
+      var left = e.status === 'left'; $('k_save').hidden = left; hide('dlg_emp'); show('dlg_kyc');
+    }, fail);
+  }
+  function kycSave(ev) {
+    ev.preventDefault(); var e = S.open.employee, b = $('k_save'); busy(b, true);
+    api('privSave', { id: e.id, aadhaar: $('k_aadhaar').value, pan: $('k_pan').value, mobile2: $('k_mobile2').value, family_mobile: $('k_fmobile').value, family_name: $('k_fname').value, family_relation: $('k_frel').value, address_current: $('k_addr').value, address_permanent: $('k_same').checked ? $('k_addr').value : $('k_addr2').value })
+      .then(function () { busy(b, false); hide('dlg_kyc'); toast('Details of ' + e.code + ' saved.'); }, function (x) { busy(b, false); $('k_err').textContent = x.message; $('k_err').hidden = false; });
+  }
+
+  // ---------- his papers ----------
+  function docs() {
+    var e = S.open.employee; api('docList', { id: e.id }).then(function (r) {
+      S.docs = r; $('o_title').textContent = e.name + ' (' + e.code + ') – documents'; $('o_err').hidden = true; $('o_number').value = ''; $('o_exp').value = ''; $('o_file').value = '';
+      $('o_miss').hidden = !r.docsMissing.length || e.status === 'left'; $('o_miss').textContent = 'Still to attach: ' + r.docsMissing.join(', ') + '.';
+      var sel = $('o_kind'), keep = sel.value; sel.textContent = ''; r.kinds.forEach(function (k) { var o = el('option', '', k.name); o.value = k.key; sel.appendChild(o); }); if (keep) sel.value = keep; sel.onchange = function () { var k = r.kinds.filter(function (x) { return x.key === sel.value; })[0]; $('o_exp_box').hidden = !(k && k.expires); }; sel.onchange();
+      var ul = $('o_rows'); ul.textContent = '';
+      r.docs.forEach(function (d) {
+        var k = r.kinds.filter(function (x) { return x.key === d.kind; })[0], li = el('li', d.active ? '' : 'off');
+        li.appendChild(el('b', '', (k ? k.name : d.kind) + (d.number ? ' · ' + d.number : '') + (d.expires_on ? ' · valid up to ' + dmy(d.expires_on) : '')));
+        li.appendChild(el('span', '', ' · ' + dmy(d.created_at) + ' · ' + d.created_by + (d.active ? '' : ' · removed by ' + d.removed_by + ': ' + d.removed_reason)));
+        if (d.active && isAdmin()) { var rm = el('button', 'sm ghost', 'Remove'); rm.type = 'button'; rm.onclick = function () { docRemove(d); }; li.appendChild(rm); }
+        if (d.canOpen) { var op = el('button', 'sm', 'Open'); op.type = 'button'; op.onclick = function () { busy(op, true); api('docLink', { doc: d.id }).then(function (x) { busy(op, false); window.open(x.url, '_blank', 'noopener'); }, function (x) { busy(op, false); fail(x); }); }; li.appendChild(op); }
+        else if (d.active) li.appendChild(el('span', 'muted', ' · opened only by the HR Admin'));
+        ul.appendChild(li);
+      });
+      $('o_none').hidden = r.docs.length > 0; $('o_add').parentNode.hidden = e.status === 'left'; hide('dlg_emp'); show('dlg_docs');
+    }, fail);
+  }
+  function docAdd() {
+    var e = S.open.employee, f = $('o_file').files[0], b = $('o_add'), bad = function (t) { busy(b, false); $('o_err').textContent = t; $('o_err').hidden = false; };
+    $('o_err').hidden = true; if (!f) return bad('Choose the file first.');
+    busy(b, true);
+    api('docUploadUrl', { id: e.id, kind: $('o_kind').value, type: f.type, bytes: f.size }).then(function (u) {
+      return fetch(u.url, { method: 'PUT', headers: { 'Content-Type': f.type, 'x-upsert': 'false' }, body: f }).then(function (r) { if (!r.ok) throw new Error('"' + f.name + '" was not kept (' + r.status + ') – try again.'); return api('docAdd', { id: e.id, kind: $('o_kind').value, path: u.path, bytes: f.size, number: $('o_number').value, expires_on: $('o_exp_box').hidden ? '' : $('o_exp').value }); }, function () { throw new Error('"' + f.name + '" could not be sent – check the internet and try again.'); });
+    }).then(function () { busy(b, false); toast('Attached.'); docs(); }, function (x) { bad(x.message); });
+  }
+  function docRemove(d) { var why = window.prompt('Why is this document removed? (It stays in the record.)'); if (why === null) return; api('docRemove', { doc: d.id, reason: why }).then(function () { toast('Removed – kept in the record.'); docs(); }, fail); }
 
   // ---------- import from Excel ----------
   var HEAD = { name: /^(employee\s*)?name$|^नाव$/i, category: /^(employee\s*)?(category|type)$/i, mobile: /^(mobile|phone|contact)(\s*(no|number))?\.?$/i, email: /^e-?mail(\s*(id|address))?$/i, dob: /^(dob|date\s*of\s*birth|birth\s*date)$/i,
@@ -175,14 +221,15 @@
         $('cat').onchange = function () { S.category = $('cat').value; list(); };
         $('b_add').onclick = function () { form(null, null); }; $('b_imp').onclick = function () { $('i_file').value = ''; $('i_err').hidden = true; $('i_res').hidden = true; $('i_save').hidden = true; show('dlg_imp'); };
         $('d_edit').onclick = function () { form(S.open.employee, S.open.boss); }; $('d_tr').onclick = transfer; $('d_exit').onclick = exit;
+        $('d_kyc').onclick = kyc; $('d_docs').onclick = docs; $('k_form').onsubmit = kycSave; $('o_add').onclick = docAdd;
         $('f_form').onsubmit = save; $('t_form').onsubmit = transferSave; $('x_form').onsubmit = exitSave;
         var bt; $('f_boss').oninput = function () { clearTimeout(bt); bt = setTimeout(pickBoss, 250); };
         $('i_file').onchange = function () { importFile($('i_file').files[0]); }; $('i_save').onclick = importSave;
         Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (b) { b.onclick = function () { hide(b.dataset.close); }; });
-        document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') ['dlg_form', 'dlg_tr', 'dlg_exit', 'dlg_imp', 'dlg_emp'].some(function (d) { if (!$(d).hidden) { hide(d); return true; } return false; }); });
+        document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') ['dlg_form', 'dlg_tr', 'dlg_exit', 'dlg_imp', 'dlg_kyc', 'dlg_docs', 'dlg_emp'].some(function (d) { if (!$(d).hidden) { hide(d); return true; } return false; }); });
         go(page || 'employees');
       }, function (e) { window.HRMSG(e.message); });
     },
-    _mapRows: mapRows, _csv: csv
+    _mapRows: mapRows, _csv: csv, _dmy: dmy
   };
 })();
