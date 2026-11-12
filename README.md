@@ -67,6 +67,13 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
   * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
     count, requests waiting.
+* **One look on every page; the Employees tab, the employee's page and form; export; delete (12-11-2026)** – no SQL step.
+  Every page has the same head (`HRHEAD.set` in `public/hr.js`: its name, one line, on the right its own controls and the site);
+  the menu for Mechanical lists **Dashboard** first. Employees: the list shows **Active from** (joining) and **Relieving date**;
+  "Has left" is now **Relieve…** (the same action `empExit`, the same record – only the words); **Export Excel** (`empExport`:
+  the people the list shows, all of them; .xlsx with Mechanical's `/vendor/xlsx…`, else a .csv; the column names are the ones
+  the import reads). **Delete…** (`empDelete`, HR Admin / Super Admin, with the reason): ONLY an employee added by mistake –
+  refused while he has attendance, a phone, papers, KYC or people reporting to him (then: relieve him). What he was is in the audit.
 * **The attendance dashboard and the muster's look (12-11-2026, the pictures he approved – "hech design final aahe web sathi")** –
   no SQL step, nothing is written. `lib/act_dash.js` → `attDash` (HR office only): today counted with the muster's own measure
   (`daysOf`) – at work now, present, late, not marked, **absent of yesterday** (nobody is absent while the day runs), the arrivals

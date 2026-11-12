@@ -48,9 +48,8 @@
   }
   function draw() {
     var r = Z.data, root = $('p_dash'), c = r.count; root.textContent = '';
-    var top = el('div', 'dz-top'), tt = el('div'); tt.appendChild(el('h2', '', 'Attendance · हजेरी')); tt.appendChild(el('small', '', Z.me ? (Z.me.siteName || Z.me.site) : '')); top.appendChild(tt);
-    var pills = el('div', 'dz-pills'); pills.appendChild(el('span', 'dz-pill', dayText(r.today)));
-    var live = btn('dz-pill dz-live', 'Live · ' + r.now, function () { load(false); }); live.title = 'Asked again every minute – press to ask now'; pills.appendChild(live); top.appendChild(pills); root.appendChild(top);
+    var live = btn('dz-pill dz-live', 'Live · ' + r.now, function () { load(false); }); live.title = 'Asked again every minute – press to ask now';
+    if (window.HRHEAD && !$('p_dash').hidden) window.HRHEAD.set('Attendance Dashboard · हजेरी', 'Who is at work right now, today’s count and what waits for the office.', [el('span', 'dz-pill', dayText(r.today)), live]);
     root.appendChild(hero(r));
     var grid = el('div', 'dz-grid'); grid.appendChild(who(r)); var mid = el('div', 'dz-col'); mid.appendChild(places(r)); mid.appendChild(week(r)); grid.appendChild(mid); grid.appendChild(needs(r)); root.appendChild(grid);
     if (!c.total) root.appendChild(el('p', 'muted', 'No employee on this site yet – add them in Employees.'));
@@ -92,10 +91,10 @@
   }
   function who(r) {
     var n = r.who.length, c = card('Who is in · आत्ता कोण कामावर', n > SHOW ? (Z.all ? 'Show less' : 'See all ' + n) : '', function () { Z.all = !Z.all; draw(); }), wrap = el('div', 'dz-scroll' + (Z.all ? ' all' : '')), t = el('table', 'dz-who'), hd = el('tr');
-    ['Employee', 'Code', 'Category', 'IN', 'Work place', 'Photo', 'Status'].forEach(function (x) { hd.appendChild(el('th', '', x)); }); var th = el('thead'); th.appendChild(hd); t.appendChild(th); var tb = el('tbody');
+    ['Employee', 'IN', 'Work place', 'Photo', 'Status'].forEach(function (x) { hd.appendChild(el('th', '', x)); }); var th = el('thead'); th.appendChild(hd); t.appendChild(th); var tb = el('tbody');
     (Z.all ? r.who : r.who.slice(0, SHOW)).forEach(function (w, i) {
-      var tr = el('tr'), nm = el('td'), av = el('span', 'dz-av', initials(w.name)); av.style.background = tintOf(w.id); nm.appendChild(av); nm.appendChild(el('b', '', w.name)); tr.appendChild(nm);
-      tr.appendChild(el('td', '', w.code)); tr.appendChild(el('td', '', CAT[w.category] || '')); tr.appendChild(el('td', 'dz-t', w.in || '– –')); tr.appendChild(el('td', '', w.place || '– –'));
+      var tr = el('tr'), nm = el('td', 'nm pwho'), av = el('span', 'dz-av', initials(w.name)), bx = el('div'); av.style.background = tintOf(w.id); nm.appendChild(av); bx.appendChild(el('b', '', w.name)); bx.appendChild(el('small', '', w.code + ' · ' + (CAT[w.category] || ''))); nm.appendChild(bx); tr.appendChild(nm);
+      tr.appendChild(el('td', 'dz-t', w.in || '– –')); tr.appendChild(el('td', '', w.place || '– –'));
       var ph = el('td'); if (w.punch) ph.appendChild(thumb(w.punch, w.name + ' – IN ' + w.in, i < SHOW)); else ph.appendChild(el('span', 'dz-th none')); tr.appendChild(ph);
       var st = el('td'); st.appendChild(chip(w)); tr.appendChild(st); tb.appendChild(tr);
     });
@@ -130,7 +129,8 @@
     pages: [['dashboard', 'Dashboard']],
     has: function (page) { return page === 'dashboard'; },
     open: function (me, go) {
-      Z.me = me; Z.go = go; if (!Z.data) { var root = $('p_dash'); root.textContent = ''; root.appendChild(el('p', 'none', 'Opening… · उघडत आहे…')); } else draw();
+      Z.me = me; Z.go = go; if (window.HRHEAD) window.HRHEAD.set('Attendance Dashboard · हजेरी', 'Who is at work right now, today’s count and what waits for the office.', []);
+      if (!Z.data) { var root = $('p_dash'); root.textContent = ''; root.appendChild(el('p', 'none', 'Opening… · उघडत आहे…')); } else draw();
       load(true); clearInterval(Z.timer);
       Z.timer = setInterval(function () { if ($('p_dash').hidden) { clearInterval(Z.timer); return; } if (!document.hidden) load(false); }, 60000);
     },

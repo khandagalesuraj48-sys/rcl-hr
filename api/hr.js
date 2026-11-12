@@ -1,7 +1,8 @@
 /* POST /api/hr { action, … } – every action of the HR pages. One door: the sign-in is asked first (lib/session.js), then the
  * action's own access (HR User / HR Admin / Super Admin – as the Portal gave it for THIS site), then the work. A person reads
- * and writes only the site of his sign-in; a transfer goes only to a site he has HR on. Nothing is ever deleted: an employee who
- * leaves is "left", a department is switched off. Every change is written in hr_audit with the old and the new value.
+ * and writes only the site of his sign-in; a transfer goes only to a site he has HR on. An employee who leaves is "left" (relieved,
+ * with his relieving date) and stays; a department is switched off. ONE thing can be deleted (asked 12-11-2026: "EMPLOYEE DELET PN
+ * KRTA YAWA"): an employee added by mistake, while NOTHING hangs on him – empDelete. Every change is written in hr_audit with the old and the new value.
  * Phase 1 (12-11-2026): the masters (departments, designations), the Employee Master, transfer, exit, import. */
 'use strict';
 const { handler, readBody, send, sameSite, fail } = require('../lib/http');
@@ -167,13 +168,43 @@ const ACT = {
 
   async empExit(s, x) {
     needAdmin(s); const e = await one(s, id(x.id)); if (e.status === 'left') throw fail(400, 'This employee has already left.', 'left');
-    const on = R.date(x.on); if (!on) throw fail(400, 'Last working day: a date as DD-MM-YYYY.', 'on');
-    if (e.joined_on && on < e.joined_on) throw fail(400, 'Last working day: it is before the joining date.', 'on');
+    const on = R.date(x.on); if (!on) throw fail(400, 'Relieving date: a date as DD-MM-YYYY.', 'on');
+    if (e.joined_on && on < e.joined_on) throw fail(400, 'Relieving date: it is before the date he is active from (joining).', 'on');
     const reason = R.str(x.reason, 200); if (reason.length < 3) throw fail(400, 'Reason: please write the reason.', 'reason');
     await db('PATCH', 'hr_employees?id=eq.' + e.id, { status: 'left', left_on: on, left_reason: reason, updated_by: s.email, updated_at: new Date().toISOString() }, 'return=minimal');
     await db('PATCH', 'hr_employment?employee_id=eq.' + e.id + '&valid_to=is.null', { valid_to: on }, 'return=minimal');
     await audit(s.site, s.email, 'Employee left', e.code, { old: { status: e.status }, new: { status: 'left', left_on: on, reason: reason } });
     return { ok: true };
+  },
+  /* (asked 12-11-2026: "EMPLOYEE DELET PN KRTA YAWA") an employee ADDED BY MISTAKE is deleted for ever – by the HR Admin / the Super
+   * Admin, with the reason, and only while nothing hangs on him: no punch, no day's entry, no request, no phone, no paper, no KYC, nobody
+   * reporting to him. Anybody else is RELIEVED (empExit) – his attendance and papers are never deleted. What he was is written in
+   * the audit; his code is not given again by the counter. */
+  async empDelete(s, x) {
+    needAdmin(s); const e = await one(s, id(x.id)), why = R.str(x.reason, 200); if (why.length < 3) throw fail(400, 'Reason: write why he is deleted.', 'reason');
+    const q = 'employee_id=eq.' + e.id + '&limit=1', soft = p => p.catch(er => { if (er && er.code === 'notinstalled') return []; throw er; }), hangs = [];
+    const [pun, ent, reg, dev, tri, doc, kyc, rep, repH] = await Promise.all([soft(db('GET', 'hr_punches?select=id&' + q)), soft(db('GET', 'hr_day_entries?select=id&' + q)), soft(db('GET', 'hr_regularize?select=id&' + q)),
+      soft(db('GET', 'hr_devices?select=id&' + q)), soft(db('GET', 'hr_device_tries?select=id&' + q)), soft(db('GET', 'hr_employee_docs?select=id&' + q)), soft(db('GET', 'hr_employee_private?select=employee_id&' + q)),
+      db('GET', 'hr_employees?select=id&reports_to=eq.' + e.id + '&limit=1'), db('GET', 'hr_employment?select=id&reports_to=eq.' + e.id + '&employee_id=neq.' + e.id + '&limit=1')]);
+    if ((pun || []).length || (ent || []).length || (reg || []).length) hangs.push('attendance');
+    if ((dev || []).length || (tri || []).length) hangs.push('a phone'); if ((doc || []).length) hangs.push('papers'); if ((kyc || []).length) hangs.push('personal details (KYC)'); if ((rep || []).length || (repH || []).length) hangs.push('people reporting to him');
+    if (hangs.length) throw fail(409, 'This employee has ' + hangs.join(', ') + ' – he cannot be deleted. Relieve him with his relieving date instead: his record stays.', 'inuse');
+    const hist = (await db('GET', 'hr_employment?select=site,department_id,designation_id,valid_from,valid_to,note&employee_id=eq.' + e.id)) || [];
+    for (const t of ['hr_place_people', 'hr_shift_people']) await soft(db('DELETE', t + '?employee_id=eq.' + e.id, undefined, 'return=minimal'));
+    await db('DELETE', 'hr_employment?employee_id=eq.' + e.id, undefined, 'return=minimal');
+    const gone = (await db('DELETE', 'hr_employees?id=eq.' + e.id + '&site=eq.' + enc(s.site), undefined, 'return=representation')) || []; if (!gone.length) throw fail(409, 'This employee was not deleted – open him again.', 'gone');
+    await audit(s.site, s.email, 'Employee deleted', e.code + ' ' + e.name, { old: Object.assign({}, e, { history: hist }), reason: why });
+    return { ok: true, code: e.code };
+  },
+  // the list as a file (Excel): the same people as the list shows (search, status, category) – all of them, not only the first 500
+  async empExport(s, x) {
+    const q = R.str(x.q, 60).replace(/[%_*,()\\"]/g, ' ').trim(), st = ['incomplete', 'pending', 'active', 'left'].indexOf(x.status) > -1 ? x.status : x.status === 'all' ? 'all' : '', cat = R.CATS.indexOf(x.category) > -1 ? x.category : '';
+    let path = 'hr_employees?select=' + EMP + '&site=eq.' + enc(s.site) + (st === 'all' ? '' : st ? '&status=eq.' + st : '&status=neq.left') + (cat ? '&category=eq.' + cat : '');
+    if (q) path += '&or=' + enc('(name.ilike.*' + q + '*,code.ilike.*' + q + '*,mobile.ilike.*' + q + '*,email.ilike.*' + q + '*)');
+    const rows = []; for (let off = 0; off < 100000; off += 1000) { const r = (await db('GET', path + '&order=name,id&limit=1000&offset=' + off)) || []; r.forEach(v => rows.push(v)); if (r.length < 1000) break; }
+    const m = await masters(), nm = (list, v) => ((list || []).find(d => d.id === v) || {}).name || '';
+    await audit(s.site, s.email, 'Employees exported', rows.length + ' employees', { status: st, category: cat, q: q });
+    return { site: s.site, rows: rows.map(e => ({ code: e.code, name: e.name, category: e.category, designation: nm(m.designations, e.designation_id), department: nm(m.departments, e.department_id), mobile: e.mobile || '', email: e.email || '', dob: e.dob || '', gender: e.gender || '', joined_on: e.joined_on || '', left_on: e.left_on || '', left_reason: e.left_reason || '', status: e.status })) };
   },
 
   /* HIS OWN DETAILS (12-11-2026): Aadhaar, PAN, second mobile, a family member, the addresses – kept apart from the Employee

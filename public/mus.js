@@ -60,7 +60,8 @@
     var pills = el('div', 'dz-pills'), mo = inp('month', M.month, { 'aria-label': 'Month' }), cat = inp('select', null, { 'aria-label': 'Category' }); mo.className = 'dz-pill'; cat.className = 'dz-pill';
     opt(cat, '', 'All categories', !M.cat); Object.keys(CAT).forEach(function (k) { opt(cat, k, CAT[k], M.cat === k); });
     mo.onchange = function () { if (mo.value) { M.month = mo.value; M.sel = null; muster(); } }; cat.onchange = function () { M.cat = cat.value; M.sel = null; muster(); };
-    pills.appendChild(cat); pills.appendChild(mo); pills.appendChild(btn('dz-pill dark', 'Download (CSV)', function () { csv(); })); top.appendChild(pills); root.appendChild(top);
+    var dlb = btn('dz-pill dark', 'Download (CSV)', function () { csv(); });
+    if (window.HRHEAD) window.HRHEAD.set('Muster · हजेरीपट', sub.textContent, [cat, mo, dlb]); else { pills.appendChild(cat); pills.appendChild(mo); pills.appendChild(dlb); top.appendChild(pills); root.appendChild(top); }
     var wrap = el('div', 'mz-wrap mz'), card = el('div', 'dz-card'), side = el('div', 'mz-side'); side.hidden = true; wrap.appendChild(card); wrap.appendChild(side); root.appendChild(wrap); M.wrap = wrap; M.side = side;
     api('muster', { month: M.month, category: M.cat }).then(function (r) {
       M.data = r; var free = function (d) { return r.week_off.indexOf(new Date(d + 'T00:00:00Z').getUTCDay()) > -1 || r.holidays.some(function (h) { return h.day === d; }); };

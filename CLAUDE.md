@@ -32,6 +32,9 @@ Store, Engineering and Purchase; the short version:
   only after checking its ES256 signature with `/api/jwks`, its `aud` ("hr"), `exp`, and that its `jti` is used once
   (`hr_tickets`). The finer roles (Supervisor, Reporting Person, HR Head, Payroll) and the powers the Super Admin
   gives are kept in HR's own database.
+* **Delete (his decision of 12-11-2026, "EMPLOYEE DELET PN KRTA YAWA"):** only an employee added by mistake, by the HR Admin / Super
+  Admin with the reason, and only while nothing hangs on him (attendance, phone, papers, KYC, people reporting to him) – `empDelete`.
+  Everybody else is **relieved** with his relieving date and stays. Attendance and papers are never deleted.
 * **An employee is not a sign-in:** the Employee Master is HR's; an employee who uses the app is linked to a Portal user.
   Categories: Staff, Operator, Driver, Labour (not the designation). DOB and a verified e-mail (OTP by Resend) are compulsory
   for everybody before activation.
