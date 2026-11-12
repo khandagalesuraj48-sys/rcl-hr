@@ -56,6 +56,10 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     older than 72 hours or out of order → `review`: the HR Admin accepts or refuses (`punchReview`, a new row – the punch stays).
   * **Phones** (`devList`, `devRelease` – HR Admin / Super Admin, with a reason); tries from another phone are listed.
   * **"My HR"** – the Portal's second module key `hrme` gives the role `self`: only the four actions above, no page of the office.
+  * **The app's "Me" (12-11-2026, `lib/act_self.js`)** – a person's own record: `myHr` (who he is, how complete his profile is, his
+    details to read – PF / UAN / ESIC / bank account masked, the papers still expected, his phone), `myDocs`, `myDocUploadUrl` /
+    `myDocAdd` (he attaches a paper himself – the office's same checks), `myDocLink` (he opens his own). Always the employee the
+    sign-in is; he changes no detail and removes no paper. No SQL step.
   * `hr_punches`, `hr_punch_reviews`, `hr_device_tries`: the server's key may only read and add – never change or delete.
   * Not built yet: the removal of photos after 90 days, the check of the phone by Play Integrity; until the e-mail OTP is there
     an employee whose details are complete ("pending") may punch (`MAY_PUNCH` in `lib/act_attend.js`).
