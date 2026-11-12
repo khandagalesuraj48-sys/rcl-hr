@@ -176,7 +176,7 @@ test('the actions: every one asks the sign-in first; the Admin\'s ones are refus
   const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
   assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'empDelete', 'empExport', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'empPhotos', 'docRemove', 'empImport',
     'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'selfieUrl', 'punch',
-    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave', 'monthList', 'monthVerify', 'monthReturn', 'monthApprove', 'monthReopen', 'monthSites', 'hoList', 'hoSet', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
+    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave', 'monthList', 'monthVerify', 'monthReturn', 'monthApprove', 'monthReopen', 'monthSites', 'hoList', 'hoSet', 'salaryGet', 'salaryAsk', 'salaryWaiting', 'salaryDecide', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
   assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n[^\n]+\n  if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'empDelete', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   // (12-11-2026) ONE action deletes: empDelete – an employee added by mistake, after the check that nothing hangs on him, with the reason, written in the audit
@@ -331,7 +331,7 @@ test('SQL step 5: only adds; row level security; a rule version and a day\'s ent
   assert.ok(!/\b(drop |truncate|delete from|alter table public\.hr_(?!shifts|shift_people|holidays|att_rules|regularize|day_entries|admin_powers))/i.test(sql), 'nothing of the steps before is touched');
   assert.match(sql, /grant select, insert on public\.hr_att_rules, public\.hr_day_entries to service_role;/); assert.match(sql, /create unique index if not exists hr_regularize_one_waiting on public\.hr_regularize \(employee_id, day\) where status = 'pending'/);
   assert.match(sql, /foreach t in array array\['hr_shifts', 'hr_shift_people', 'hr_holidays', 'hr_att_rules', 'hr_regularize', 'hr_day_entries', 'hr_admin_powers'\] loop\s+execute format\('alter table public\.%I enable row level security', t\);\s+execute format\('revoke all on public\.%I from public, anon, authenticated', t\);/);
-  const P = require('../lib/powers'); assert.deepStrictEqual(P.KEYS, ['places', 'phones', 'review', 'shifts', 'manual', 'correct', 'regularize', 'month']);
+  const P = require('../lib/powers'); assert.deepStrictEqual(P.KEYS, ['places', 'phones', 'review', 'shifts', 'manual', 'correct', 'regularize', 'month', 'salary']);
   const src = fs.readFileSync(path.join(root, 'public', 'mus.js'), 'utf8'), win = {}; new Function('window', 'document', src)(win, { getElementById: () => null });
   assert.deepStrictEqual(win.HRMUS.pages.map(p => p[0]), ['muster', 'requests', 'rules']); assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|\b(alert|confirm|prompt)\(/.test(src), 'only textContent, no browser dialog');
   assert.deepStrictEqual(Object.keys(win.HRMUS._code), ['P', 'HD', 'A', 'WO', 'H', 'WOP', 'HP', 'IN', 'MIS', 'L']);
@@ -439,7 +439,7 @@ test('an employee\'s page opens at once from the list; nothing of him is changed
   const js = fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8'), api = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8');
   assert.match(js, /if \(had\) \{ drawEmp\(\{ employee: had, history: \[\], boss: null \}, false\); show\('dlg_emp'\); \}/);
   assert.match(js, /if \(seq !== S\.seq \|\| \(had && \$\('dlg_emp'\)\.hidden\)\) return;/, 'closed or another opened meanwhile: the late answer is dropped');
-  assert.match(js, /\['d_prof', 'd_kyc', 'd_docs', 'd_login', 'd_facebtn', 'd_del', 'd_exit', 'd_tr', 'd_edit'\]\.forEach\(function \(b\) \{ \$\(b\)\.disabled = !full; \}\);/);
+  assert.match(js, /\['d_prof', 'd_kyc', 'd_docs', 'd_login', 'd_facebtn', 'd_salary', 'd_del', 'd_exit', 'd_tr', 'd_edit'\]\.forEach\(function \(b\) \{ \$\(b\)\.disabled = !full; \}\);/);
   assert.ok(!/localStorage|sessionStorage/.test(js.slice(js.indexOf('function openEmp'), js.indexOf('function login()'))), 'kept in the page\'s memory only');
   for (const a of ['empList', 'empGet', 'privGet']) { const i = api.indexOf('async ' + a + '('); assert.match(api.slice(i, i + 1400), /await Promise\.all\(\[db\('GET'/, a); }
 });
@@ -521,4 +521,19 @@ test('(step 10) the month: the counts of a person; verified = still the same; wh
   assert.match(sql, /grant select, insert, update on public\.hr_ho_hr, public\.hr_month_people, public\.hr_months to service_role;/);
   const page = fs.readFileSync(path.join(root, 'public', 'month.js'), 'utf8'); assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(page), 'a person\'s text only as text');
   assert.match(fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), /<section id="p_month" hidden><\/section>[\s\S]*<script src="month\.js"><\/script>/);
+});
+
+test('(step 11) a salary: the amount as typed; the one that counts on a day; never for an HR User or "My HR"; the step only adds', () => {
+  const P = require('../lib/act_pay'), root = path.join(__dirname, '..');
+  assert.deepStrictEqual(['18000', '18,000.50', '₹ 700', '0', '-1', '1.234', '', 'x', '9999999', '10000000'].map(P.amountOf), [18000, 18000.5, 700, null, null, null, null, null, 9999999, null]);
+  const rows = [{ id: 1, status: 'approved', valid_from: '2026-01-01' }, { id: 2, status: 'approved', valid_from: '2026-06-01' }, { id: 3, status: 'pending', valid_from: '2026-07-01' }, { id: 4, status: 'returned', valid_from: '2026-02-01' }, { id: 5, status: 'approved', valid_from: '2026-06-01' }];
+  assert.deepStrictEqual(['2025-12-31', '2026-03-01', '2026-06-01', '2026-12-01'].map(d => (P.current(rows, d) || {}).id), [undefined, 1, 5, 5]);
+  assert.match(String(P.ACT.salaryAsk), /await power\.need\(s, 'salary'\)/); assert.match(String(P.ACT.salaryGet), /await maySee\(s\)/);
+  for (const k of ['salaryWaiting', 'salaryDecide']) assert.match(String(P.ACT[k]), /needOffice\(s\); if \(!\(await isHo\(s\)\)\) throw fail\(403/, k);
+  const H = require('../api/hr'); for (const k of Object.keys(P.ACT)) assert.ok(H.SELF.indexOf(k) < 0, k + ' is not for "My HR"');
+  const src = fs.readFileSync(path.join(root, 'lib', 'act_pay.js'), 'utf8'); assert.ok(!/'DELETE'/.test(src)); assert.ok(!/audit\([^;]*amount/.test(src), 'the amount is not written into the audit');
+  const sql = fs.readFileSync(path.join(root, 'sql', 'hr_step11_salary.sql'), 'utf8').replace(/^--.*$/gm, '');
+  assert.ok(!/drop |delete from|truncate|alter table public\.hr_(?!salaries)/i.test(sql)); assert.match(sql, /enable row level security/); assert.match(sql, /grant select, insert, update on public\.hr_salaries to service_role;/); assert.match(sql, /where status = 'pending'/);
+  const page = fs.readFileSync(path.join(root, 'public', 'pay.js'), 'utf8'); assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(page));
+  assert.match(fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), /id="d_salary"[^>]*hidden>Salary…<\/button>[\s\S]*<script src="pay\.js"><\/script>/);
 });
