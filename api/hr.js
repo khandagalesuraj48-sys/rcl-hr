@@ -9,12 +9,15 @@ const { db, enc } = require('../lib/db');
 const ses = require('../lib/session');
 const { audit } = require('../lib/audit');
 const R = require('../lib/rules');
+const store = require('../lib/store');
+const crypto = require('crypto');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const id = v => { v = String(v || '').toLowerCase(); return UUID.test(v) ? v : ''; };
 const isAdmin = s => s.role === 'admin' || s.role === 'super';
 const needAdmin = s => { if (!isAdmin(s)) throw fail(403, 'Only the HR Admin or the Super Admin can do this.', 'role'); };
 const EMP = 'id,code,name,category,gender,dob,mobile,email,site,department_id,designation_id,reports_to,joined_on,left_on,left_reason,status,email_verified_at,updated_at';
+const NOT_READY3 = 'The employee\'s details and papers are not set up yet: the Super Admin runs sql/hr_step3_kyc_docs.sql once in the rcl-hr Supabase → SQL Editor.';
 const NOT_READY = 'The Employee Master is not set up yet: the Super Admin runs sql/hr_step2_employees.sql once in the rcl-hr Supabase → SQL Editor.';
 const MAST = { department: 'hr_departments', designation: 'hr_designations' };
 const codeOf = n => 'E' + String(n).padStart(5, '0');
@@ -139,6 +142,72 @@ const ACT = {
     return { ok: true };
   },
 
+  /* HIS OWN DETAILS (12-11-2026): Aadhaar, PAN, second mobile, a family member, the addresses – kept apart from the Employee
+   * Master. An HR User sees the Aadhaar only as XXXX XXXX 1234 (he can type a new one); the HR Admin / Super Admin see it whole.
+   * The record of changes never holds an Aadhaar or PAN – only that it changed and its last four. */
+  async privGet(s, x) {
+    const e = await one(s, id(x.id)), p = ((await db('GET', 'hr_employee_private?select=*&employee_id=eq.' + e.id)) || [])[0] || {};
+    const docs = (await db('GET', 'hr_employee_docs?select=kind&employee_id=eq.' + e.id + '&active=is.true')) || [];
+    return { personal: { aadhaar: isAdmin(s) ? (p.aadhaar || '') : '', aadhaar_mask: R.aadhaarMask(p.aadhaar), pan: p.pan || '', mobile2: p.mobile2 || '', family_name: p.family_name || '', family_relation: p.family_relation || '', family_mobile: p.family_mobile || '',
+      address_current: p.address_current || '', address_permanent: p.address_permanent || '' }, relations: R.REL, docsMissing: R.docsMissing(e.category, docs.map(d => d.kind)) };
+  },
+  async privSave(s, x) {
+    const e = await one(s, id(x.id)); if (e.status === 'left') throw fail(400, 'This employee has left – his details are not changed.', 'left');
+    const was = ((await db('GET', 'hr_employee_private?select=*&employee_id=eq.' + e.id)) || [])[0] || null;
+    // an HR User who left the Aadhaar box as it was (he sees only the mask): the number is kept
+    const src = Object.assign({}, x); if (!isAdmin(s) && was && (x.aadhaar === undefined || x.aadhaar === '' || /^X/i.test(String(x.aadhaar)))) src.aadhaar = was.aadhaar;
+    const c = R.personal(src); if (c.errors.length) throw fail(400, c.errors.join(' '), 'check');
+    for (const k of ['aadhaar', 'pan']) if (c.row[k]) { const o = ((await db('GET', 'hr_employee_private?select=employee_id&' + k + '=eq.' + enc(c.row[k]) + '&employee_id=neq.' + e.id)) || [])[0]; if (o) { const oe = ((await db('GET', 'hr_employees?select=code&id=eq.' + o.employee_id)) || [])[0]; throw fail(409, (k === 'aadhaar' ? 'This Aadhaar' : 'This PAN') + ' already belongs to employee ' + (oe ? oe.code : '') + '.', k); } }
+    const row = Object.assign({ employee_id: e.id, updated_by: s.email, updated_at: new Date().toISOString() }, c.row);
+    await db('POST', 'hr_employee_private?on_conflict=employee_id', [row], 'resolution=merge-duplicates,return=minimal');
+    const diff = {}; Object.keys(c.row).forEach(k => { const o = was ? was[k] || '' : ''; if (o !== c.row[k]) diff[k] = k === 'aadhaar' || k === 'pan' ? ['…' + String(o).slice(-4), '…' + String(c.row[k]).slice(-4)] : [o, c.row[k]]; });
+    if (Object.keys(diff).length) await audit(s.site, s.email, 'Employee details changed', e.code, diff);
+    return { ok: true };
+  },
+
+  /* HIS PAPERS. The pay papers (bank passbook, salary slip) are opened only by the HR Admin / Super Admin; an HR User can attach
+   * them. A paper is never deleted: "removed" with who, when and why. A link to a file works 5 minutes. */
+  async docList(s, x) {
+    const e = await one(s, id(x.id)), rows = (await db('GET', 'hr_employee_docs?select=id,kind,title,number,expires_on,mime,bytes,active,removed_by,removed_at,removed_reason,created_by,created_at&employee_id=eq.' + e.id + '&order=created_at.desc')) || [];
+    return { kinds: R.DOCS.map(d => ({ key: d.key, name: d.name, pay: !!d.pay, expires: !!d.expires })), docs: rows.map(r => Object.assign(r, { canOpen: r.active && (isAdmin(s) || !(R.docKind(r.kind) || {}).pay) })), docsMissing: R.docsMissing(e.category, rows.filter(r => r.active).map(r => r.kind)), maxMb: R.DOC_MAX / 1048576 };
+  },
+  async docUploadUrl(s, x) {
+    const e = await one(s, id(x.id)); if (e.status === 'left') throw fail(400, 'This employee has left.', 'left');
+    if (!R.docKind(x.kind)) throw fail(400, 'Choose what kind of paper this is.', 'kind');
+    const ext = R.DOC_TYPES[String(x.type || '')], bytes = Number(x.bytes);
+    if (!ext) throw fail(400, 'Only a photo (JPG, PNG, WebP) or a PDF can be attached.', 'type');
+    if (!(bytes > 0)) throw fail(400, 'This file is empty.', 'bytes'); if (bytes > R.DOC_MAX) throw fail(400, 'This file is ' + Math.ceil(bytes / 1048576) + ' MB – a paper can be at most 10 MB.', 'bytes');
+    const path = e.id + '/' + crypto.randomBytes(12).toString('hex') + '.' + ext;
+    return { path: path, url: await store.uploadUrl(path), type: String(x.type) };
+  },
+  async docAdd(s, x) {
+    const e = await one(s, id(x.id)), k = R.docKind(x.kind); if (!k) throw fail(400, 'Choose what kind of paper this is.', 'kind');
+    const path = String(x.path || ''); if (!new RegExp('^' + e.id + '/[0-9a-f]{24}\\.(jpg|png|webp|pdf)$').test(path)) throw fail(400, 'This file does not belong to this employee.', 'path');
+    const mime = Object.keys(R.DOC_TYPES).filter(t => R.DOC_TYPES[t] === path.split('.').pop())[0], bytes = Number(x.bytes);
+    if (!(bytes > 0 && bytes <= R.DOC_MAX)) throw fail(400, 'This file is too big or empty.', 'bytes');
+    if (!(await store.link(path, 60))) throw fail(400, 'The file did not arrive – attach it again.', 'path');
+    const exp = R.date(x.expires_on); if (exp === null) throw fail(400, 'Valid up to: a date as DD-MM-YYYY.', 'expires_on');
+    const row = { employee_id: e.id, kind: k.key, title: R.str(x.title, 80), number: R.str(x.number, 40).toUpperCase(), expires_on: exp || null, path: path, mime: mime, bytes: Math.round(bytes), created_by: s.email };
+    const made = (await db('POST', 'hr_employee_docs', [row], 'return=representation'))[0];
+    await audit(s.site, s.email, 'Paper attached', e.code, { kind: k.key, doc: made.id });
+    return { ok: true, id: made.id };
+  },
+  async docLink(s, x) {
+    const d = ((await db('GET', 'hr_employee_docs?select=id,employee_id,kind,path,active&id=eq.' + id(x.doc))) || [])[0]; if (!d || !d.active) throw fail(404, 'This paper was not found.', 'notfound');
+    const e = await one(s, d.employee_id);
+    if ((R.docKind(d.kind) || {}).pay && !isAdmin(s)) throw fail(403, 'Only the HR Admin or the Super Admin opens the pay papers (bank passbook, salary slip).', 'role');
+    const url = await store.link(d.path, 300); if (!url) throw fail(404, 'The file of this paper was not found.', 'notfound');
+    await audit(s.site, s.email, 'Paper opened', e.code, { kind: d.kind, doc: d.id });
+    return { url: url };
+  },
+  async docRemove(s, x) {
+    needAdmin(s); const d = ((await db('GET', 'hr_employee_docs?select=id,employee_id,kind,active&id=eq.' + id(x.doc))) || [])[0]; if (!d || !d.active) throw fail(404, 'This paper was not found.', 'notfound');
+    const e = await one(s, d.employee_id), reason = R.str(x.reason, 200); if (reason.length < 3) throw fail(400, 'Reason: please write why it is removed.', 'reason');
+    await db('PATCH', 'hr_employee_docs?id=eq.' + d.id, { active: false, removed_by: s.email, removed_at: new Date().toISOString(), removed_reason: reason }, 'return=minimal');
+    await audit(s.site, s.email, 'Paper removed', e.code, { kind: d.kind, doc: d.id, reason: reason });
+    return { ok: true };
+  },
+
   /* IMPORT from Excel: the page reads the file and sends its rows. A row with a fault is NOT saved and comes back with why; a row
    * without DOB / e-mail / mobile is saved as INCOMPLETE; a mobile number or e-mail that an employee already has (or that is twice
    * in the file) is refused. check: 1 = only look, save nothing. At most 1000 rows in one go. */
@@ -182,6 +251,6 @@ module.exports = handler(async (req, res) => {
   if (!fn) return send(res, 400, { error: 'Unknown action.' });
   const s = await ses.need(req);
   try { send(res, 200, Object.assign({ ok: true }, await fn(s, x))); }
-  catch (e) { if (e && e.code === 'notinstalled') throw fail(500, NOT_READY, 'notinstalled'); throw e; }
+  catch (e) { if (e && e.code === 'notinstalled') throw fail(500, /^(priv|doc)/.test(String(x.action)) ? NOT_READY3 : NOT_READY, 'notinstalled'); throw e; }
 });
 module.exports.ACT = ACT;

@@ -29,8 +29,18 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
   * `empImport` – at most 1000 rows; first a check that saves nothing; a faulty row comes back with its line and why.
 * `lib/rules.js` – the checks, in one place. `public/hr.js` – the pages (Employees, one employee, forms, import, the two lists).
   An Excel file is read with the main address's own `/vendor/xlsx…` (inside the ERP); a CSV anywhere.
+* **His own details and papers (12-11-2026: "KYC DOCUMENT ATTACH … ADHAR PAN SECONDRY MOBILE NUMBER FAMILY NUMBER ADDRESS")** –
+  `sql/hr_step3_kyc_docs.sql` (run by the owner in rcl-hr, after step 2): `hr_employee_private`, `hr_employee_docs`, the PRIVATE
+  bucket `hr-docs`. Actions `privGet` / `privSave`, `docList` / `docUploadUrl` / `docAdd` / `docLink` / `docRemove`; `lib/store.js`.
+  * Aadhaar is checked by its check digit; an HR User sees it only as `XXXX XXXX 1234`, the HR Admin / Super Admin whole; one
+    Aadhaar / PAN = one employee; the record of changes holds only the last four.
+  * Papers: photo, Aadhaar, PAN, education, driving licence (number, valid up to), bank passbook, salary slip of the last company,
+    experience letter, other. JPG / PNG / WebP / PDF, 10 MB. Opened by a link of 5 minutes; **the pay papers (bank passbook,
+    salary slip) only by the HR Admin / Super Admin**; every opening is written down. Removed = kept, with who and why.
+  * The employee's page says which papers are still expected (a driver: his licence) – a reminder, never a block.
+  * Today HR fills these. The employee filling them himself comes with his own sign-in (the activation step).
 * **Not built yet (the next steps of Phase 1):** activation by e-mail OTP (Resend) and the sign-in with mobile number or e-mail
-  (a change in the Portal – asked for separately), documents, the Payroll-only details (bank, PF…), the finer roles and powers,
+  (a change in the Portal – asked for separately), the Payroll-only details (bank account, PF…), the finer roles and powers,
   the phone app's screens.
 
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
