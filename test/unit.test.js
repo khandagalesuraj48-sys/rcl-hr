@@ -131,7 +131,7 @@ test('the SQL step: only adds, four tables, row level security on and nothing fo
 test('the menu, the page and the hosting: one page, nothing of an employee, never listed by a search engine, Mumbai', async () => {
   const menu = require('../api/menu'); const res = { h: {}, setHeader(k, v) { this.h[k] = v; }, end(b) { this.body = JSON.parse(b); } };
   await menu({ method: 'GET', headers: {} }, res);
-  assert.deepStrictEqual(res.body, { module: 'hr', name: 'HR', pages: [{ key: 'dashboard', name: 'Dashboard' }, { key: 'employees', name: 'Employees' }, { key: 'attendance', name: 'Attendance' }, { key: 'places', name: 'Work places' }, { key: 'muster', name: 'Muster' }, { key: 'requests', name: 'Requests' }, { key: 'phones', name: 'Phones' }, { key: 'rules', name: 'Shifts & rules' }, { key: 'lists', name: 'Lists' }, { key: 'departments', name: 'Departments' }, { key: 'designations', name: 'Designations' }] }, 'nobody signed in here yet: every page is listed');
+  assert.deepStrictEqual(res.body, { module: 'hr', name: 'HR', pages: [{ key: 'dashboard', name: 'Dashboard' }, { key: 'employees', name: 'Employees' }, { key: 'attendance', name: 'Attendance' }, { key: 'places', name: 'Work places' }, { key: 'muster', name: 'Muster' }, { key: 'requests', name: 'Requests' }, { key: 'phones', name: 'Phones' }, { key: 'rules', name: 'Shifts & rules' }, { key: 'leave', name: 'Leave' }, { key: 'lists', name: 'Lists' }, { key: 'departments', name: 'Departments' }, { key: 'designations', name: 'Designations' }] }, 'nobody signed in here yet: every page is listed');
   assert.ok(menu.mayOpen('all', 'user') && !menu.mayOpen('admin', 'user') && menu.mayOpen('admin', 'admin') && menu.mayOpen('admin', 'super'));
   const page = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   for (const m of page.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)) new Function(m[1]);
@@ -176,7 +176,7 @@ test('the actions: every one asks the sign-in first; the Admin\'s ones are refus
   const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
   assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'empDelete', 'empExport', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'docRemove', 'empImport',
     'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'selfieUrl', 'punch',
-    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave']);
+    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave']);
   assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n[^\n]+\n  if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'empDelete', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   // (12-11-2026) ONE action deletes: empDelete – an employee added by mistake, after the check that nothing hangs on him, with the reason, written in the audit
@@ -263,7 +263,7 @@ test('a work place as typed; for whom it is; the moment of a punch sent later', 
 
 test('attendance actions: the office\'s ones are closed to "My HR"; changes are the Admin\'s; a punch is never changed', () => {
   const { ACT, SELF } = require('../api/hr'), src = fs.readFileSync(path.join(root, 'lib', 'act_attend.js'), 'utf8');
-  assert.deepStrictEqual(SELF, ['myAttend', 'selfieUrl', 'punch', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide']);
+  assert.deepStrictEqual(SELF, ['myAttend', 'selfieUrl', 'punch', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide']);
   for (const [a, p] of [['projSave', 'places'], ['placeSave', 'places'], ['placeBulk', 'places'], ['placeImport', 'places'], ['placeRemove', 'places'], ['devRelease', 'phones'], ['punchReview', 'review'], ['shiftSave', 'shifts'], ['shiftRemove', 'shifts'], ['holidaySave', 'shifts'], ['holidayRemove', 'shifts'], ['rulesSave', 'shifts'], ['regDecide', 'regularize']]) assert.ok(String(ACT[a]).indexOf("await power.need(s, '" + p + "')") > -1, a + ': the power ' + p);
   assert.match(String(ACT.daySet), /await power\.need\(s, has \? 'correct' : 'manual'\)/); assert.match(String(ACT.powerSet), /s\.role !== 'super'/);
   for (const a of ['placeList', 'devList', 'punchDay', 'punchSelfie', 'attSetup', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'attDash']) assert.match(String(ACT[a]), /needOffice\(s\)/, a);
@@ -291,7 +291,7 @@ test('the attendance pages: the script runs; three pages; a person\'s text only 
   assert.strictEqual(win.HRATT._size({ shape: 'corridor', radius_m: 60 }), '60 m each side of the road');
   assert.strictEqual(win.HRATT._whom({ scope: 'category', scope_values: ['labour', 'driver'] }, { departments: [] }), 'Labour, Driver');
   const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'); for (const id of src.match(/\$\('([a-z_0-9]+)'\)/g).map(x => x.slice(3, -2))) assert.ok(html.indexOf('id="' + id + '"') > -1, 'the page has #' + id);
-  const M = require('../api/menu'); assert.deepStrictEqual(M.PAGES.map(p => p.key), ['dashboard', 'employees', 'attendance', 'places', 'muster', 'requests', 'phones', 'rules', 'lists', 'departments', 'designations']);
+  const M = require('../api/menu'); assert.deepStrictEqual(M.PAGES.map(p => p.key), ['dashboard', 'employees', 'attendance', 'places', 'muster', 'requests', 'phones', 'rules', 'leave', 'lists', 'departments', 'designations']);
   assert.deepStrictEqual([M.mayOpen('all', 'user'), M.mayOpen('admin', 'user'), M.mayOpen('all', 'self'), M.mayOpen('admin', 'super')], [true, false, false, true]);
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')).headers[0].headers.find(h => h.key === 'Content-Security-Policy').value;
   assert.match(v, /img-src 'self' data: https:\/\/tile\.openstreetmap\.org https:\/\/\*\.supabase\.co;/); assert.match(v, /script-src 'self' 'unsafe-inline';/);
@@ -334,7 +334,7 @@ test('SQL step 5: only adds; row level security; a rule version and a day\'s ent
   const P = require('../lib/powers'); assert.deepStrictEqual(P.KEYS, ['places', 'phones', 'review', 'shifts', 'manual', 'correct', 'regularize']);
   const src = fs.readFileSync(path.join(root, 'public', 'mus.js'), 'utf8'), win = {}; new Function('window', 'document', src)(win, { getElementById: () => null });
   assert.deepStrictEqual(win.HRMUS.pages.map(p => p[0]), ['muster', 'requests', 'rules']); assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|\b(alert|confirm|prompt)\(/.test(src), 'only textContent, no browser dialog');
-  assert.deepStrictEqual(Object.keys(win.HRMUS._code), ['P', 'HD', 'A', 'WO', 'H', 'WOP', 'HP', 'IN', 'MIS']);
+  assert.deepStrictEqual(Object.keys(win.HRMUS._code), ['P', 'HD', 'A', 'WO', 'H', 'WOP', 'HP', 'IN', 'MIS', 'L']);
 });
 
 test('the site is chosen in HR among the Portal\'s sites of the person; the form has the employee\'s site; his page shows his attendance', () => {
@@ -385,4 +385,32 @@ test('the full profile (step 6): the checks of every kind of detail; nothing fix
   assert.deepStrictEqual(win.HRPROF.pages, [['lists', 'Lists']]); assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|\b(alert|confirm|prompt)\(/.test(src), 'only textContent, no browser dialog');
   const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'); for (const id of src.match(/\$\('([a-z_0-9]+)'\)/g).map(x => x.slice(3, -2))) assert.ok(html.indexOf('id="' + id + '"') > -1, 'the page has #' + id);
   assert.strictEqual(win.HRPROF._show({ type: 'list', list: 'prefix' }, 'x', { prefix: [{ id: 'x', name: 'Mr.' }] }), 'Mr.'); assert.strictEqual(win.HRPROF._show({ type: 'yesno' }, false, {}), 'No');
+});
+
+test('leave (step 7): the balance is walked day by day – monthly leaves, carry or lapse, an absent day takes one, an off day never; SQL only adds', () => {
+  const L = require('../lib/leave'), { ACT, SELF } = require('../api/hr'), d = rows => rows.map(x => ({ day: x[0], code: x[1] }));
+  const site = [{ id: 1, valid_from: '2026-11-01', per_month: 4, carry: true, auto_absent: true }];
+  // a road site: no weekly off – a Sunday absent takes a leave like any day; five absences, four leaves: the fifth stays absent
+  let w = L.walk(d([['2026-10-31', 'A'], ['2026-11-01', 'A'], ['2026-11-02', 'P'], ['2026-11-03', 'A'], ['2026-11-04', 'A'], ['2026-11-05', 'A'], ['2026-11-06', 'A']]), { policies: site, first: '2026-11-01' });
+  assert.deepStrictEqual([w.balance, Object.keys(w.marks), w.months['2026-11']], [0, ['2026-11-01', '2026-11-03', '2026-11-04', '2026-11-05'], { credit: 4, added: 0, used: 4 }]);
+  // the Head Office: its Sunday is a weekly off – an approved leave over it takes nothing for that day; a day he came after all: nothing
+  w = L.walk(d([['2026-11-07', 'A'], ['2026-11-08', 'WO'], ['2026-11-09', 'A'], ['2026-11-10', 'P'], ['2026-11-11', 'HD']]), { policies: [{ valid_from: '2026-11-01', per_month: 2, carry: true, auto_absent: false }], first: '2026-11-01', leave: { '2026-11-08': 1, '2026-11-09': 1, '2026-11-10': 1, '2026-11-11': 0.5 } });
+  assert.deepStrictEqual([w.balance, w.marks], [0.5, { '2026-11-09': { days: 1, auto: false }, '2026-11-11': { days: 0.5, auto: false } }], 'auto_absent off: the absent 7th takes nothing');
+  // unused leaves go on – or lapse; what the HR office added counts on its day; a new version from its date
+  const two = d([['2026-11-30', 'P'], ['2026-12-01', 'P']]);
+  assert.strictEqual(L.walk(two, { policies: site, first: '2026-11-01', adjust: { '2026-11-30': 1.5 } }).balance, 9.5);
+  assert.strictEqual(L.walk(two, { policies: [{ valid_from: '2026-11-01', per_month: 4, carry: false, auto_absent: true }], first: '2026-11-01', adjust: { '2026-11-30': 1.5 } }).balance, 4);
+  assert.strictEqual(L.walk(two, { policies: site.concat([{ id: 2, valid_from: '2026-12-01', per_month: 1, carry: true, auto_absent: true }]), first: '2026-11-01' }).balance, 5);
+  assert.strictEqual(L.walk(two, { policies: site, first: '2026-12-01' }).balance, 4, 'a person who joined in December gets nothing of November');
+  assert.strictEqual(L.walk(two, { policies: [], first: '2026-11-01' }).balance, 0);
+  assert.deepStrictEqual(L.policy({ per_month: '4', carry: false }).row, { per_month: 4, carry: false, auto_absent: true, levels: 2 }); assert.deepStrictEqual(L.policy({ per_month: 'x', levels: 3 }).errors, ['Leaves a month: 0 to 31 (halves allowed).', 'Who approves: 1 or 2 levels.']);
+  for (const a of ['leaveList', 'leaveBalances', 'leavePolicy']) assert.match(String(ACT[a]), /needOffice\(s\)/, a);
+  for (const [a, p] of [['leaveDecide', 'regularize'], ['leaveAdjust', 'regularize'], ['leavePolicySave', 'shifts']]) assert.ok(String(ACT[a]).indexOf("await power.need(s, '" + p + "')") > -1, a);
+  for (const a of ['myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide']) { assert.ok(SELF.indexOf(a) > -1, a); assert.match(String(ACT[a]), /await me\(s\)/, a + ': only for the employee the sign-in is'); }
+  const act = fs.readFileSync(path.join(root, 'lib', 'act_leave.js'), 'utf8'); assert.ok(!/db\('DELETE'/.test(act)); assert.ok(!/db\('PATCH', 'hr_leave_(policy|adjust)/.test(act), 'a policy and an adjustment are only added');
+  const q = fs.readFileSync(path.join(root, 'sql', 'hr_step7_leave.sql'), 'utf8').split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
+  assert.ok(!/\b(drop|truncate|delete\s+from|alter\s+table\s+public\.\w+\s+(drop|rename))\b/i.test(q) && !/update\s+public\./i.test(q), 'step 7 only adds');
+  const lj = fs.readFileSync(path.join(root, 'public', 'leave.js'), 'utf8'), lw = {}; new Function('window', 'document', lj)(lw, { getElementById: () => null }); assert.deepStrictEqual(lw.HRLEAVE.pages, [['leave', 'Leave']]);
+  assert.ok(!/innerHTML|insertAdjacentHTML|document\.write|\b(alert|confirm|prompt)\(/.test(lj), 'only textContent, no browser dialog');
+  assert.match(q, /grant select, insert on public\.hr_leave_policy, public\.hr_leave_adjust to service_role;/); assert.match(q, /grant select, insert, update on public\.hr_leave_requests to service_role;/);
 });

@@ -15,6 +15,7 @@ const crypto = require('crypto');
 const ATT = require('../lib/act_attend');      // (step 4) attendance: work places, phones, punches
 const MUS = require('../lib/act_muster');      // (step 5) shifts, holidays, rules, the muster, requests
 const DASH = require('../lib/act_dash');      // the attendance dashboard of the HR office (reads only)
+const LEAVE = require('../lib/act_leave');      // (step 7) leave: the policy, balances, requests
 const PROF = require('../lib/act_profile');      // (step 6) the full profile, the lists, what is compulsory
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -184,10 +185,10 @@ const ACT = {
   async empDelete(s, x) {
     needAdmin(s); const e = await one(s, id(x.id)), why = R.str(x.reason, 200); if (why.length < 3) throw fail(400, 'Reason: write why he is deleted.', 'reason');
     const q = 'employee_id=eq.' + e.id + '&limit=1', soft = p => p.catch(er => { if (er && er.code === 'notinstalled') return []; throw er; }), hangs = [];
-    const [pun, ent, reg, dev, tri, doc, kyc, prf, prw, rep, repH] = await Promise.all([soft(db('GET', 'hr_punches?select=id&' + q)), soft(db('GET', 'hr_day_entries?select=id&' + q)), soft(db('GET', 'hr_regularize?select=id&' + q)),
-      soft(db('GET', 'hr_devices?select=id&' + q)), soft(db('GET', 'hr_device_tries?select=id&' + q)), soft(db('GET', 'hr_employee_docs?select=id&' + q)), soft(db('GET', 'hr_employee_private?select=employee_id&' + q)), soft(db('GET', 'hr_employee_profile?select=employee_id&' + q)), soft(db('GET', 'hr_employee_rows?select=id&' + q)),
+    const [pun, ent, reg, dev, tri, doc, kyc, prf, prw, lvr, lva, rep, repH] = await Promise.all([soft(db('GET', 'hr_punches?select=id&' + q)), soft(db('GET', 'hr_day_entries?select=id&' + q)), soft(db('GET', 'hr_regularize?select=id&' + q)),
+      soft(db('GET', 'hr_devices?select=id&' + q)), soft(db('GET', 'hr_device_tries?select=id&' + q)), soft(db('GET', 'hr_employee_docs?select=id&' + q)), soft(db('GET', 'hr_employee_private?select=employee_id&' + q)), soft(db('GET', 'hr_employee_profile?select=employee_id&' + q)), soft(db('GET', 'hr_employee_rows?select=id&' + q)), soft(db('GET', 'hr_leave_requests?select=id&' + q)), soft(db('GET', 'hr_leave_adjust?select=id&' + q)),
       db('GET', 'hr_employees?select=id&reports_to=eq.' + e.id + '&limit=1'), db('GET', 'hr_employment?select=id&reports_to=eq.' + e.id + '&employee_id=neq.' + e.id + '&limit=1')]);
-    if ((pun || []).length || (ent || []).length || (reg || []).length) hangs.push('attendance');
+    if ((pun || []).length || (ent || []).length || (reg || []).length) hangs.push('attendance'); if ((lvr || []).length || (lva || []).length) hangs.push('leave');
     if ((dev || []).length || (tri || []).length) hangs.push('a phone'); if ((doc || []).length) hangs.push('papers'); if ((kyc || []).length || (prf || []).length || (prw || []).length) hangs.push('personal details (KYC / profile)'); if ((rep || []).length || (repH || []).length) hangs.push('people reporting to him');
     if (hangs.length) throw fail(409, 'This employee has ' + hangs.join(', ') + ' – he cannot be deleted. Relieve him with his relieving date instead: his record stays.', 'inuse');
     const hist = (await db('GET', 'hr_employment?select=site,department_id,designation_id,valid_from,valid_to,note&employee_id=eq.' + e.id)) || [];
@@ -310,8 +311,8 @@ const ACT = {
   },
 };
 
-[ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
-const SELF = ATT.SELF.concat(MUS.SELF);
+[ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT, LEAVE.ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
+const SELF = ATT.SELF.concat(MUS.SELF, LEAVE.SELF);
 module.exports = handler(async (req, res) => {
   if (req.method !== 'POST') return send(res, 405, { error: 'POST only.' });
   sameSite(req);
@@ -322,6 +323,6 @@ module.exports = handler(async (req, res) => {
   // "My HR" (an employee for himself): only his own attendance – nothing of the HR office's pages
   if (s.role === 'self' && SELF.indexOf(String(x.action)) < 0) throw fail(403, 'This is for the HR office only.', 'role');
   try { send(res, 200, Object.assign({ ok: true }, await fn(s, x))); }
-  catch (e) { if (e && e.code === 'notinstalled') throw fail(500, Object.prototype.hasOwnProperty.call(PROF.ACT, String(x.action)) ? PROF.NOT_READY6 : mus ? MUS.NOT_READY5 : att ? ATT.NOT_READY4 : /^(priv|doc)/.test(String(x.action)) ? NOT_READY3 : NOT_READY, 'notinstalled'); throw e; }
+  catch (e) { if (e && e.code === 'notinstalled') throw fail(500, Object.prototype.hasOwnProperty.call(LEAVE.ACT, String(x.action)) ? LEAVE.NOT_READY7 : Object.prototype.hasOwnProperty.call(PROF.ACT, String(x.action)) ? PROF.NOT_READY6 : mus ? MUS.NOT_READY5 : att ? ATT.NOT_READY4 : /^(priv|doc)/.test(String(x.action)) ? NOT_READY3 : NOT_READY, 'notinstalled'); throw e; }
 });
 module.exports.ACT = ACT; module.exports.SELF = SELF;

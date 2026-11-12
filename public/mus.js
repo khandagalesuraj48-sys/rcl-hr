@@ -12,7 +12,7 @@
   var M = { me: null, init: null, month: '', cat: '', data: null, cfg: null, reg: 'pending', sel: null, wrap: null, side: null };
   var PAGES = [['muster', 'Muster'], ['requests', 'Requests'], ['rules', 'Shifts & rules']];
   var CAT = { staff: 'Staff', operator: 'Operator', driver: 'Driver', labour: 'Labour' };
-  var CODE = { P: 'Present', HD: 'Half day', A: 'Absent', WO: 'Weekly off', H: 'Holiday', WOP: 'Worked on a weekly off', HP: 'Worked on a holiday', IN: 'At work now', MIS: 'IN without OUT – to be set right' };
+  var CODE = { P: 'Present', HD: 'Half day', A: 'Absent', WO: 'Weekly off', H: 'Holiday', WOP: 'Worked on a weekly off', HP: 'Worked on a holiday', IN: 'At work now', MIS: 'IN without OUT – to be set right', L: 'Leave' };
   var WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   var role = function () { return M.me ? M.me.user.role : ''; };
   var isAdmin = function () { return role() === 'admin' || role() === 'super'; };
@@ -66,7 +66,7 @@
     api('muster', { month: M.month, category: M.cat }).then(function (r) {
       M.data = r; var free = function (d) { return r.week_off.indexOf(new Date(d + 'T00:00:00Z').getUTCDay()) > -1 || r.holidays.some(function (h) { return h.day === d; }); };
       var work = r.days.filter(function (d) { return d <= r.today && !free(d); }).length, h = el('h3', '', r.rows.length + (r.rows.length === 1 ? ' employee' : ' employees') + ' · ' + work + (work === 1 ? ' working day' : ' working days') + ' so far');
-      var lg = el('span', 'dz-leg'); lg.style.marginTop = '0'; [['p', 'Present'], ['l', 'Late'], ['h', 'Half day'], ['a', 'Absent'], ['o', 'Weekly off / holiday']].forEach(function (k) { var s = el('span'); s.appendChild(el('i', k[0])); s.appendChild(document.createTextNode(k[1])); lg.appendChild(s); }); h.appendChild(lg); card.appendChild(h);
+      var lg = el('span', 'dz-leg'); lg.style.marginTop = '0'; [['p', 'Present'], ['l', 'Late'], ['h', 'Half day'], ['a', 'Absent'], ['v', 'Leave'], ['o', 'Weekly off / holiday']].forEach(function (k) { var s = el('span'); s.appendChild(el('i', k[0])); s.appendChild(document.createTextNode(k[1])); lg.appendChild(s); }); h.appendChild(lg); card.appendChild(h);
       var heads = [el('th', '', 'Employee')];
       r.days.forEach(function (d) { var wd = new Date(d + 'T00:00:00Z').getUTCDay(), th = el('th', (d === r.today ? 'today' : '') + (free(d) ? ' free' : '')); th.appendChild(el('div', '', WD[wd].slice(0, 1))); th.appendChild(el('div', '', +d.slice(8))); heads.push(th); });
       ['P', 'HD', 'A', 'Late', 'Days'].forEach(function (x) { heads.push(el('th', 'mt', x)); });
@@ -74,7 +74,7 @@
       r.rows.forEach(function (w) {
         var tr = el('tr'), nm = el('td'); nm.appendChild(el('b', '', w.name)); nm.appendChild(el('small', '', w.code + ' · ' + (CAT[w.category] || ''))); tr.appendChild(nm);
         w.codes.forEach(function (c, i) {
-          var d = r.days[i], late = !!w.late[i], blue = late && c === 'P', td = el('td'), b = el('button', 'mz-c ' + (blue ? 'L' : c || 'none'), blue ? 'L' : c || ''), marks = (late && !blue ? '•' : '') + (w.fix[i] ? '✎' : '') + (w.wait[i] ? '?' : '');
+          var d = r.days[i], late = !!w.late[i], blue = late && c === 'P', td = el('td'), b = el('button', 'mz-c ' + (blue ? 'L' : c === 'L' ? 'LV' : c || 'none'), blue ? 'L' : c === 'L' ? 'LV' : c || ''), marks = (late && !blue ? '•' : '') + (w.fix[i] ? '✎' : '') + (w.wait[i] ? '?' : '');
           b.type = 'button'; if (marks) b.appendChild(el('sup', '', marks)); b.dataset.k = w.id + '|' + d;
           b.title = w.name + ' – ' + dmy(d) + (c ? ': ' + CODE[c] : '') + (late ? ', late' : '') + (w.fix[i] ? ', entered or corrected by hand' : '') + (w.wait[i] ? ', a punch waits to be looked at' : ''); b.setAttribute('aria-label', b.title);
           b.onclick = function () { M.sel = { id: w.id, d: d }; day(w, d); }; td.appendChild(b); tr.appendChild(td);
@@ -83,7 +83,7 @@
       });
       if (!r.rows.length) t.box.appendChild(el('p', 'none', 'No employee in this month.'));
       card.appendChild(t.box);
-      card.appendChild(el('p', 'muted', 'L = present, came late   IN = at work now   MIS = IN without OUT, to be set right   • late   ✎ entered or corrected by hand   ? a punch waits to be looked at. Press a day to open it.'));
+      card.appendChild(el('p', 'muted', 'L = present, came late   LV = leave   IN = at work now   MIS = IN without OUT, to be set right   • late   ✎ entered or corrected by hand   ? a punch waits to be looked at. Press a day to open it.'));
       card.appendChild(el('p', 'muted', '"Days" = present + half days × ½ + weekly offs + holidays − the half days for late coming (when the rule is set). A day with IN but no OUT is counted as absent until it is set right.'));
       if (M.sel) { var w = r.rows.filter(function (x) { return x.id === M.sel.id; })[0]; if (w && r.days.indexOf(M.sel.d) > -1) day(w, M.sel.d); else M.sel = null; }
     }, fail);

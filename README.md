@@ -67,6 +67,15 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     transfer from today (HR Admin; the history keeps the old site) – `empSave`. "Transfer…" (from a date, with a note) stays.
   * The employee's page shows his attendance too (`empAround`): his work places of today, shift, phone, today, this month's
     count, requests waiting.
+* **Leave (step 7, 12-11-2026)** – `sql/hr_step7_leave.sql` (run by the owner in rcl-hr, after step 6; three new tables). His words:
+  4 leaves a month at a site, Sunday is a working day there, an absent day or a leave takes one from the balance; the Head Office
+  differs (its Sunday off, its holidays). So the **policy is per site, with its date** (`hr_leave_policy`: leaves a month, carry on
+  or lapse, an absent day takes one or not, one or two levels of approval) – nothing in the code. **The balance is never stored**:
+  `lib/leave.js` walks it day by day from the policy's first day (+ the month's leaves, + what the HR office added in
+  `hr_leave_adjust`, − approved leave days, − absent days); a weekly off / holiday never takes a leave. `lib/act_leave.js`: a
+  person's `myLeave`, `leaveAsk` (refused beyond the balance), `leaveCancel`, his team's `teamLeaves` / `teamLeaveDecide`; the
+  office's `leaveList`, `leaveDecide`, `leaveBalances`, `leaveAdjust`, `leavePolicy(Save)`. In the muster, a person's month and the
+  dashboard a day covered by leave reads **L** (the web shows it as LV – L there is "late"). The **Leave** tab: `public/leave.js`.
 * **The employee's full profile (step 6, 12-11-2026)** – `sql/hr_step6_profile.sql` (run by the owner in rcl-hr, after step 5; four
   new tables, nothing existing changed). Asked with pictures of a reference product, and "nothing fixed – the Super Admin and
   the Admin change it". `lib/act_profile.js` describes every detail ONCE (`GROUPS`: Profile, Job, Statutory & bank; `ROWS`:
