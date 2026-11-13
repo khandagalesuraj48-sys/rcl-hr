@@ -217,6 +217,11 @@ designation's category beside the settings (`hr_settings`, site `*`).
     salary already.
   * **Export** = the same columns (the format = the same file without rows). Pay and the secret numbers (Aadhaar, UAN, PF,
     ESIC, bank account) are written only for the HR Admin / Super Admin. Import and export are in the audit – never a number.
+* **Removing the demo employees (asked 13-11-2026: "demo saglech delet kraych ahe")** – two one-time files, run by the owner in
+  the rcl-hr Supabase, never by the app: `sql/hr_once_remove_demo_1_count.sql` (only counts) and
+  `sql/hr_once_remove_demo_2_delete.sql` (**deletes for ever**, in one transaction: every employee of every site and what hangs
+  on him – attendance, phones, faces, leave, months, salaries, payslips; the masters, work places, shifts, rules, settings and
+  the audit stay; the Portal and the files in Storage are not touched). A backup first.
 * Not in this piece (his decisions of 13-11-2026, to be built next): sign-in by **mobile number + password** beside the e-mail
   (a change of the Portal and its database), the first password `Name@1234` and the temporary one from HR, the phone app's
   screens for the new details, and the removal of the demo employees (an SQL he runs himself).
