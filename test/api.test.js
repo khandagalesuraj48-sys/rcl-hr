@@ -388,6 +388,8 @@ test('the attendance dashboard: the HR office only; today counted like the muste
   await no(ACT.attDash(self(mail1)), /HR office only/, 403);
   const d = await ACT.attDash(user), c = d.count, m = await ACT.muster(user, { month: TODAY.slice(0, 7) }), i = m.days.indexOf(TODAY);
   assert.strictEqual(d.today, TODAY); assert.match(d.now, /^\d\d:\d\d$/); assert.strictEqual(c.total, d.who.length); assert.strictEqual(c.on + c.out + c.off + c.none, c.total);
+  // (13-11-2026) on leave / absent today: inside "not marked", never beside it; each person says which
+  assert.ok(Number.isInteger(c.leave) && Number.isInteger(c.absent) && c.leave + c.absent <= c.none); assert.strictEqual(d.who.filter(w => w.mark === 'leave').length, c.leave); assert.strictEqual(d.who.filter(w => w.mark === 'absent').length, c.absent); assert.ok(d.who.every(w => w.state === 'none' || w.mark === ''));
   for (const e of [E1, E2]) { const w = d.who.find(x => x.id === e.id), code = m.rows.find(r => r.id === e.id).codes[i]; assert.ok(w, e.code); assert.strictEqual(w.state, code === 'IN' ? 'on' : 'out', e.code + ' as in the muster'); assert.match(w.in, /^\d\d:\d\d$/); assert.match(w.punch, /^[0-9a-f-]{36}$/); }
   assert.strictEqual(d.who.find(x => x.id === E1.id).place, 'Office ' + tag); assert.ok(d.places.some(p => p.name === 'Office ' + tag && p.on >= 1));
   assert.strictEqual(c.on, d.who.filter(w => w.state === 'on').length); assert.strictEqual(d.arc.slots.length, 32); assert.strictEqual(d.arc.slots.reduce((a, b) => a + b, 0), c.present); assert.match(c.first_in, /^\d\d:\d\d$/);

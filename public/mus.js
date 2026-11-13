@@ -206,7 +206,7 @@
     // the HR Admin's powers
     head(root, 'What the HR Admin may do on this site', []);
     var pb = el('div', 'box'); pb.style.padding = '8px 16px';
-    c.power_list.forEach(function (p) { var l = el('label', 'ck'), cb = inp('checkbox'); l.style.display = 'flex'; l.style.padding = '8px 0'; cb.checked = c.powers[p.key] !== false; cb.disabled = role() !== 'super'; cb.onchange = function () { api('powerSet', { power: p.key, allowed: cb.checked }).then(function (n) { M.cfg = n; toast(cb.checked ? 'Given.' : 'Taken.'); }, function (e) { cb.checked = !cb.checked; fail(e); }); }; l.appendChild(cb); l.appendChild(document.createTextNode(' ' + p.name)); pb.appendChild(l); });
+    c.power_list.forEach(function (p) { var l = el('label', 'ck sw'), cb = inp('checkbox'); cb.setAttribute('role', 'switch'); cb.checked = c.powers[p.key] !== false; cb.disabled = role() !== 'super'; cb.onchange = function () { api('powerSet', { power: p.key, allowed: cb.checked }).then(function (n) { M.cfg = n; toast(cb.checked ? 'Given.' : 'Taken.'); }, function (e) { cb.checked = !cb.checked; fail(e); }); }; l.appendChild(cb); l.appendChild(document.createTextNode(' ' + p.name)); pb.appendChild(l); });
     pb.appendChild(el('p', 'muted', role() === 'super' ? 'Untick what the HR Admin of this site should not do. The Super Admin can always do everything.' : 'Only the Super Admin changes these.')); root.appendChild(pb);
   }
   function shiftForm(sh) {

@@ -69,6 +69,20 @@
     if (!ask.length) return paint();
     api('empPhotos', { ids: ask }).then(function (r) { ask.forEach(function (i) { S.photos[i] = r.photos[i] || ''; }); paint(); }, function () { /* the letters stay */ });
   }
+  /* (13-11-2026, the picture he approved) THE COLUMN "SIGN-IN": who of the rows shown has a sign-in – the PORTAL is asked (its
+   * api/hrlogin, "check": it only reads; the HR Admin of the site and the Super Admin). Kept 2 minutes in the page's memory.
+   * No answer (an HR User, an older Portal, no connection): the column simply stays away. */
+  function signins() {
+    var th = $('th_signin'), cells = function () { return Array.prototype.slice.call(document.querySelectorAll('#emp_rows td[data-sg]')); };
+    var paint = function () { th.hidden = false; cells().forEach(function (td) { var v = S.sgn.by[td.dataset.sg]; td.textContent = ''; td.hidden = false; if (v === 'has') td.appendChild(el('span', 'st s-active', 'Given')); else if (v === 'off') td.appendChild(el('span', 'st s-incomplete', 'Switched off')); else if (v === 'none') td.appendChild(el('span', 'st s-left', 'Not given')); else td.textContent = '–'; }); };
+    th.hidden = true; if (!isAdmin() || !window.HRPORTAL) return; if (!S.sgn || Date.now() - S.sgn.at > 120000) S.sgn = { at: Date.now(), by: {} };
+    var ask = S.rows.filter(function (e) { return e.status !== 'left' && !(e.id in S.sgn.by); }), box = S.sgn;
+    if (!ask.length) { if (Object.keys(box.by).length) paint(); return; }
+    if (Object.keys(box.by).length) paint();
+    window.HRPORTAL('api/hrlogin', { site: S.init.site, check: ask.map(function (e) { return { email: e.email || '', mobile: e.mobile || '', known: e.portal_email || '' }; }) }).then(function (r) {
+      if (!r || !Array.isArray(r.signins) || r.signins.length !== ask.length) return; ask.forEach(function (e, i) { box.by[e.id] = r.signins[i]; }); if (S.sgn === box) paint();
+    }, function () { /* the column stays away */ });
+  }
   function list() {
     api('empList', { q: S.q, status: S.status, category: S.category }).then(function (r) {
       S.rows = r.rows; var c = r.counts, chips = $('chips'); chips.textContent = '';
@@ -80,12 +94,13 @@
         var tr = el('tr'); tr.tabIndex = 0;
         var nm = el('td', 'nm pwho'), box = el('div'); box.appendChild(el('b', '', e.name)); box.appendChild(el('small', '', e.code)); nm.appendChild(box); if (window.HRDASH && window.HRDASH.face) { var fa = window.HRDASH.face(e.name, e.id); fa.dataset.face = e.id; nm.insertBefore(fa, box); } tr.appendChild(nm);
         [CAT[e.category] || e.category, nameOf(S.init.designations, e.designation_id), nameOf(S.init.departments, e.department_id), e.mobile, dmy(e.joined_on), dmy(e.left_on)].forEach(function (v) { tr.appendChild(el('td', '', v || '–')); });
+        var sg = el('td', 'sg'); sg.dataset.sg = e.id; sg.hidden = true; tr.appendChild(sg);
         var td = el('td'); td.appendChild(el('span', 'st s-' + e.status, STATUS[e.status])); tr.appendChild(td);
         tr.onclick = function () { openEmp(e.id); }; tr.onkeydown = function (ev) { if (ev.key === 'Enter') openEmp(e.id); };
         tb.appendChild(tr);
       });
       $('emp_none').hidden = r.rows.length > 0; $('emp_none').textContent = S.q || S.status || S.category ? 'Nobody matches.' : 'No employee yet – add one, or import the Excel list.';
-      $('emp_more').hidden = !r.more; faces();
+      $('emp_more').hidden = !r.more; faces(); signins();
     }, fail);
   }
 
@@ -152,7 +167,7 @@
     var e = S.open.employee, b = $('lg_go'); b.disabled = true; $('lg_err').hidden = true;
     // (13-11-2026) his e-mail, his mobile number, or both; `known` = the user ID the Portal gave him before (a number changed since)
     window.HRPORTAL('api/hrlogin', { site: e.site, email: e.email || '', mobile: e.mobile || '', name: e.name, known: e.portal_email || '' }).then(function (r) {
-      $('lg_pw').textContent = r.password; $('lg_done').hidden = false; b.disabled = false; b.textContent = 'Give another one';
+      S.sgn = null; $('lg_pw').textContent = r.password; $('lg_done').hidden = false; b.disabled = false; b.textContent = 'Give another one';
       if (r.id && r.id !== e.email && r.id !== e.portal_email) api('signinLinked', { rows: [{ id: e.id, portal: r.id }] }).then(function () { e.portal_email = r.id; }, function () { /* kept at the next time */ });
     }, function (x) { b.disabled = false; $('lg_err').textContent = x.message; $('lg_err').hidden = false; });
   }
@@ -164,7 +179,7 @@
       function (e) { $('sg_sum').textContent = ''; $('sg_err').textContent = e.message; $('sg_err').hidden = false; });
   }
   function signinGo() {
-    var people = S.sg || [], b = $('sg_go'), made = 0, has = 0, bad = [], link = [], i = 0, site = S.init.site; b.disabled = true; $('sg_err').hidden = true;
+    S.sgn = null; var people = S.sg || [], b = $('sg_go'), made = 0, has = 0, bad = [], link = [], i = 0, site = S.init.site; b.disabled = true; $('sg_err').hidden = true;
     var end = function (err) {
       var box = $('sg_res'); box.textContent = ''; box.appendChild(el('p', 'sum', made + ' sign-ins given · ' + has + ' had one already (not changed) · ' + bad.length + ' not given.'));
       if (bad.length) { var ul = el('ul', 'faults'); bad.slice(0, 200).forEach(function (x) { var li = el('li'); li.appendChild(el('b', '', x.code + ' – ' + x.name + ': ')); li.appendChild(el('span', '', x.why)); ul.appendChild(li); }); box.appendChild(ul); }

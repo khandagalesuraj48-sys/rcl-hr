@@ -241,10 +241,17 @@ designation's category beside the settings (`hr_settings`, site `*`).
   comes up, the week and the quick actions. It asks nothing new (`attDash`, `hrComing`); Requests / Phones / Attendance show the
   number waiting beside their name in the menu.
 * **The other pages:** the new cards, tables and buttons (the look only – every button and rule as before).
-* **Not in this step** (the pictures show them; they need new numbers from the server or a new arrangement of a page): the
-  counts on top of Attendance, Phones, Leave and Payroll; "Absent today" and "On leave" on the dashboard (today: "Off today" and
-  "Absent yesterday"); the list beside the map on Work places; "Sign-in" as a column of Employees; the switches for the HR Admin's powers.
-* **Only the web.** Nothing of the phone app, the server's actions or the database is changed.
+* **The rest of the pictures (13-11-2026, "ek sath saglech kr"):**
+  * the counts on top of **Attendance** (punches, people, first IN, sent later, to be looked at), **Phones** (in use, released,
+    tries, people who tried – and the tries beside the list), **Leave** (the list shown) and **Payroll** (the totals + the
+    month Open / Locked) – each counted from what the page already has;
+  * the dashboard's **Absent today** and **On leave**: `attDash` now also says `count.leave`, `count.absent` and each person's
+    `mark` – both are inside "not marked" as before (on + out + off + none = everybody); it still only reads;
+  * **Work places:** one map of every work place of the list beside it – a place on the map opens the same form as its row;
+  * **Employees: the column "Sign-in"** (Given / Not given / Switched off) – asked from the PORTAL (`api/hrlogin` with `check`,
+    read only; the HR Admin of the site and the Super Admin). With an older Portal or for an HR User the column stays away;
+  * **Shifts & rules:** the HR Admin's powers as switches (the same checkbox, the same action).
+* **Only the web.** Nothing of the phone app and nothing of the database is changed; of the server only `attDash` (reading).
 
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
 | Name | What |

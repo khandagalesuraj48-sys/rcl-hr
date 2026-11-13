@@ -50,6 +50,13 @@
         t.body.appendChild(tr);
       });
       if (!r.punches.length) t.box.appendChild(el('p', 'none', A.review ? 'Nothing is waiting.' : 'No punch on ' + dmy(r.day) + ' yet.'));
+      // (13-11-2026, the picture he approved) the day's counts on top – counted from the punches shown, nothing new is asked
+      if (!A.review && window.HRDASH && window.HRDASH.cards) {
+        var ins = r.punches.filter(function (p) { return p.kind === 'in'; }), first = ins.map(function (p) { return p.time; }).sort()[0] || '', who = {}; r.punches.forEach(function (p) { who[p.code] = 1; });
+        root.appendChild(window.HRDASH.cards([['⇅', 'blue', 'Punches', r.punches.length, '', 'IN ' + ins.length + ' · OUT ' + (r.punches.length - ins.length)], ['◉', 'violet', 'People', Object.keys(who).length, '', 'who punched on ' + dmy(r.day)],
+          ['↓', 'green', 'First IN', first || '–', '', first ? (ins.filter(function (p) { return p.time === first; })[0].place || '') : 'nobody yet'], ['↗', 'cyan', 'Sent later', r.punches.filter(function (p) { return p.offline && p.status !== 'review'; }).length, '', 'no network at the time'],
+          ['!', 'amber', 'To be looked at', r.punches.filter(function (p) { return p.status === 'review' && !p.decided; }).length, '', 'clock or place in doubt']]));
+      }
       root.appendChild(t.box);
     }, fail);
   }
@@ -198,7 +205,21 @@
       tr.onclick = function () { place(p); }; tr.onkeydown = function (ev) { if (ev.key === 'Enter') place(p); }; t.body.appendChild(tr);
     });
     if (!rows.length) t.box.appendChild(el('p', 'none', 'No work place yet. Attendance can be marked only inside a work place – add the first one.'));
-    root.appendChild(t.box);
+    // (13-11-2026, the picture he approved) the list and, beside it, ONE map with every work place of the list – press a place on the map to open it
+    var split = el('div', 'wp-split'), mb = el('div', 'wp-all'); mb.id = 'wp_all'; mb.setAttribute('aria-label', 'Map of the work places'); split.appendChild(t.box); split.appendChild(mb); root.appendChild(split); allMap(mb, rows);
+  }
+  function allMap(box, rows) {
+    if (A.amap) { try { A.amap.remove(); } catch (e) { /* its box is gone already */ } A.amap = null; }
+    var L = window.L; if (!L) { box.className = 'wp-all none'; box.textContent = 'The map did not load – the list works as before.'; return; }
+    var m = A.amap = L.map(box, { zoomControl: true, attributionControl: true }); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
+    var pts = [];
+    rows.forEach(function (o) {
+      var g = shapeOf(o, { color: o.active ? '#1E63E9' : '#8A94A8', weight: 2, fillOpacity: o.active ? 0.16 : 0.06 }); if (!g) return; g.addTo(m);
+      var each = function (l) { if (l.bindTooltip) l.bindTooltip(o.name + (o.active ? '' : ' (off)')); if (l.on) l.on('click', function () { place(o); }); }; if (g.eachLayer && !g.getLatLng) g.eachLayer(each); else each(g);
+      (o.shape === 'circle' ? [[o.lat, o.lng]] : (o.points || [])).forEach(function (q) { pts.push(q); });
+    });
+    if (pts.length) m.fitBounds(L.latLngBounds(pts).pad(0.35), { maxZoom: 16 }); else m.setView([20.6, 78.9], 5);
+    setTimeout(function () { if (A.amap === m) m.invalidateSize(); }, 80);
   }
   // ---- the map of one work place ----
   function mapStart(p) {
@@ -311,9 +332,13 @@
         var a = el('td'); if (d.active && isAdmin()) a.appendChild(btn('sm ghost', 'Release…', function () { release(d); })); tr.appendChild(a); t.body.appendChild(tr);
       });
       if (!r.devices.length) t.box.appendChild(el('p', 'none', 'No phone is tied yet – it happens by itself at a person\'s first punch.'));
-      root.appendChild(t.box);
-      if (r.tries.length) { var h = el('h3', '', 'Tries from another phone (last 30 days)'); h.style.margin = '18px 0 8px'; h.style.fontSize = '16px'; root.appendChild(h); var t2 = table(['When', 'Code', 'Name', 'Phone', 'Why refused']);
-        r.tries.forEach(function (x) { var tr = el('tr'); tr.style.cursor = 'default'; [stamp(x.at), x.code, x.name, x.model || 'Phone', x.why === 'another phone' ? 'His attendance is tied to another phone' : 'This phone is tied to another employee'].forEach(function (v) { tr.appendChild(el('td', '', v)); }); t2.body.appendChild(tr); }); root.appendChild(t2.box); }
+      // (13-11-2026, the picture he approved) the counts on top; the tied phones and the refused tries side by side
+      var tried = {}; r.tries.forEach(function (x) { tried[x.code] = 1; }); var inUse = r.devices.filter(function (d) { return d.active; }).length;
+      if (window.HRDASH && window.HRDASH.cards) root.appendChild(window.HRDASH.cards([['▯', 'blue', 'Phones in use', inUse, '', 'one a person'], ['↻', 'grey', 'Released', r.devices.length - inUse, '', 'by the HR Admin / Super Admin'],
+        ['✕', 'red', 'Tries from another phone', r.tries.length, '', 'last 30 days'], ['◉', 'amber', 'People who tried', Object.keys(tried).length, '', 'a release may be needed']]));
+      var split = el('div', 'ph-split' + (r.tries.length ? '' : ' one')), c1 = el('div'); c1.appendChild(t.box); split.appendChild(c1); root.appendChild(split);
+      if (r.tries.length) { var c2 = el('div'); split.appendChild(c2); var h = el('h3', '', 'Tries from another phone (last 30 days)'); c2.appendChild(h); var t2 = table(['When', 'Code', 'Name', 'Phone', 'Why refused']);
+        r.tries.forEach(function (x) { var tr = el('tr'); tr.style.cursor = 'default'; [stamp(x.at), x.code, x.name, x.model || 'Phone', x.why === 'another phone' ? 'His attendance is tied to another phone' : 'This phone is tied to another employee'].forEach(function (v) { tr.appendChild(el('td', '', v)); }); t2.body.appendChild(tr); }); c2.appendChild(t2.box); }
     }, fail);
   }
   function release(d) {

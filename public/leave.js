@@ -42,6 +42,13 @@
         tr.appendChild(a); t.body.appendChild(tr);
       });
       if (!r.rows.length) t.box.appendChild(el('p', 'none', V.status === 'pending' ? 'Nothing is waiting.' : 'Nothing here.'));
+      // (13-11-2026, the picture he approved) the counts of the list shown – nothing new is asked
+      if (window.HRDASH && window.HRDASH.cards) {
+        var days = Math.round(r.rows.reduce(function (a, q) { return a + (+q.days || 0); }, 0) * 10) / 10, who = {}; r.rows.forEach(function (q) { who[q.code] = 1; }); var word = { pending: 'Waiting', approved: 'Approved', refused: 'Refused', cancelled: 'Taken back' }[V.status];
+        var list = [['▤', V.status === 'pending' ? 'amber' : V.status === 'approved' ? 'green' : V.status === 'refused' ? 'red' : 'grey', word, r.rows.length, '', 'requests in this list'], ['◉', 'violet', 'People', Object.keys(who).length, '', 'who asked'], ['☾', 'blue', 'Days', days, '', 'asked in these requests']];
+        if (V.status === 'pending') { list.push(['↑', 'cyan', 'With the reporting person', r.rows.filter(function (q) { return q.level === 1; }).length, '', 'first step']); list.push(['✓', 'green', 'With the HR office', r.rows.filter(function (q) { return q.level !== 1; }).length, '', 'to decide here']); }
+        root.appendChild(window.HRDASH.cards(list));
+      }
       root.appendChild(t.box);
     }, function (e) { root.appendChild(el('p', 'none', e.message)); });
   }
