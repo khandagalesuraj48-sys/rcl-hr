@@ -46,15 +46,19 @@
   function load(first) {
     api('attDash').then(function (r) { Z.data = r; draw(); }, function (e) { if (first) { var root = $('p_dash'); root.textContent = ''; root.appendChild(el('p', 'none', e && e.message ? e.message : 'HR did not answer – try again.')); } });
   }
+  // "Good morning, <first name>." – by the server's clock of the site
+  function hello(now) { var h = +String(now || '').slice(0, 2), n = Z.me && Z.me.user && Z.me.user.name ? String(Z.me.user.name).trim().split(/\s+/)[0] : ''; n = n ? n.charAt(0).toUpperCase() + n.slice(1) : ''; return (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + (n ? ', ' + n : '') + '.'; }
   function draw() {
     var r = Z.data, root = $('p_dash'), c = r.count; root.textContent = '';
     var live = btn('dz-pill dz-live', 'Live · ' + r.now, function () { load(false); }); live.title = 'Asked again every minute – press to ask now';
-    if (window.HRHEAD && !$('p_dash').hidden) window.HRHEAD.set('Attendance Dashboard · हजेरी', 'Who is at work right now, today’s count and what waits for the office.', [el('span', 'dz-pill', dayText(r.today)), live]);
+    if (window.HRHEAD && !$('p_dash').hidden) window.HRHEAD.set('Attendance Dashboard · हजेरी', hello(r.now) + ' Who is at work right now, today’s count and what waits for the office.', [el('span', 'dz-pill', dayText(r.today)), live]);
     /* (13-11-2026, the picture he approved) six counts on top; the day's sky, today's ring and what waits; then who is in, the
      * places and what comes up, the week and the quick ways. The same numbers of attDash as before – nothing new is asked. */
     root.appendChild(kpis(r));
-    var ra = el('div', 'dk-r a'); ra.appendChild(hero(r)); ra.appendChild(ring(r)); ra.appendChild(needs(r)); root.appendChild(ra);
-    var rb = el('div', 'dk-r b'); rb.appendChild(who(r)); var mid = el('div', 'dz-col'); mid.appendChild(places(r)); mid.appendChild(coming()); rb.appendChild(mid); var right = el('div', 'dz-col'); right.appendChild(week(r)); right.appendChild(quick()); rb.appendChild(right); root.appendChild(rb);
+    var ra = el('div', 'dk-r a'); ra.appendChild(hero(r)); ra.appendChild(ring(r)); root.appendChild(ra);
+    var rb = el('div', 'dk-r b'); rb.appendChild(who(r)); rb.appendChild(week(r)); rb.appendChild(coming()); root.appendChild(rb);
+    var rc = el('div', 'dk-r c'); rc.appendChild(needs(r)); rc.appendChild(places(r)); root.appendChild(rc);
+    root.appendChild(quick());
     window.HRBADGE = { requests: r.needs.requests, phones: r.needs.phones, attendance: r.needs.review }; if (window.HR && window.HR.badges) window.HR.badges();
     if (!c.total) root.appendChild(el('p', 'muted', 'No employee on this site yet – add them in Employees.'));
   }
@@ -67,7 +71,7 @@
   }
   var pct = function (n, of) { return of ? (Math.round(n * 1000 / of) / 10) + '%' : ''; };
   /* the counts on top of a page as cards: [mark, background, colour, word, number, small pill, line below] – for every page (HRDASH.cards) */
-  var TONE = { blue: ['#EAF1FF', '#1E63E9'], green: ['#E3F6EA', '#12A150'], amber: ['#FFF1D6', '#B56A00'], red: ['#FDE8E6', '#D92D20'], violet: ['#EEEAFE', '#6B4EE6'], cyan: ['#E6F4FB', '#0E7FB8'], grey: ['#EEF1F7', '#55607c'] };
+  var TONE = { blue: ['#F1F3F7', '#3B4256'], green: ['#E3F6EA', '#12A150'], amber: ['#FFF1D6', '#B56A00'], red: ['#FDE8E6', '#D92D20'], violet: ['#EEEAFE', '#6B4EE6'], cyan: ['#E6F4FB', '#0E7FB8'], grey: ['#EEF1F7', '#55607c'] };
   function cards(list) {
     var k = el('div', 'dk'); k.style.gridTemplateColumns = 'repeat(' + list.length + ',minmax(0,1fr))'; k.className = 'dk dk-' + list.length;
     list.forEach(function (x) {
@@ -98,27 +102,32 @@
   }
   // the quick ways: each opens the page; an action presses that page's own button (shown only when the person has it)
   function quick() {
-    var cd = card('Quick actions', ''), q = el('div', 'dk-q'), press = function (id) { var b = $(id); if (b && !b.hidden && !b.disabled) b.click(); };
-    [['+', 'Add employee', 'employees', 'b_add'], ['⇅', 'Import / Export', 'employees', ''], ['✎', 'Manual entry', 'muster', ''], ['▦', 'Muster', 'muster', '']].forEach(function (x) {
+    var row = el('div', 'dk-qrow'), h = el('h3'), ic = sv('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }); ic.appendChild(sv('path', { d: 'M13 2L4 14h7l-1 8 9-12h-7z' })); h.appendChild(ic); h.appendChild(document.createTextNode('Quick actions')); row.appendChild(h);
+    var q = el('div', 'dk-q'), press = function (id) { var b = $(id); if (b && !b.hidden && !b.disabled) b.click(); };
+    [['+', 'Add employee', 'employees', 'b_add'], ['⇅', 'Import Excel', 'employees', 'b_imp'], ['◷', 'Attendance', 'attendance', ''], ['▦', 'Muster', 'muster', ''], ['✉', 'Requests', 'requests', ''], ['◉', 'Employee list', 'employees', '']].forEach(function (x) {
       var b = btn('', '', function () { Z.go(x[2]); if (x[3]) press(x[3]); }); var i = el('i', '', x[0]); i.setAttribute('aria-hidden', 'true'); b.appendChild(i); b.appendChild(document.createTextNode(x[1])); q.appendChild(b);
     });
-    cd.appendChild(q); return cd;
+    row.appendChild(q); return row;
   }
   /* the day's arc: 06:00 on the left, 22:00 on the right; the sun stands where the clock is; the bars = how many came in each half hour */
   function arc(r) {
-    var W = 560, H = 232, base = 206, cx = 280, cy = 276, R = 250, a0 = Math.atan2(base - cy, 40 - cx), a1 = Math.atan2(base - cy, 520 - cx);
-    var from = minOf(r.arc.from), to = minOf(r.arc.to), f = Math.min(1, Math.max(0, (minOf(r.now) - from) / (to - from))), a = a0 + f * (a1 - a0), sx = cx + R * Math.cos(a), sy = cy + R * Math.sin(a);
-    var xOf = function (m) { return 60 + (m - from) / (to - from) * 440; };
+    var W = 560, H = 252, base = 204, x0 = 44, x1 = 532, top = 78, from = minOf(r.arc.from), to = minOf(r.arc.to), slots = r.arc.slots, n = slots.length, step = (x1 - x0) / n;
+    var xOf = function (m) { return x0 + (m - from) / (to - from) * (x1 - x0); }, max = Math.max.apply(null, slots.concat([1])), yOf = function (v) { return base - v / max * (base - top); };
+    var pts = [[x0, base]].concat(slots.map(function (v, i) { return [x0 + (i + 0.5) * step, yOf(v)]; })).concat([[x1, base]]);
+    // a smooth line through the points (each bend held between its neighbours – it never dips under the ground)
+    var d = 'M' + pts[0][0] + ' ' + pts[0][1]; for (var i = 0; i < pts.length - 1; i++) { var a = pts[i], b = pts[i + 1], mx = (a[0] + b[0]) / 2; d += ' C' + mx.toFixed(1) + ' ' + a[1].toFixed(1) + ' ' + mx.toFixed(1) + ' ' + b[1].toFixed(1) + ' ' + b[0].toFixed(1) + ' ' + b[1].toFixed(1); }
     var s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, 'class': 'dz-arc', role: 'img', 'aria-label': 'Arrivals of today by time' });
-    var defs = sv('defs'), gr = sv('radialGradient', { id: 'dz_sun' }); gr.appendChild(sv('stop', { offset: '0', 'stop-color': '#FFF3B0' })); gr.appendChild(sv('stop', { offset: '.6', 'stop-color': '#FFC93C' })); gr.appendChild(sv('stop', { offset: '1', 'stop-color': '#FF9A3C' })); defs.appendChild(gr); s.appendChild(defs);
-    s.appendChild(sv('path', { d: 'M40 ' + base + ' A' + R + ' ' + R + ' 0 0 1 520 ' + base, fill: 'none', stroke: '#fff', 'stroke-opacity': '.38', 'stroke-width': '3', 'stroke-dasharray': '3 9' }));
-    if (f > 0) s.appendChild(sv('path', { d: 'M40 ' + base + ' A' + R + ' ' + R + ' 0 0 1 ' + sx.toFixed(1) + ' ' + sy.toFixed(1), fill: 'none', stroke: '#FFC93C', 'stroke-width': '4', 'stroke-linecap': 'round' }));
-    var max = Math.max.apply(null, r.arc.slots.concat([1])), step = 440 / r.arc.slots.length;
-    r.arc.slots.forEach(function (n, i) { var hh = n ? 6 + n / max * 82 : 4, x = 60 + i * step + (step - 8) / 2; var b = sv('rect', { x: x.toFixed(1), y: (base - hh).toFixed(1), width: 8, height: hh.toFixed(1), rx: 3, fill: '#fff', opacity: n ? '.95' : '.4' }); if (n) b.appendChild(sv('title', {}, n + ' came in')); s.appendChild(b); });
-    if (r.arc.shift) { var x = xOf(minOf(r.arc.shift)); if (x >= 60 && x <= 500) { s.appendChild(sv('line', { x1: x, y1: base, x2: x, y2: 108, stroke: '#FFE9A8', 'stroke-width': 2, 'stroke-dasharray': '4 4' })); s.appendChild(sv('text', { x: x + 6, y: 118, fill: '#FFE9A8', 'font-size': '11.5', 'font-weight': '600' }, 'Shift ' + r.arc.shift)); } }
-    s.appendChild(sv('circle', { cx: sx.toFixed(1), cy: sy.toFixed(1), r: 30, fill: '#FFC93C', opacity: '.25' })); s.appendChild(sv('circle', { cx: sx.toFixed(1), cy: sy.toFixed(1), r: 19, fill: 'url(#dz_sun)' }));
-    s.appendChild(sv('text', { x: sx < 420 ? sx + 28 : sx - 28, y: Math.max(16, sy + 4), fill: '#fff', 'font-size': '12', 'font-weight': '700', 'text-anchor': sx < 420 ? 'start' : 'end' }, r.now + ' now'));
-    var g = sv('g', { fill: '#fff', 'font-size': '11', opacity: '.92', 'text-anchor': 'middle' }); ['06:00', '10:00', '14:00', '18:00', '22:00'].forEach(function (t) { g.appendChild(sv('text', { x: xOf(minOf(t)), y: 224 }, t)); }); s.appendChild(g);
+    var defs = sv('defs'), gr = sv('linearGradient', { id: 'dz_area', x1: 0, y1: 0, x2: 0, y2: 1 }); gr.appendChild(sv('stop', { offset: '0', 'stop-color': '#fff', 'stop-opacity': '.42' })); gr.appendChild(sv('stop', { offset: '1', 'stop-color': '#fff', 'stop-opacity': '.03' })); defs.appendChild(gr); s.appendChild(defs);
+    s.appendChild(sv('line', { x1: x0, y1: base, x2: x1, y2: base, stroke: '#fff', 'stroke-opacity': '.45', 'stroke-width': 1.5 }));
+    s.appendChild(sv('path', { d: d + ' Z', fill: 'url(#dz_area)' })); s.appendChild(sv('path', { d: d, fill: 'none', stroke: '#fff', 'stroke-width': 2.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+    slots.forEach(function (v, i) { if (!v) return; var c = sv('circle', { cx: (x0 + (i + 0.5) * step).toFixed(1), cy: yOf(v).toFixed(1), r: 3.5, fill: '#fff' }); c.appendChild(sv('title', {}, v + ' came in')); s.appendChild(c); });
+    if (r.arc.shift) { var sx = xOf(minOf(r.arc.shift)); if (sx >= x0 && sx <= x1) { s.appendChild(sv('line', { x1: sx, y1: base, x2: sx, y2: 64, stroke: '#fff', 'stroke-opacity': '.8', 'stroke-width': 1.5, 'stroke-dasharray': '4 4' })); s.appendChild(sv('text', { x: sx, y: 54, fill: '#fff', 'font-size': 12, 'font-weight': 600, 'text-anchor': 'middle' }, 'Shift ' + r.arc.shift)); } }
+    var nm = minOf(r.now), nx = Math.min(x1, Math.max(x0, xOf(nm)));
+    if (nm >= from && nm <= to) {
+      s.appendChild(sv('line', { x1: nx, y1: base, x2: nx, y2: 40, stroke: '#fff', 'stroke-width': 2 })); s.appendChild(sv('circle', { cx: nx, cy: base, r: 6, fill: '#fff' })); s.appendChild(sv('circle', { cx: nx, cy: base, r: 11, fill: '#fff', opacity: '.3' }));
+      var lw = 84, lx = Math.min(W - lw - 4, Math.max(4, nx - lw / 2)); s.appendChild(sv('rect', { x: lx, y: 12, width: lw, height: 26, rx: 13, fill: '#fff' })); s.appendChild(sv('text', { x: lx + lw / 2, y: 30, fill: '#1B2130', 'font-size': 12.5, 'font-weight': 700, 'text-anchor': 'middle' }, r.now + ' Now'));
+    }
+    var g = sv('g', { fill: '#fff', 'font-size': 12, opacity: '.95', 'text-anchor': 'middle' }); ['06:00', '10:00', '14:00', '18:00', '22:00'].forEach(function (t) { g.appendChild(sv('text', { x: xOf(minOf(t)), y: 228 }, t)); }); s.appendChild(g);
     return s;
   }
   function card(title, side, fn) { var c = el('div', 'dz-card'), h = el('h3', '', title); if (side) { var b = fn ? btn('dz-link', side, fn) : el('span', 'dz-link', side); h.appendChild(b); } c.appendChild(h); return c; }

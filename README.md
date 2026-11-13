@@ -286,6 +286,16 @@ designation's category beside the settings (`hr_settings`, site `*`).
   page and the person go along in the address) – its own menu on the left, **"‹ ERP"**, "‹ Portal" and "Log out" on top. The
   ERP also loads HR ahead, out of sight: while its frame is hidden nothing is taken. The browser's Back returns to the ERP.
   Nothing of the ERP (Mechanical) is changed for it.
+* **The RCL look (13-11-2026, his picture: "dashbord ui asa asawa … aplela logo pn lawaycha aahe … tree line war click kel ki menu
+  open … je haw tya war click kel ki te open ani menu band ekdam smooth … rcl logo cha jo colur aahe tyach fade madhe … red balance
+  thew … baki che pages pn yach colour shade madhe"):** white pages with thin grey lines; the logo's red only for what matters –
+  the page of the menu, the main button, the day's panel, an employee's head. The menu is white with the company's logo (the
+  same picture as the ERP's; `rcl-mark.png` when it cannot be loaded), in the groups of the picture (HR Management ·
+  Organization · Payroll) with a sign for each page. **The three lines** open and close it with a slide; a page picked closes
+  it; a narrow screen starts closed and the menu slides over the page. The top row stays on top of every page. The dashboard:
+  a greeting, the day's curve of arrivals with "Now" and the shift, the rows of the picture, one row of quick actions.
+  Not in the picture's way: "Reports" (no such page), the drawings of machines, "Mark attendance / Move / Leave request" (the
+  office does not punch for a person) – the quick actions are the real ones.
 * **Only the web.** Nothing of the phone app and nothing of the database is changed; of the server only `attDash` (reading).
 
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
