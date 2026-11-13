@@ -54,11 +54,11 @@
     if (window.HRHEAD && !$('p_dash').hidden) window.HRHEAD.set('Attendance Dashboard · हजेरी', hello(r.now) + ' Who is at work right now, today’s count and what waits for the office.', [el('span', 'dz-pill', dayText(r.today)), live]);
     /* (13-11-2026, the picture he approved) six counts on top; the day's sky, today's ring and what waits; then who is in, the
      * places and what comes up, the week and the quick ways. The same numbers of attDash as before – nothing new is asked. */
+    root.appendChild(quick());      // (13-11-2026, asked: "quick action khali nahi re warti astat") the quick ways are the first row
     root.appendChild(kpis(r));
     var ra = el('div', 'dk-r a'); ra.appendChild(hero(r)); ra.appendChild(ring(r)); root.appendChild(ra);
     var rb = el('div', 'dk-r b'); rb.appendChild(who(r)); rb.appendChild(week(r)); rb.appendChild(coming()); root.appendChild(rb);
     var rc = el('div', 'dk-r c'); rc.appendChild(needs(r)); rc.appendChild(places(r)); root.appendChild(rc);
-    root.appendChild(quick());
     window.HRBADGE = { requests: r.needs.requests, phones: r.needs.phones, attendance: r.needs.review }; if (window.HR && window.HR.badges) window.HR.badges();
     if (!c.total) root.appendChild(el('p', 'muted', 'No employee on this site yet – add them in Employees.'));
   }
