@@ -24,6 +24,7 @@ const power = require('../lib/powers');      // what the Super Admin left the HR
 const PROF = require('../lib/act_profile');      // (step 6) the full profile, the lists, what is compulsory
 const BOOK = require('../lib/act_rulebook');      // (step 13) the Rule Book: policies with dates, a site's own, a person's own
 const ASKS = require('../lib/act_asks');      // (step 13) what waits for verify / approve: overtime, comp-off, extra leave; the ledger
+const IMP = require('../lib/act_import');      // (step 13) a month's attendance set right in bulk from an Excel file
 const SHEET = require('../lib/act_sheet');      // (13-11-2026) the employee sheet: one Excel format to import and export
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -361,7 +362,7 @@ const ACT = {
 
 const SHEET_ACT = SHEET({ masters: masters, masterId: masterId, taken: taken, newCodes: newCodes, codeTyped: codeTyped, CODE_OK: CODE_OK, needOffice: ATT.needOffice }).ACT;
 const MAST_ACT = require('../lib/act_masters')({ masters: masters, needAdmin: needAdmin, id: id, desCatSave: SHEET.desCatSave, ACT: ACT }).ACT;      // (13-11-2026) delete / the usual list of the masters; an employee's page in one reading
-[ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT, LEAVE.ACT, MONTH.ACT, PAY.ACT, ROLL.ACT, MORE.ACT, SHEET_ACT, MAST_ACT, BOOK.ACT, ASKS.ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
+[ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT, LEAVE.ACT, MONTH.ACT, PAY.ACT, ROLL.ACT, MORE.ACT, SHEET_ACT, MAST_ACT, BOOK.ACT, ASKS.ACT, IMP.ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
 // (12-11-2026) the app's "Me": a person's own record and papers – the office's own paper actions, for the employee the sign-in is
 const MINE = require('../lib/act_self')(ACT);
 Object.keys(MINE.ACT).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = MINE.ACT[k]; });
