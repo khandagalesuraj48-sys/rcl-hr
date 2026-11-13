@@ -315,6 +315,37 @@ html:not(.embed) .sd-n{background:#F3F4F6;color:#1A1A1A;font-weight:600}html:not
 @media(max-width:1280px){.dk-r.a,.dk-r.b,.dk-r.c{grid-template-columns:1fr 1fr}.st-q{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.dk-r.a,.dk-r.b,.dk-r.c{grid-template-columns:1fr}.st-hk,.st-q{grid-template-columns:1fr 1fr}.st-htop h2{font-size:25px}}
 @media(prefers-reduced-motion:reduce){.st-q button,.st-hk button{transition:none}}
+/* ═══ (13-11-2026) HIS STITCH SCREENS 2, 3, 4: the list of employees, an employee's page, the form in steps ═══ */
+body.in .chips{gap:20px;margin-bottom:20px}body.in .chip{display:grid;grid-template-columns:1fr 40px;column-gap:10px;align-items:start;max-width:none;min-width:170px;border:1px solid #ECECEE;border-radius:14px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+body.in .chip .kic{grid-column:2;grid-row:1/3;width:40px;height:40px;border-radius:10px;font-size:16px}body.in .chip span{grid-column:1;grid-row:1;text-transform:uppercase;letter-spacing:.05em;font-size:12.5px;font-weight:600;color:#4A5365;align-self:center}
+body.in .chip b{grid-column:1;grid-row:2;font-size:31px;font-weight:700;letter-spacing:-.02em;line-height:1.3;font-variant-numeric:tabular-nums}body.in .chip small{grid-column:1/-1;font-size:13.5px;color:#4A5365}body.in .chip.on{border-color:#D2001A;box-shadow:0 0 0 3px #FBD9DD}
+body.in #p_emp .tools{background:#fff;border:1px solid #ECECEE;border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-bottom:20px}body.in #p_emp .tools input,body.in #p_emp .tools select{background:#F7F7F8;border:1px solid #ECECEE;box-shadow:none}
+#emp_rows td{padding-top:13px;padding-bottom:13px}#emp_rows td.nm .dz-av{width:40px;height:40px;border-radius:50%;font-size:13px}#emp_rows td.nm b{font-weight:600;font-size:15px}#emp_rows td.nm small{font-size:13px;color:#4A5365}#emp_rows td.go{color:#6B7280;font-size:17px;text-align:right}#emp_rows tr:hover td.go{color:#B20018}#emp_rows tr:hover{background:#FAFAFA}
+.cat{display:inline-block;font-size:12.5px;font-weight:600;padding:2px 10px;border-radius:999px;background:#F3F4F6;color:#4B5563}.cat.c-staff{background:#DBEAFE;color:#1D4ED8}.cat.c-operator{background:#EDE9FE;color:#6D28D9}.cat.c-driver{background:#FEF3C7;color:#B45309}.cat.c-labour{background:#F3F4F6;color:#374151}
+.st.s-active{background:#DCFCE7;color:#15803D}.st.s-incomplete{background:#FEF3C7;color:#B45309}.st.s-left{background:#F3F4F6;color:#4B5563}
+/* an employee's page */
+html:not(.embed) .dlg.pg{background:#F7F7F8}.dlg.pg .ep-head,.ep-head{background:#fff;color:#1A1A1A;border:1px solid #ECECEE;border-radius:14px;padding:22px 24px;gap:20px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.04)}.dlg.pg .ep-head h2{color:#1A1A1A;font-size:26px;font-weight:700;letter-spacing:-.02em}
+.dlg.pg .ep-face{width:92px;height:92px;border-radius:50%;font-size:28px;border:3px solid #fff;box-shadow:0 0 0 1px #ECECEE}.dlg.pg .ep-head .sub{display:none}.ep-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}.ep-chips span{font-size:13px;font-weight:600;background:#F3F4F6;color:#374151;border-radius:999px;padding:3px 11px}.ep-chips span.site{background:#FDECEE;color:#B20018}
+.dlg.pg .pf-pct small{color:#4A5365}.dlg.pg .pf-pct .pf-ring text{fill:#1A1A1A}.dlg.pg .pf-pct .pf-ring circle:first-child{stroke:#F0F0F2}
+body.in .ep-do .sec,body.in .ep-do .sec:first-child{background:#fff;border:1px solid #ECECEE;color:#1A1A1A;border-radius:10px;font-weight:600}body.in .ep-do .sec:hover{background:#F7F7F8}body.in .ep-do .sec#d_login{background:#EFF6FF;border-color:#DBEAFE;color:#1D4ED8}
+body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;border-radius:10px;font-weight:600}body.in .ep-do .danger:hover{background:#FBD9DD}body.in .ep-do button:disabled,body.in .ep-do .sec:first-child:disabled{color:#9CA3AF;opacity:1}
+.ep-tabs{background:#fff;border:1px solid #ECECEE;border-radius:14px;padding:0 10px;margin:20px 0}.ep-tabs button{padding:14px 14px;font-weight:500;font-size:15px;margin-bottom:0}.ep-tabs button.on{font-weight:600}
+.ep-cols{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:20px}.ep-col{gap:20px}.ep-cols>.ep-col:nth-child(1){grid-row:1/span 2}.ep-cols>.ep-col:nth-child(2),.ep-cols>.ep-col:nth-child(3){grid-column:2}
+.dlg.pg .ep-card{border:1px solid #ECECEE;border-radius:14px;padding:0 20px 18px;box-shadow:0 1px 3px rgba(0,0,0,.04)}.dlg.pg .ep-card h4{font-size:16.5px;font-weight:600;margin:0 -20px 16px;padding:15px 20px;border-bottom:1px solid #ECECEE}
+.dlg.pg .ep-card dl{grid-template-columns:140px 1fr;gap:12px 14px}.dlg.pg .ep-card dt{text-transform:uppercase;letter-spacing:.04em;font-size:12.5px;font-weight:600;color:#4A5365;padding-top:2px}.dlg.pg .ep-card dd{font-weight:500}.dlg.pg .ep-card .hist li{background:#F7F7F8;border:1px solid #ECECEE}
+#d_strip:empty{display:none}#d_strip{margin-bottom:16px}.sp-top{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:14px}.sp-top div{border-radius:8px;padding:8px 4px;text-align:center;background:#F3F4F6}.sp-top b{display:block;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}.sp-top span{display:block;text-transform:uppercase;letter-spacing:.04em;font-size:11.5px;font-weight:600}
+.sp-days{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:6px}.sp-days div{border-radius:6px;padding:5px 0 4px;text-align:center;background:#F7F7F8;border:1px solid #ECECEE;color:#6B7280}.sp-days b{display:block;font-size:13px;font-weight:600}.sp-days span{display:block;font-size:11px;font-weight:600}.sp-days .now{outline:2px solid #1A1A1A;outline-offset:1px}
+.k-p{background:#DCFCE7!important;border-color:#BBF7D0!important;color:#15803D!important}.k-l{background:#FEF3C7!important;border-color:#FDE68A!important;color:#B45309!important}.k-a{background:#FEE2E2!important;border-color:#FECACA!important;color:#DC2626!important}.k-v{background:#DBEAFE!important;border-color:#BFDBFE!important;color:#1D4ED8!important}.k-o{background:#E5E7EB!important;border-color:#D1D5DB!important;color:#374151!important}
+/* the form in steps */
+#dlg_form h2{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:6px 0 4px}.fm{display:grid;grid-template-columns:300px minmax(0,1fr);gap:20px;align-items:start;margin-top:18px}.fm-side,.fm-main{background:#fff;border:1px solid #ECECEE;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}.fm-side{padding:20px}.fm-main{padding:26px 28px 22px}
+.fm-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 14px;padding-bottom:16px;border-bottom:1px solid #ECECEE}.fm-h span{text-transform:uppercase;letter-spacing:.05em;font-size:12.5px;font-weight:600;color:#4A5365}.fm-h b{display:block;text-transform:none;letter-spacing:0;font-size:17px;color:#1A1A1A}.fm-h em{font-style:normal;font-size:13px;font-weight:600;background:#FDECEE;color:#B20018;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.fm-st{display:flex;gap:12px;align-items:center;width:100%;text-align:left;font:inherit;background:none;border:1px solid transparent;border-radius:10px;padding:11px 10px;cursor:pointer;color:#4A5365;margin-bottom:4px}.fm-st:hover{background:#F7F7F8}.fm-st i{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#F3F4F6;font-style:normal;font-weight:700;font-size:14px;flex:none}
+.fm-st b{display:block;font-size:15px;font-weight:600}.fm-st small{display:block;font-size:13px}.fm-st.ok i{background:#DCFCE7;color:#15803D}.fm-st.ok b{color:#1A1A1A}.fm-st.on{background:#FDECEE;border-color:#F9D0D5;color:#B20018;box-shadow:inset -3px 0 0 #A80015}.fm-st.on i{background:#A80015;color:#fff}.fm-st.on b{color:#B20018}.fm-st:focus-visible{outline:3px solid rgba(210,0,26,.35)}
+.fm-note{margin:14px 0 0;background:#F7F7F8;border:1px solid #ECECEE;border-radius:10px;padding:12px;font-size:13.5px;color:#4A5365}.fm-eye{display:flex;justify-content:space-between;align-items:center;margin:0}.fm-eye b{background:#D2001A;color:#fff;text-transform:uppercase;letter-spacing:.06em;font-size:12px;border-radius:4px;padding:3px 9px}.fm-eye span{font-size:13px;color:#4A5365}
+.fm-main h3{font-size:24px;font-weight:700;letter-spacing:-.015em;margin:10px 0 18px;padding-bottom:18px;border-bottom:1px solid #ECECEE}.fm-main label{font-weight:600;font-size:14.5px}.fm-main input,.fm-main select{height:46px;border-radius:10px;border:1px solid #ECECEE}.fm-main input:focus,.fm-main select:focus{border-color:#D2001A;box-shadow:0 0 0 3px rgba(210,0,26,.12);outline:0}
+.fm-acts{border-top:1px solid #ECECEE;margin-top:24px;padding-top:18px;display:flex;align-items:center;gap:12px}.fm-x{margin-right:auto;border:0;background:none;font:inherit;font-weight:500;color:#4A5365;cursor:pointer;padding:10px 4px}.fm-x:hover{color:#1A1A1A}.fm-acts .pri,.fm-acts .sec{height:46px;padding:0 20px}
+.fm-sec[hidden]{display:none!important}body.in #f_form .fm-sec{border:0!important;padding:0!important;margin:0!important;background:none!important;box-shadow:none!important}body.in #f_form .fm-acts{position:static!important;background:none!important;margin:24px 0 0!important;padding:18px 0 0!important;box-shadow:none!important;border-top:1px solid #ECECEE!important}.dlg.pg .ep-face{background:#F3F4F6;color:#A80015}
+@media(max-width:1180px){.ep-cols{grid-template-columns:1fr}.ep-cols>.ep-col{grid-column:1!important;grid-row:auto!important}}@media(max-width:900px){.fm{grid-template-columns:1fr}.sp-days{grid-template-columns:repeat(7,minmax(0,1fr))}}
 </style>
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 </head>
@@ -343,7 +374,7 @@ html:not(.embed) .sd-n{background:#F3F4F6;color:#1A1A1A;font-weight:600}html:not
       <select id="cat" aria-label="Category"><option value="">All categories</option><option value="staff">Staff</option><option value="operator">Operator</option><option value="driver">Driver</option><option value="labour">Labour</option></select>
       <button class="sec" id="b_signin" type="button" hidden>Give sign-in to all</button><button class="sec" id="b_imp" type="button">Import Excel</button><button class="sec" id="b_exp" type="button">Export Excel</button><button class="pri" id="b_add" type="button">+ Add employee</button>
     </div>
-    <div class="box"><table><thead><tr><th>Employee</th><th>Category</th><th>Designation</th><th>Department</th><th>Mobile</th><th>Active from</th><th>Relieving date</th><th id="th_signin" hidden>Sign-in</th><th>Status</th></tr></thead><tbody id="emp_rows"></tbody></table>
+    <div class="box"><table><thead><tr><th>Employee</th><th>Category</th><th>Department</th><th>Designation</th><th>Mobile</th><th>Relieving date</th><th id="th_signin" hidden>Sign-in</th><th>Status</th><th aria-hidden="true"></th></tr></thead><tbody id="emp_rows"></tbody></table>
       <p class="none" id="emp_none" hidden></p><p class="none muted" id="emp_more" hidden>Only the first 500 are shown – search to find the others.</p></div>
   </section>
   <section id="p_dash" hidden></section>
@@ -367,7 +398,7 @@ html:not(.embed) .sd-n{background:#F3F4F6;color:#1A1A1A;font-weight:600}html:not
      his head with the buttons, then Overview and the tabs of his full profile – no window on a window -->
 <div class="dlg pg" id="dlg_emp" hidden><div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="d_title">
   <p class="ep-crumb"><button class="ep-back" type="button" data-close="dlg_emp">‹ Employees</button><span id="d_crumb"></span></p>
-  <div class="ep-head"><span class="dz-av ep-face" id="d_face" aria-hidden="true"></span><div class="ep-who"><h2 id="d_title"></h2><p class="sub" id="d_code"></p><p class="ep-tags"><span class="st ep-st" id="d_st"></span><span class="st" id="d_sg" hidden></span></p></div>
+  <div class="ep-head"><span class="dz-av ep-face" id="d_face" aria-hidden="true"></span><div class="ep-who"><h2 id="d_title"></h2><p class="sub" id="d_code"></p><p class="ep-chips" id="d_chips"></p><p class="ep-tags"><span class="st ep-st" id="d_st"></span><span class="st" id="d_sg" hidden></span></p></div>
     <div class="pf-pct" id="d_pct" hidden></div>
     <div class="ep-do"><button class="sec" id="d_edit" type="button">Change</button><button class="sec" id="d_tr" type="button">Transfer…</button><button class="sec" id="d_login" type="button" hidden>Sign-in for the app…</button><button class="sec" id="d_salary" type="button" hidden>Salary…</button><button class="sec" id="d_facebtn" type="button">Face…</button><button class="danger" id="d_exit" type="button">Relieve…</button><button class="danger" id="d_del" type="button">Delete…</button></div></div>
   <div class="ep-tabs" id="d_tabs"></div>
@@ -375,7 +406,7 @@ html:not(.embed) .sd-n{background:#F3F4F6;color:#1A1A1A;font-weight:600}html:not
     <p class="warn" id="d_miss" hidden></p>
     <div class="ep-cols">
       <div class="ep-col"><div class="ep-card"><h4>Work · काम</h4><dl id="d_list"></dl></div><div class="ep-card"><h4>Contact · संपर्क</h4><dl id="d_list2"></dl></div><div class="ep-card"><h4>History · इतिहास</h4><ul class="hist" id="d_hist"></ul></div></div>
-      <div class="ep-col"><div class="ep-card" id="d_att_lab" hidden><h4>Attendance · हजेरी</h4><dl id="d_att" hidden></dl></div>
+      <div class="ep-col"><div class="ep-card" id="d_att_lab" hidden><h4>Attendance · this month · हजेरी</h4><div id="d_strip"></div><dl id="d_att" hidden></dl></div>
         <div class="ep-card"><h4>Documents &amp; KYC · कागदपत्रे</h4><p class="warn" id="d_docs_miss" hidden></p><div class="ep-row"><button class="sec" id="d_kyc" type="button">Personal details &amp; KYC</button><button class="sec" id="d_docs" type="button">Documents</button></div></div></div>
       <div class="ep-col"><div class="ep-card" id="d_todo"><h4>Still to do · बाकी</h4><div id="d_todo_body"><p class="muted">Reading…</p></div><div class="ep-row"><button class="pri" id="d_prof" type="button">Fill the profile</button></div></div></div>
     </div>
@@ -384,27 +415,35 @@ html:not(.embed) .sd-n{background:#F3F4F6;color:#1A1A1A;font-weight:600}html:not
 </div></div>
 
 <div class="dlg pg" id="dlg_form" hidden><form class="sheet wide" id="f_form" role="dialog" aria-modal="true" aria-labelledby="f_title" novalidate>
+  <p class="ep-crumb"><button class="ep-back" type="button" data-close="dlg_form">‹ Employees</button></p>
   <h2 id="f_title"></h2><p class="sub">Date of birth, e-mail and mobile are compulsory – without them the employee is kept as Incomplete.</p><input type="hidden" id="f_id">
-  <div class="grid g3">
-    <p class="fs">Who · ओळख</p>
-    <div class="two"><label for="f_name">Name *</label><input id="f_name" maxlength="80" autocomplete="off"></div>
-    <div><label for="f_code">Employee code</label><input id="f_code" maxlength="20" autocomplete="off" placeholder="by itself (RCL001 …) or type one" style="text-transform:uppercase"></div>
-    <div><label for="f_cat">Category *</label><select id="f_cat"><option value="">– choose –</option><option value="staff">Staff</option><option value="operator">Operator</option><option value="driver">Driver</option><option value="labour">Labour</option></select></div>
-    <div><label for="f_gender">Gender</label><select id="f_gender"><option value="">–</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div>
-    <div><label for="f_dob">Date of birth</label><input id="f_dob" type="date"></div>
-    <p class="fs">Work · काम</p>
-    <div><label for="f_site">Site</label><select id="f_site"></select></div>
-    <div><label for="f_dep">Department</label><select id="f_dep"></select></div>
-    <div><label for="f_des">Designation</label><select id="f_des"></select></div>
-    <div class="pick"><label for="f_boss">Reports to</label><input id="f_boss" autocomplete="off" placeholder="Type a name"><div id="f_boss_list" hidden></div></div>
-    <div><label for="f_join">Active from (joining date)</label><input id="f_join" type="date"></div>
-    <div><label>Relieving date</label><input id="f_left" disabled placeholder="set by “Relieve…” on his page"></div>
-    <p class="fs">Contact · संपर्क</p>
-    <div><label for="f_mobile">Mobile</label><input id="f_mobile" inputmode="numeric" maxlength="16" autocomplete="off"></div>
-    <div class="two"><label for="f_email">E-mail</label><input id="f_email" type="email" maxlength="120" autocomplete="off"></div>
+  <div class="fm">
+    <aside class="fm-side"><p class="fm-h"><span>Employee form<b>3 steps</b></span><em id="f_pct"></em></p><div id="f_steps"></div>
+      <p class="fm-note">Bank, PF / ESIC, family and documents are filled on his own page, after this is saved.</p></aside>
+    <div class="fm-main"><p class="fm-eye"><b id="f_stepno"></b><span>* compulsory</span></p><h3 id="f_stepname"></h3>
+      <div class="grid g3 fm-sec" data-step="1">
+        <div class="two"><label for="f_name">Name *</label><input id="f_name" maxlength="80" autocomplete="off"></div>
+        <div><label for="f_code">Employee code</label><input id="f_code" maxlength="20" autocomplete="off" placeholder="by itself (RCL001 …) or type one" style="text-transform:uppercase"></div>
+        <div><label for="f_cat">Category *</label><select id="f_cat"><option value="">– choose –</option><option value="staff">Staff</option><option value="operator">Operator</option><option value="driver">Driver</option><option value="labour">Labour</option></select></div>
+        <div><label for="f_gender">Gender</label><select id="f_gender"><option value="">–</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div>
+        <div><label for="f_dob">Date of birth</label><input id="f_dob" type="date"></div>
+      </div>
+      <div class="grid g3 fm-sec" data-step="2" hidden>
+        <div><label for="f_site">Site</label><select id="f_site"></select></div>
+        <div><label for="f_dep">Department</label><select id="f_dep"></select></div>
+        <div><label for="f_des">Designation</label><select id="f_des"></select></div>
+        <div class="pick"><label for="f_boss">Reports to</label><input id="f_boss" autocomplete="off" placeholder="Type a name"><div id="f_boss_list" hidden></div></div>
+        <div><label for="f_join">Active from (joining date)</label><input id="f_join" type="date"></div>
+        <div><label>Relieving date</label><input id="f_left" disabled placeholder="set by “Relieve…” on his page"></div>
+      </div>
+      <div class="grid g3 fm-sec" data-step="3" hidden>
+        <div><label for="f_mobile">Mobile</label><input id="f_mobile" inputmode="numeric" maxlength="16" autocomplete="off"></div>
+        <div class="two"><label for="f_email">E-mail</label><input id="f_email" type="email" maxlength="120" autocomplete="off"></div>
+      </div>
+      <p class="err" id="f_err" role="alert" hidden></p>
+      <div class="acts fm-acts"><button class="fm-x" type="button" data-close="dlg_form">Cancel</button><button class="sec" id="f_save" type="submit">Save</button><button class="pri" id="f_next" type="button"></button></div>
+    </div>
   </div>
-  <p class="err" id="f_err" role="alert" hidden></p>
-  <div class="acts"><button class="sec" type="button" data-close="dlg_form">Cancel</button><button class="pri" id="f_save" type="submit">Save</button></div>
 </form></div>
 
 <div class="dlg" id="dlg_del" hidden><form class="sheet" id="del_form" role="dialog" aria-modal="true" aria-labelledby="del_title" novalidate>
