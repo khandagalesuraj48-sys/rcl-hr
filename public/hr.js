@@ -22,10 +22,20 @@
   var PAGE_HEAD = { employees: ['Employees · कर्मचारी', 'The Employee Master of this site – press a person to open his page.'], attendance: ['Attendance · आजची हजेरी', 'Every punch of a day as it was taken – and the doubtful ones to be looked at.'], places: ['Work places · कामाच्या जागा', 'Where attendance can be marked: the place, how many metres, for whom.'],
     phones: ['Phones · फोन', 'One phone a person – only attendance is tied to it.'], requests: ['Requests · विनंत्या', 'People ask to set an old day right – it counts only when approved.'], rules: ['Shifts & rules · शिफ्ट व नियम', 'Shifts, holidays and the rules of the muster – each with its date.'],
     departments: ['Departments · विभाग', 'The list offered in an employee\'s form.'], designations: ['Designations · पदे', 'The list offered in an employee\'s form.'], leave: ['Leave · रजा', 'Requests to decide, everybody\'s balance, and the site\'s leave policy.'], payroll: ['Payroll · पगार', 'The HO HR makes a month\'s pay from the approved attendance and the approved salaries – then locks it.'], month: ['Month verification · महिन्याची पडताळणी', 'After the month ends: the site\'s HR verifies each person\'s days, the HO HR approves the month.'], lists: ['Lists · याद्या', 'Every pick-list of the profile, and which details are compulsory – yours to change.'] };
+  /* (13-11-2026, the pictures he approved: "all approved aahe … ctrl k thew") THE MENU: the same pages as before, now down the left
+   * side in three groups (in Mechanical's screen and on a narrow screen: the row of buttons as before). A page shows a count
+   * beside its name when the dashboard knows of work waiting there (HRBADGE). The list is also what Ctrl K searches. */
+  var GROUP = { employees: 'People', departments: 'People', designations: 'People', lists: 'People', attendance: 'Attendance', muster: 'Attendance', requests: 'Attendance', places: 'Attendance', phones: 'Attendance', rules: 'Attendance', leave: 'Leave & pay', month: 'Leave & pay', payroll: 'Leave & pay' }, ORDER = ['', 'People', 'Attendance', 'Leave & pay'];
+  function pages() {
+    var all = (window.HRDASH ? window.HRDASH.pages.map(function (p) { return [p[0], p[1], true]; }) : []).concat([['employees', 'Employees', true]]).concat((window.HRATT ? window.HRATT.pages : []).concat(window.HRMUS ? window.HRMUS.pages : []).map(function (p) { return [p[0], p[1], true]; }), (window.HRLEAVE ? window.HRLEAVE.pages : []).map(function (p) { return [p[0], p[1], true]; }), (window.HRMONTH ? window.HRMONTH.pages : []).map(function (p) { return [p[0], p[1], true]; }), (window.HRROLL ? window.HRROLL.pages : []).map(function (p) { return [p[0], p[1], !!(S.init && S.init.ho)]; }), (window.HRPROF ? window.HRPROF.pages : []).map(function (p) { return [p[0], p[1], isAdmin()]; }), [['departments', 'Departments', isAdmin()], ['designations', 'Designations', isAdmin()]]).filter(function (p) { return p[2]; });
+    return all.map(function (p, i) { return [p[0], p[1], GROUP[p[0]] || '', i]; }).sort(function (x, y) { return (ORDER.indexOf(x[2]) - ORDER.indexOf(y[2])) || (x[3] - y[3]); });
+  }
   function tabs() {
-    var t = $('tabs'); t.textContent = '';
-    (window.HRDASH ? window.HRDASH.pages.map(function (p) { return [p[0], p[1], true]; }) : []).concat([['employees', 'Employees', true]]).concat((window.HRATT ? window.HRATT.pages : []).concat(window.HRMUS ? window.HRMUS.pages : []).map(function (p) { return [p[0], p[1], true]; }), (window.HRLEAVE ? window.HRLEAVE.pages : []).map(function (p) { return [p[0], p[1], true]; }), (window.HRMONTH ? window.HRMONTH.pages : []).map(function (p) { return [p[0], p[1], true]; }), (window.HRROLL ? window.HRROLL.pages : []).map(function (p) { return [p[0], p[1], !!(S.init && S.init.ho)]; }), (window.HRPROF ? window.HRPROF.pages : []).map(function (p) { return [p[0], p[1], isAdmin()]; }), [['departments', 'Departments', isAdmin()], ['designations', 'Designations', isAdmin()]]).forEach(function (p) {
-      if (!p[2]) return; var b = el('button', 'tab' + (S.page === p[0] ? ' on' : ''), p[1]); b.type = 'button'; b.onclick = function () { go(p[0]); }; t.appendChild(b);
+    var t = $('tabs'), last = '', bd = window.HRBADGE || {}; t.textContent = '';
+    pages().forEach(function (p) {
+      if (p[2] !== last) { last = p[2]; t.appendChild(el('span', 'sd-grp', p[2])); }
+      var b = el('button', 'tab' + (S.page === p[0] ? ' on' : ''), p[1]); b.type = 'button'; b.dataset.page = p[0]; if (S.page === p[0]) b.setAttribute('aria-current', 'page'); b.onclick = function () { go(p[0]); };
+      if (bd[p[0]] > 0) { var n = el('em', 'sd-n', bd[p[0]]); n.title = bd[p[0]] + ' waiting'; b.appendChild(n); } t.appendChild(b);
     });
   }
   // the head of every page: its name, one line about it, and on the right the page's own controls beside the site
@@ -63,7 +73,7 @@
     api('empList', { q: S.q, status: S.status, category: S.category }).then(function (r) {
       S.rows = r.rows; var c = r.counts, chips = $('chips'); chips.textContent = '';
       [['', 'On the rolls', c.incomplete + c.pending + c.active], ['incomplete', 'Incomplete', c.incomplete], ['pending', 'Complete', c.pending], ['active', 'Active', c.active], ['left', 'Relieved', c.left]].forEach(function (k) {
-        var b = el('button', 'chip' + (S.status === k[0] ? ' on' : '') + (k[0] ? ' s-' + k[0] : '')); b.type = 'button'; b.appendChild(el('b', '', k[2])); b.appendChild(el('span', '', k[1])); b.onclick = function () { S.status = k[0]; list(); }; chips.appendChild(b);
+        var b = el('button', 'chip' + (S.status === k[0] ? ' on' : '') + (k[0] ? ' s-' + k[0] : '')); b.type = 'button'; b.appendChild(el('i', 'kic', { '': '◉', incomplete: '…', pending: '✓', active: '●', left: '↗' }[k[0]])); b.appendChild(el('span', '', k[1])); b.appendChild(el('b', '', k[2])); b.onclick = function () { S.status = k[0]; list(); }; chips.appendChild(b);
       });
       var tb = $('emp_rows'); tb.textContent = '';
       r.rows.forEach(function (e) {
@@ -398,7 +408,8 @@
         go(page || (window.HRDASH ? 'dashboard' : 'employees'));
       }, function (e) { window.HRMSG(e.message); });
     },
-    emp: function (id) { go('employees'); openEmp(id); },      // an employee's page, from the muster's day panel
+    emp: function (id) { go('employees'); openEmp(id); },
+    go: function (page) { go(page); }, pages: function () { return S.init ? pages() : []; }, lists: function () { return S.init ? { departments: S.init.departments || [], designations: S.init.designations || [] } : null; }, badges: function () { if (S.init) tabs(); },      // an employee's page, from the muster's day panel
     _mapRows: mapRows, _csv: csv, _dmy: dmy
   };
 })();

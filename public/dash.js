@@ -50,19 +50,53 @@
     var r = Z.data, root = $('p_dash'), c = r.count; root.textContent = '';
     var live = btn('dz-pill dz-live', 'Live · ' + r.now, function () { load(false); }); live.title = 'Asked again every minute – press to ask now';
     if (window.HRHEAD && !$('p_dash').hidden) window.HRHEAD.set('Attendance Dashboard · हजेरी', 'Who is at work right now, today’s count and what waits for the office.', [el('span', 'dz-pill', dayText(r.today)), live]);
-    root.appendChild(hero(r));
-    var grid = el('div', 'dz-grid'); grid.appendChild(who(r)); var mid = el('div', 'dz-col'); mid.appendChild(places(r)); mid.appendChild(week(r)); grid.appendChild(mid); var right = el('div', 'dz-col'); right.appendChild(needs(r)); var cm = coming(); right.appendChild(cm); grid.appendChild(right); root.appendChild(grid);
+    /* (13-11-2026, the picture he approved) six counts on top; the day's sky, today's ring and what waits; then who is in, the
+     * places and what comes up, the week and the quick ways. The same numbers of attDash as before – nothing new is asked. */
+    root.appendChild(kpis(r));
+    var ra = el('div', 'dk-r a'); ra.appendChild(hero(r)); ra.appendChild(ring(r)); ra.appendChild(needs(r)); root.appendChild(ra);
+    var rb = el('div', 'dk-r b'); rb.appendChild(who(r)); var mid = el('div', 'dz-col'); mid.appendChild(places(r)); mid.appendChild(coming()); rb.appendChild(mid); var right = el('div', 'dz-col'); right.appendChild(week(r)); right.appendChild(quick()); rb.appendChild(right); root.appendChild(rb);
+    window.HRBADGE = { requests: r.needs.requests, phones: r.needs.phones, attendance: r.needs.review }; if (window.HR && window.HR.badges) window.HR.badges();
     if (!c.total) root.appendChild(el('p', 'muted', 'No employee on this site yet – add them in Employees.'));
   }
   function hero(r) {
     var c = r.count, h = el('div', 'dz-hero'), big = el('div', 'dz-big');
     big.appendChild(el('small', '', 'On duty right now · आत्ता कामावर')); var b = el('b', '', c.on); b.appendChild(el('span', '', ' / ' + c.total)); big.appendChild(b);
-    var bits = []; if (c.total) bits.push(Math.round(c.on * 100 / c.total) + '%'); bits.push(c.late + ' late'); if (c.first_in) bits.push('first IN ' + c.first_in); big.appendChild(el('em', '', bits.join(' · '))); h.appendChild(big);
+    var bits = []; if (c.total) bits.push(Math.round(c.on * 100 / c.total) + '% on duty'); bits.push(c.late + ' late'); if (c.first_in) bits.push('first IN ' + c.first_in); if (r.arc.shift) bits.push('shift ' + r.arc.shift); bits.forEach(function (t) { big.appendChild(el('em', '', t)); }); h.appendChild(big);
     h.appendChild(arc(r));
-    var g = el('div', 'dz-glass'), tile = function (label, n, sub) { var d = el('div'); d.appendChild(el('small', '', label)); d.appendChild(el('b', '', n)); d.appendChild(el('u', '', sub)); g.appendChild(d); };
-    tile('Present today', c.present, 'हजर · ' + c.out + ' already out'); tile('Late', c.late, 'उशीर' + (r.arc.shift ? ' · shift ' + r.arc.shift : ''));
-    tile('Absent yesterday', c.absent_yesterday, 'काल गैरहजर'); tile('Not marked yet', c.none, 'अजून हजेरी नाही' + (c.off ? ' · ' + c.off + ' off today' : ''));
-    h.appendChild(g); return h;
+    return h;
+  }
+  var pct = function (n, of) { return of ? (Math.round(n * 1000 / of) / 10) + '%' : ''; };
+  function kpis(r) {
+    var c = r.count, k = el('div', 'dk');
+    [['◉', '#EAF1FF', '#1E63E9', 'Total employees', c.total, '', 'On this site'],
+      ['✓', '#E3F6EA', '#12A150', 'Present today', c.present, pct(c.present, c.total), 'हजर · ' + c.out + ' already out'],
+      ['◷', '#FFF1D6', '#B56A00', 'Late today', c.late, pct(c.late, c.total), 'उशीर' + (r.arc.shift ? ' · shift ' + r.arc.shift : '')],
+      ['?', '#E6F4FB', '#0E7FB8', 'Not marked yet', c.none, pct(c.none, c.total), 'अजून हजेरी नाही'],
+      ['☾', '#EEEAFE', '#6B4EE6', 'Off today', c.off || 0, '', 'Weekly off · holiday'],
+      ['✕', '#FDE8E6', '#D92D20', 'Absent yesterday', c.absent_yesterday, '', 'काल गैरहजर']].forEach(function (x) {
+      var d = el('div', 'dk-c'), i = el('i', '', x[0]), t = el('div'), b = el('b', '', x[4]); i.style.background = x[1]; i.style.color = x[2]; i.setAttribute('aria-hidden', 'true');
+      if (x[5]) { var u = el('u', '', x[5]); u.style.background = x[1]; u.style.color = x[2]; b.appendChild(u); } t.appendChild(el('span', '', x[3])); t.appendChild(b); t.appendChild(el('small', '', x[6])); d.appendChild(i); d.appendChild(t); k.appendChild(d);
+    });
+    return k;
+  }
+  // today's ring: on time, late, not marked, off – of everybody on the rolls
+  function ring(r) {
+    var c = r.count, on = Math.max(0, c.present - c.late), parts = [['On time', on, '#12A150'], ['Late', c.late, '#E08A00'], ['Not marked', c.none, '#B8C2D8'], ['Off today', c.off || 0, '#6B4EE6']], sum = parts.reduce(function (a, x) { return a + x[1]; }, 0);
+    var cd = card('Today’s attendance · आजची हजेरी', ''), w = el('div', 'dk-ring'), R = 58, C = 2 * Math.PI * R, at = 0;
+    var s = sv('svg', { viewBox: '0 0 150 150', role: 'img', 'aria-label': 'Present today: ' + (pct(c.present, c.total) || '0%') }); s.appendChild(sv('circle', { cx: 75, cy: 75, r: R, fill: 'none', stroke: '#EEF2FA', 'stroke-width': 16 }));
+    var g = sv('g', { fill: 'none', 'stroke-width': 16, transform: 'rotate(-90 75 75)' });
+    if (sum) parts.forEach(function (x) { if (!x[1]) return; var len = x[1] / sum * C; g.appendChild(sv('circle', { cx: 75, cy: 75, r: R, stroke: x[2], 'stroke-dasharray': len.toFixed(2) + ' ' + C.toFixed(2), 'stroke-dashoffset': (-at).toFixed(2) })); at += len; });
+    s.appendChild(g); s.appendChild(sv('text', { x: 75, y: 74, 'text-anchor': 'middle', 'font-size': 25, 'font-weight': 800, fill: '#0F1F3D' }, pct(c.present, c.total) || '–')); s.appendChild(sv('text', { x: 75, y: 93, 'text-anchor': 'middle', 'font-size': 11.5, fill: '#6B7690' }, 'present')); w.appendChild(s);
+    var lg = el('div', 'dk-lg'); parts.forEach(function (x) { var d = el('div'), i = el('i'); i.style.background = x[2]; d.appendChild(i); d.appendChild(document.createTextNode(x[0])); d.appendChild(el('b', '', x[1])); d.appendChild(el('em', '', pct(x[1], sum) || '–')); lg.appendChild(d); });
+    w.appendChild(lg); cd.appendChild(w); return cd;
+  }
+  // the quick ways: each opens the page; an action presses that page's own button (shown only when the person has it)
+  function quick() {
+    var cd = card('Quick actions', ''), q = el('div', 'dk-q'), press = function (id) { var b = $(id); if (b && !b.hidden && !b.disabled) b.click(); };
+    [['+', 'Add employee', 'employees', 'b_add'], ['⇅', 'Import / Export', 'employees', ''], ['✎', 'Manual entry', 'muster', ''], ['▦', 'Muster', 'muster', '']].forEach(function (x) {
+      var b = btn('', '', function () { Z.go(x[2]); if (x[3]) press(x[3]); }); var i = el('i', '', x[0]); i.setAttribute('aria-hidden', 'true'); b.appendChild(i); b.appendChild(document.createTextNode(x[1])); q.appendChild(b);
+    });
+    cd.appendChild(q); return cd;
   }
   /* the day's arc: 06:00 on the left, 22:00 on the right; the sun stands where the clock is; the bars = how many came in each half hour */
   function arc(r) {
