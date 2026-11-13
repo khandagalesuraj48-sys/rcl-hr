@@ -688,3 +688,12 @@ test('an employee is ONE full page (13-11-2026): his head, Overview and the tabs
   assert.match(js, /if \(\$\('f_id'\)\.value && !\(r\.site && r\.site !== S\.me\.site\)\) openEmp\(\$\('f_id'\)\.value\);/);
   assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(prof));
 });
+
+test('a save is seen at once (13-11-2026): "Saving…" on the button, a window when the server HAS saved, nothing said saved on an error; the saved tab is answered without a second reading', () => {
+  const prof = fs.readFileSync(path.join(root, 'public', 'prof.js'), 'utf8'), js = fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8'), act = fs.readFileSync(path.join(root, 'lib', 'act_profile.js'), 'utf8');
+  assert.match(prof, /function saving\(b, run\) \{ var was = b\.textContent; b\.disabled = true; b\.textContent = 'Saving…';/);
+  assert.match(prof, /api\('profSave', \{ id: e\.id, group: cur\.key, data: f\.get\(\) \}\)\.then\(function \(n\) \{ draw\(n\); saved\('Saved', [^}]+\}, function \(x\) \{ back\(\); err\(x\); \}\);/);
+  assert.match(prof, /api\('profRowSave', [^\n]{0,120}?\.then\(function \(n\) \{ draw\(n\); saved\('Saved', [^}]+\}, function \(x\) \{ back\(\); err\(x\); \}\);/);
+  assert.match(prof, /s\.setAttribute\('role', 'alertdialog'\)/); assert.match(js, /window\.HRPROF\.saved\('Saved', r\.code/);
+  assert.match(act, /L\.p = Object\.assign\(\{\}, L\.p, \{ \[col\]: next \}\); return out\(s, L\);/);
+});

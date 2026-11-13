@@ -236,11 +236,11 @@
   }
   function save(ev) {
     ev.preventDefault(); var b = $('f_save'); if ($('f_boss').value && !$('f_boss').dataset.id) { $('f_err').textContent = 'Reporting person: choose a name from the list, or leave it empty.'; $('f_err').hidden = false; return; }
-    busy(b, true);
+    busy(b, true); var bt0 = b.textContent; b.textContent = 'Saving…';      // (13-11-2026) seen at once
     api('empSave', { id: $('f_id').value, code: $('f_code').value, name: $('f_name').value, category: $('f_cat').value, gender: $('f_gender').value, mobile: $('f_mobile').value, email: $('f_email').value, dob: $('f_dob').value, joined_on: $('f_join').value, site: $('f_site').value,
       department_id: $('f_dep').value, designation_id: $('f_des').value, reports_to: $('f_boss').dataset.id }).then(function (r) {
-      busy(b, false); hide('dlg_form'); toast(r.code + ' saved' + (r.site && r.site !== S.me.site ? ' at ' + siteName(r.site) + ' – choose that site (top right) to see him' : '') + (r.missing.length ? ' – incomplete: ' + r.missing.join(', ') + ' still needed.' : '.')); list(); if ($('f_id').value && !(r.site && r.site !== S.me.site)) openEmp($('f_id').value);      // a change saved: back on his page
-    }, function (e) { busy(b, false); $('f_err').textContent = e.message; $('f_err').hidden = false; });
+      busy(b, false); b.textContent = bt0; hide('dlg_form'); if (window.HRPROF && window.HRPROF.saved) window.HRPROF.saved('Saved', r.code + ($('f_name').value ? ' · ' + $('f_name').value : '')); toast(r.code + ' saved' + (r.site && r.site !== S.me.site ? ' at ' + siteName(r.site) + ' – choose that site (top right) to see him' : '') + (r.missing.length ? ' – incomplete: ' + r.missing.join(', ') + ' still needed.' : '.')); list(); if ($('f_id').value && !(r.site && r.site !== S.me.site)) openEmp($('f_id').value);      // a change saved: back on his page
+    }, function (e) { busy(b, false); b.textContent = bt0; $('f_err').textContent = e.message; $('f_err').hidden = false; });
   }
 
   // ---------- transfer, exit ----------
