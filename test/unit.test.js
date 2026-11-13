@@ -655,3 +655,21 @@ test('the new look (13-11-2026): the menu on the left with every page as before,
   // the dashboard asks nothing new: the same one reading action
   assert.deepStrictEqual([...new Set([...dash.matchAll(/api\('([a-zA-Z]+)'/g)].map(x => x[1]))].sort(), ['attDash', 'punchSelfie']); assert.match(dash, /action: 'hrComing'/);
 });
+
+test('the new look, the rest (13-11-2026): the counts of the pages are counted from what the page has; the Sign-in column only asks the Portal to read; switches; the map beside the list', () => {
+  const rd = f => fs.readFileSync(path.join(root, 'public', f), 'utf8'), html = rd('index.html'), js = rd('hr.js'), att = rd('att.js'), lv = rd('leave.js'), roll = rd('payroll.js'), mus = rd('mus.js'), dash = rd('dash.js'), act = fs.readFileSync(path.join(root, 'lib', 'act_dash.js'), 'utf8');
+  // the dashboard: leave and absent of today come with attDash – inside "none"; still only reading
+  assert.match(act, /leave: 0, absent: 0, absent_yesterday: 0/); assert.match(act, /d\.code === 'L' \? 'leave' : d\.code === 'A' \|\| d\.code === 'MIS' \? 'absent' : ''/); assert.ok(!/db\('(POST|PATCH|PUT|DELETE)'/.test(act));
+  assert.match(dash, /open = Math\.max\(0, c\.none - lv - ab\)/); assert.match(dash, /cards: cards,/);
+  // no page asks the server anything new for its cards
+  for (const [name, src, actions] of [['att.js', att, ['punchDay', 'devList']], ['leave.js', lv, ['leaveList']], ['payroll.js', roll, ['payList']]]) { assert.match(src, /window\.HRDASH\.cards\(/, name); for (const a of actions) assert.match(src, new RegExp("api\\('" + a + "'"), name + ' ' + a); }
+  // the Sign-in column: the Portal's "check" (read only), the admins only, hidden until it answers; the e-mail, the number and the kept ID – nothing else is sent
+  assert.match(html, /<th id="th_signin" hidden>Sign-in<\/th><th>Status<\/th>/);
+  assert.match(js, /if \(!isAdmin\(\) \|\| !window\.HRPORTAL\) return;/); assert.match(js, /window\.HRPORTAL\('api\/hrlogin', \{ site: S\.init\.site, check: ask\.map\(function \(e\) \{ return \{ email: e\.email \|\| '', mobile: e\.mobile \|\| '', known: e\.portal_email \|\| '' \}; \}\) \}\)/);
+  assert.match(js, /r\.signins\.length !== ask\.length\) return;/);
+  // the HR Admin's powers: the same checkbox and the same action, shown as a switch
+  assert.match(mus, /el\('label', 'ck sw'\), cb = inp\('checkbox'\); cb\.setAttribute\('role', 'switch'\);[^\n]*api\('powerSet', \{ power: p\.key, allowed: cb\.checked \}\)/);
+  // Work places: one map of the places of the list; a place on the map opens the same form as its row
+  assert.match(att, /split\.appendChild\(t\.box\); split\.appendChild\(mb\); root\.appendChild\(split\); allMap\(mb, rows\);/); assert.match(att, /l\.on\('click', function \(\) \{ place\(o\); \}\)/);
+  for (const s of [att, lv, roll, js]) assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(s));
+});

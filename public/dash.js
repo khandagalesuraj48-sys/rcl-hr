@@ -66,22 +66,28 @@
     return h;
   }
   var pct = function (n, of) { return of ? (Math.round(n * 1000 / of) / 10) + '%' : ''; };
-  function kpis(r) {
-    var c = r.count, k = el('div', 'dk');
-    [['◉', '#EAF1FF', '#1E63E9', 'Total employees', c.total, '', 'On this site'],
-      ['✓', '#E3F6EA', '#12A150', 'Present today', c.present, pct(c.present, c.total), 'हजर · ' + c.out + ' already out'],
-      ['◷', '#FFF1D6', '#B56A00', 'Late today', c.late, pct(c.late, c.total), 'उशीर' + (r.arc.shift ? ' · shift ' + r.arc.shift : '')],
-      ['?', '#E6F4FB', '#0E7FB8', 'Not marked yet', c.none, pct(c.none, c.total), 'अजून हजेरी नाही'],
-      ['☾', '#EEEAFE', '#6B4EE6', 'Off today', c.off || 0, '', 'Weekly off · holiday'],
-      ['✕', '#FDE8E6', '#D92D20', 'Absent yesterday', c.absent_yesterday, '', 'काल गैरहजर']].forEach(function (x) {
-      var d = el('div', 'dk-c'), i = el('i', '', x[0]), t = el('div'), b = el('b', '', x[4]); i.style.background = x[1]; i.style.color = x[2]; i.setAttribute('aria-hidden', 'true');
-      if (x[5]) { var u = el('u', '', x[5]); u.style.background = x[1]; u.style.color = x[2]; b.appendChild(u); } t.appendChild(el('span', '', x[3])); t.appendChild(b); t.appendChild(el('small', '', x[6])); d.appendChild(i); d.appendChild(t); k.appendChild(d);
+  /* the counts on top of a page as cards: [mark, background, colour, word, number, small pill, line below] – for every page (HRDASH.cards) */
+  var TONE = { blue: ['#EAF1FF', '#1E63E9'], green: ['#E3F6EA', '#12A150'], amber: ['#FFF1D6', '#B56A00'], red: ['#FDE8E6', '#D92D20'], violet: ['#EEEAFE', '#6B4EE6'], cyan: ['#E6F4FB', '#0E7FB8'], grey: ['#EEF1F7', '#55607c'] };
+  function cards(list) {
+    var k = el('div', 'dk'); k.style.gridTemplateColumns = 'repeat(' + list.length + ',minmax(0,1fr))'; k.className = 'dk dk-' + list.length;
+    list.forEach(function (x) {
+      var tn = TONE[x[1]] || TONE.blue, d = el('div', 'dk-c'), i = el('i', '', x[0]), t = el('div'), b = el('b', '', x[3]); i.style.background = tn[0]; i.style.color = tn[1]; i.setAttribute('aria-hidden', 'true'); t.style.minWidth = '0';
+      if (x[4]) { var u = el('u', '', x[4]); u.style.background = tn[0]; u.style.color = tn[1]; b.appendChild(u); } t.appendChild(el('span', '', x[2])); t.appendChild(b); t.appendChild(el('small', '', x[5] || '')); d.appendChild(i); d.appendChild(t); k.appendChild(d);
     });
     return k;
   }
+  function kpis(r) {
+    var c = r.count, lv = c.leave || 0, ab = c.absent || 0, open = Math.max(0, c.none - lv - ab);
+    return cards([['◉', 'blue', 'Total employees', c.total, '', 'On this site'],
+      ['✓', 'green', 'Present today', c.present, pct(c.present, c.total), 'हजर · ' + c.out + ' already out'],
+      ['✕', 'red', 'Absent today', ab, pct(ab, c.total), 'Yesterday: ' + c.absent_yesterday],
+      ['◷', 'amber', 'Late today', c.late, pct(c.late, c.total), 'उशीर' + (r.arc.shift ? ' · shift ' + r.arc.shift : '')],
+      ['☾', 'violet', 'On leave', lv, '', 'रजा' + (c.off ? ' · ' + c.off + ' off today' : '')],
+      ['?', 'cyan', 'Not marked yet', open, pct(open, c.total), 'अजून हजेरी नाही']]);
+  }
   // today's ring: on time, late, not marked, off – of everybody on the rolls
   function ring(r) {
-    var c = r.count, on = Math.max(0, c.present - c.late), parts = [['On time', on, '#12A150'], ['Late', c.late, '#E08A00'], ['Not marked', c.none, '#B8C2D8'], ['Off today', c.off || 0, '#6B4EE6']], sum = parts.reduce(function (a, x) { return a + x[1]; }, 0);
+    var c = r.count, on = Math.max(0, c.present - c.late), lv = c.leave || 0, ab = c.absent || 0, parts = [['On time', on, '#12A150'], ['Late', c.late, '#E08A00'], ['Absent', ab, '#D92D20'], ['On leave', lv, '#6B4EE6'], ['Not marked', Math.max(0, c.none - lv - ab), '#B8C2D8'], ['Off today', c.off || 0, '#8A94AD']], sum = parts.reduce(function (a, x) { return a + x[1]; }, 0);
     var cd = card('Today’s attendance · आजची हजेरी', ''), w = el('div', 'dk-ring'), R = 58, C = 2 * Math.PI * R, at = 0;
     var s = sv('svg', { viewBox: '0 0 150 150', role: 'img', 'aria-label': 'Present today: ' + (pct(c.present, c.total) || '0%') }); s.appendChild(sv('circle', { cx: 75, cy: 75, r: R, fill: 'none', stroke: '#EEF2FA', 'stroke-width': 16 }));
     var g = sv('g', { fill: 'none', 'stroke-width': 16, transform: 'rotate(-90 75 75)' });
@@ -121,7 +127,9 @@
     if (w.state === 'out') return el('span', 'dz-chip b', 'Out ' + w.out);
     if (w.state === 'check') return el('span', 'dz-chip b', 'To be checked');
     if (w.state === 'off') return el('span', 'dz-chip s', 'Off today');
-    return el('span', 'dz-chip r', 'Not marked');
+    if (w.mark === 'leave') return el('span', 'dz-chip v', 'On leave');
+    if (w.mark === 'absent') return el('span', 'dz-chip r', 'Absent');
+    return el('span', 'dz-chip s', 'Not marked');
   }
   function who(r) {
     var n = r.who.length, c = card('Who is in · आत्ता कोण कामावर', n > SHOW ? (Z.all ? 'Show less' : 'See all ' + n) : '', function () { Z.all = !Z.all; draw(); }), wrap = el('div', 'dz-scroll' + (Z.all ? ' all' : '')), t = el('table', 'dz-who'), hd = el('tr');
@@ -182,6 +190,6 @@
       load(true); clearInterval(Z.timer);
       Z.timer = setInterval(function () { if ($('p_dash').hidden) { clearInterval(Z.timer); return; } if (!document.hidden) load(false); }, 60000);
     },
-    photo: photo, thumb: thumb, face: function (name, key) { var a = el('span', 'dz-av', initials(name)); a.style.background = tintOf(key || name); a.setAttribute('aria-hidden', 'true'); return a; }, _initials: initials, _minOf: minOf
+    photo: photo, thumb: thumb, cards: cards, face: function (name, key) { var a = el('span', 'dz-av', initials(name)); a.style.background = tintOf(key || name); a.setAttribute('aria-hidden', 'true'); return a; }, _initials: initials, _minOf: minOf
   };
 })();
