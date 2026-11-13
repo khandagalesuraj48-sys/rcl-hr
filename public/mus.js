@@ -74,9 +74,9 @@
       r.rows.forEach(function (w) {
         var tr = el('tr'), nm = el('td'); nm.appendChild(el('b', '', w.name)); nm.appendChild(el('small', '', w.code + ' · ' + (CAT[w.category] || ''))); tr.appendChild(nm);
         w.codes.forEach(function (c, i) {
-          var d = r.days[i], late = !!w.late[i], blue = late && c === 'P', td = el('td'), b = el('button', 'mz-c ' + (blue ? 'L' : c === 'L' ? 'LV' : c || 'none'), blue ? 'L' : c === 'L' ? 'LV' : c || ''), marks = (late && !blue ? '•' : '') + (w.fix[i] ? '✎' : '') + (w.wait[i] ? '?' : '');
+          var d = r.days[i], late = !!w.late[i], blue = late && c === 'P', td = el('td'), b = el('button', 'mz-c ' + (blue ? 'L' : c === 'L' ? 'LV' : c || 'none'), blue ? 'L' : c === 'L' ? 'LV' : c || ''), why = c === 'A' && w.absent ? w.absent[i] : '', marks = (late && !blue ? '•' : '') + (w.fix[i] ? '✎' : '') + (w.wait[i] ? '?' : '') + (why === 'refused' ? '✗' : '');      // (step 13) ✗ = absent although his leave was refused
           b.type = 'button'; if (marks) b.appendChild(el('sup', '', marks)); b.dataset.k = w.id + '|' + d;
-          b.title = w.name + ' – ' + dmy(d) + (c ? ': ' + CODE[c] : '') + (late ? ', late' : '') + (w.fix[i] ? ', entered or corrected by hand' : '') + (w.wait[i] ? ', a punch waits to be looked at' : ''); b.setAttribute('aria-label', b.title);
+          b.title = w.name + ' – ' + dmy(d) + (c ? ': ' + CODE[c] : '') + (late ? ', late' : '') + (w.fix[i] ? ', entered or corrected by hand' : '') + (w.wait[i] ? ', a punch waits to be looked at' : '') + (why === 'refused' ? ', his leave for this day was refused' : why === 'nobalance' ? ', no leave balance was left' : why === 'none' ? ', no leave was asked' : ''); b.setAttribute('aria-label', b.title);
           b.onclick = function () { M.sel = { id: w.id, d: d }; day(w, d); }; td.appendChild(b); tr.appendChild(td);
         });
         [w.total.P, w.total.HD, w.total.A + w.total.MIS, w.total.late, w.total.paid].forEach(function (v) { tr.appendChild(el('td', 'mt', v)); }); t.body.appendChild(tr);
