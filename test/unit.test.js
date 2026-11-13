@@ -720,3 +720,11 @@ test('13-11-2026: the two masters on one page with delete and the usual list; an
   assert.deepStrictEqual(P.GROUPS.job.fields.filter(d => d.sheet).map(d => d.key), ['sign_in', 'sign_out']); assert.ok(!P.ITEMS.some(i => /sign_(in|out)/.test(i.key))); assert.deepStrictEqual(P.seen(P.GROUPS.job.fields).filter(d => /sign_/.test(d.key)), []);
   assert.match(rd('lib/act_profile.js'), /const keys = seen\(GROUPS\[g\]\.fields\)\.map\(d => d\.key\)/); assert.match(rd('lib/act_sheet.js'), /pf\('sign_in', 'Sign In', 'job'\), pf\('sign_out', 'Sign Out', 'job'\)/);
 });
+
+test('(13-11-2026) HR opened by itself has the way back to the Portal and Log out; inside Mechanical\'s screen they are not shown', () => {
+  const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
+  assert.match(html, /id="go_portal" type="button"[^>]*hidden>‹ Portal<\/button><button class="top-b out" id="log_out" type="button"[^>]*hidden>Log out<\/button>/); assert.match(html, /\.embed \.top-b\{display:none\}/);
+  assert.match(html, /gp\.hidden = lo\.hidden = EMBED \|\| !PORTAL;/); assert.match(html, /gp\.onclick = function \(\) \{ location\.href = PORTAL \+ '\/'; \};/);
+  // Log out: HR's sign-in first, then the Portal's own logout, then the Portal's page – whatever answers
+  assert.match(html, /api\('api\/logout', \{\}\)\.catch\(function \(\) \{[^}]*\}\)\.then\(portalOut\)\.then\(away, away\);/); assert.match(html, /fetch\(PORTAL \+ '\/api\/auth', \{ method: 'POST', credentials: 'same-origin', headers: \{ 'Content-Type': 'application\/json', 'X-RCL': '1' \}, body: JSON\.stringify\(\{ action: 'logout' \}\) \}\)/);
+});
