@@ -169,6 +169,18 @@ test('work places: only the HR Admin; a circle, an area, along the road; for who
   l = await ACT.placeImport(admin, { rows: [{ name: 'Gate A ' + tag, lat: 18.9, lng: 73.9, radius_m: 80 }, { name: 'Gate A ' + tag, lat: 18.9, lng: 73.9, radius_m: 80 }, { name: 'Gate C ' + tag, lat: 99, lng: 73.9, radius_m: 80 }] });
   assert.deepStrictEqual([l.saved, l.lines.map(x => x.line)], [0, [2, 3]], 'all or none');
   l = await ACT.placeImport(admin, { rows: [{ name: 'Gate A ' + tag, lat: 18.9, lng: 73.9, radius_m: 80 }, { name: 'Gate B ' + tag, lat: 18.91, lng: 73.9, radius_m: 80 }] }); assert.strictEqual(l.saved, 2);
+  // (13-11-2026, "konta user konte location war … konte location sathi konte user … ek employee aso ki bulk") who marks where;
+  // single people to / from a place – a place for everybody only after the Admin said yes (it becomes "Chosen people")
+  let w = await ACT.placeMap(user); const p1 = w.people.find(e => e.id === E1.id);
+  assert.ok(p1.places.indexOf(placeId) > -1 && p1.last === null); assert.strictEqual(w.places.find(p => p.id === placeId).count, w.people.length);
+  await no(ACT.placeMap(self(mail1)), /HR office only/, 403);
+  await no(ACT.placePeople(user, { place_id: camp, add: [E1.id] }), /Only the HR Admin/, 403); await no(ACT.placePeople(admin, { place_id: camp }), /at least one employee/);
+  await no(ACT.placePeople(admin, { place_id: camp, remove: [E1.id] }), /is for everybody of the site \(\d+ people now\) – it holds no single people/, 409);
+  assert.strictEqual((await ACT.placeMap(user)).places.find(p => p.id === camp).scope, 'all', 'nothing changed by the refusal');
+  w = await ACT.placePeople(admin, { place_id: camp, remove: [E1.id], convert: true });
+  assert.ok(w.people.find(e => e.id === E1.id).places.indexOf(camp) < 0 && w.people.find(e => e.id === E2.id).places.indexOf(camp) > -1); assert.strictEqual(w.places.find(p => p.id === camp).scope, 'people');
+  w = await ACT.placePeople(admin, { place_id: camp, add: [E1.id] }); assert.ok(w.people.find(e => e.id === E1.id).places.indexOf(camp) > -1); assert.strictEqual(w.people_now, w.places.find(p => p.id === camp).count);
+  await no(ACT.placePeople(ses('admin', SITE2), { place_id: camp, add: [E1.id] }), /not found on this site/, 404);
   await no(ACT.placeRemove(admin, { id: yard, reason: '' }), /write why/); l = await ACT.placeRemove(admin, { id: yard, reason: 'Work over' });
   assert.ok(!l.places.some(p => p.id === yard)); assert.strictEqual((await db('GET', 'hr_places?select=removed_by,active&id=eq.' + yard))[0].removed_by, 'admin@rig.test', 'the row stays');
   await no(ACT.placeSave(ses('admin', SITE2), { id: placeId, name: 'Stolen', lat: 1, lng: 1, radius_m: 100 }), /not found on this site/, 404);
@@ -716,9 +728,9 @@ test('(what comes up) the office\'s list: papers running out within 30 days or r
   const born = (y - 30) + D.addDays(today, 3).slice(4), joined = (y - 5) + today.slice(4);
   const E = await ACT.empSave(aC, { name: 'Coming One', category: 'driver', mobile: mob(), email: mail('com1'), dob: born, joined_on: joined });
   const F = await ACT.empSave(aC, { name: 'Coming Two', category: 'staff', mobile: mob(), email: mail('com2'), dob: (y - 40) + D.addDays(today, 60).slice(4), joined_on: '2024-01-01' });
-  await db('POST', 'hr_employee_docs', [{ employee_id: E.id, kind: 'licence', title: '', number: 'RIG1', expires_on: D.addDays(today, 10), path: 'rig/a.pdf', mime: 'application/pdf', bytes: 10, created_by: 'rig' },
-    { employee_id: E.id, kind: 'other', title: 'Medical', number: '', expires_on: D.addDays(today, -2), path: 'rig/b.pdf', mime: 'application/pdf', bytes: 10, created_by: 'rig' },
-    { employee_id: F.id, kind: 'other', title: 'Far paper', number: '', expires_on: D.addDays(today, 90), path: 'rig/c.pdf', mime: 'application/pdf', bytes: 10, created_by: 'rig' }], 'return=minimal');
+  await db('POST', 'hr_employee_docs', [{ employee_id: E.id, kind: 'licence', title: '', number: 'RIG1', expires_on: D.addDays(today, 10), path: 'rig/' + tag + 'a.pdf', mime: 'application/pdf', bytes: 10, created_by: 'rig' },
+    { employee_id: E.id, kind: 'other', title: 'Medical', number: '', expires_on: D.addDays(today, -2), path: 'rig/' + tag + 'b.pdf', mime: 'application/pdf', bytes: 10, created_by: 'rig' },
+    { employee_id: F.id, kind: 'other', title: 'Far paper', number: '', expires_on: D.addDays(today, 90), path: 'rig/' + tag + 'c.pdf', mime: 'application/pdf', bytes: 10, created_by: 'rig' }], 'return=minimal');
   const c = await ACT.hrComing(aC);
   assert.deepStrictEqual(c.papers.map(p => [p.code, p.left]), [[E.code, -2], [E.code, 10]]); assert.match(c.papers[1].paper, /licen/i);
   assert.deepStrictEqual(c.days.map(d => [d.code, d.what, d.in, d.years || 0]), [[E.code, 'work', 0, 5], [E.code, 'birthday', 3, 0]]);

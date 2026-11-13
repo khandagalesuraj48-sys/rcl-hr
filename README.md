@@ -42,6 +42,12 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
   `sql/hr_step4_attendance.sql` (run by the owner in rcl-hr, after step 3): `hr_projects`, `hr_places`, `hr_place_people`,
   `hr_devices`, `hr_device_tries`, `hr_punches`, `hr_punch_reviews`, the PRIVATE bucket `hr-selfies`; the role `self`.
   `lib/geo.js` (inside / how far), `lib/attend.js` (the rules), `lib/act_attend.js` (the actions), `public/att.js` (the pages).
+  * **Who marks where** (13-11-2026 – "konta user konte location war sign in kartoy … konte location sathi konte user aahet … ek
+    employee aso ki bulk employee"): the Work places page has three views – the places themselves · **by place** (who is there,
+    a place with nobody in red) · **by person** (where each one may mark, where he marked last, "No place – cannot mark" in red).
+    `placeMap` reads it with the same rule a punch is checked with; `placePeople` adds / takes single people – one or many
+    (tick them, or paste their codes from Excel). A place for everybody / categories / departments is changed only after the
+    Admin said yes: it becomes "Chosen people" with the people it is for now. No database change.
   * **Work places** (`placeList`, `placeSave`, `placeBulk`, `placeImport`, `placeRemove`, `projSave` – changes: HR Admin / Super
     Admin): a point + metres (20–5000), an area drawn on the map, or along the road with metres each side; for everybody, some
     categories, some departments or chosen people; from a date; On / Off; many at once. Removed = kept with who and why.

@@ -62,10 +62,94 @@
 
   /* ───────────── Work places ───────────── */
   function places() {
+    if (A.pview && A.pview !== 'list') { api('placeMap').then(function (r) { A.who = r; drawMap(); }, fail); return; }
     api('placeList').then(function (r) { A.data = r; drawPlaces(); }, fail);
   }
+  /* (13-11-2026, his words: "konta user konte location war sign in kartoy … konte location sathi konte user aahet … ek employee
+   * aso ki bulk employee") THREE VIEWS of the page: the work places themselves (as it was) · by place – who is there · by person
+   * – where each one may mark and where he marked last, with many people added to / taken from a place at once. */
+  function viewBar(root) {
+    var bar = el('div', 'tools'); bar.id = 'pv_bar';
+    [['list', 'Work places'], ['place', 'By place – who is there'], ['person', 'By person – who marks where']].forEach(function (v) {
+      var b = btn((A.pview || 'list') === v[0] ? 'pri' : 'sec', v[1], function () { A.pview = v[0]; A.ask = null; places(); }); b.id = 'pv_' + v[0]; bar.appendChild(b); });
+    root.appendChild(bar);
+  }
+  function whomMap(p) {
+    if (p.scope === 'all') return 'Everybody of the site';
+    if (p.scope === 'category') return p.scope_values.map(function (c) { return CAT[c] || c; }).join(', ');
+    if (p.scope === 'department') return p.scope_values.map(function (d) { return nameOf(A.init.departments, d) || '?'; }).join(', ');
+    return 'Chosen people';
+  }
+  function redTag(text) { var x = el('span', 'st', text); x.style.background = '#FFE6E3'; x.style.color = '#C22A1B'; return x; }
+  function lastText(e, d) {
+    var l = e.last; if (!l) return '–';
+    return (nameOf(d.places, l.place_id) || 'a place') + ' · ' + (l.day === d.today ? 'today' : dmy(l.day)) + ' ' + l.time + ' ' + (l.kind === 'in' ? 'IN' : 'OUT');
+  }
+  function sendPeople(body) {
+    api('placePeople', body).then(function (r) { A.who = r; A.psel = {}; A.ask = null; toast('Done – ' + r.people_now + ' people are at this work place now.'); drawMap(); },
+      function (e) { if (e && e.code === 'scope' && !body.convert) { A.ask = { text: e.message, body: Object.assign({}, body, { convert: true }) }; drawMap(); } else fail(e); });
+  }
+  function drawMap() {
+    var root = $('p_att'), d = A.who; root.textContent = ''; viewBar(root); A.psel = A.psel || {}; A.open = A.open || {};
+    if (A.ask) {      // a place for everybody / categories / departments: said plainly before it is changed
+      var w = el('div', 'box'); w.id = 'pm_ask'; w.style.padding = '14px 16px'; w.style.marginBottom = '12px'; w.style.borderColor = '#F0C36A'; w.style.background = '#FFF8E6';
+      w.appendChild(el('p', '', A.ask.text)); var wb = el('div', 'tools'); wb.style.margin = '10px 0 0';
+      wb.appendChild(btn('pri', 'Yes – make it "Chosen people"', function () { sendPeople(A.ask.body); })); wb.appendChild(btn('sec', 'No', function () { A.ask = null; drawMap(); })); w.appendChild(wb); root.appendChild(w);
+    }
+    if (A.pview === 'place') {
+      if (!d.places.length) { var n0 = el('div', 'box'); n0.appendChild(el('p', 'none', 'No work place yet – add the first one under "Work places".')); root.appendChild(n0); return; }
+      d.places.forEach(function (p) {
+        var who = d.people.filter(function (e) { return e.places.indexOf(p.id) > -1; }), card = el('div', 'box'); card.className = 'box pm-card'; card.style.padding = '14px 16px'; card.style.marginBottom = '12px';
+        var top = el('div', ''); top.style.display = 'flex'; top.style.alignItems = 'center'; top.style.gap = '12px';
+        var left = el('div', ''); left.style.flex = '1'; var nm = el('div', '', p.name); nm.style.fontWeight = '700'; nm.style.fontSize = '16px'; left.appendChild(nm); left.appendChild(el('div', 'muted', 'For: ' + whomMap(p) + (p.on ? '' : ' · Off – nobody can mark here now')));
+        var num = el('div', ''); num.style.textAlign = 'right'; var b = el('b', '', String(who.length)); b.style.fontSize = '24px'; if (!who.length) b.style.color = '#C22A1B'; num.appendChild(b); num.appendChild(el('div', 'muted', who.length === 1 ? 'person' : 'people'));
+        top.appendChild(left); top.appendChild(num); card.appendChild(top);
+        var list = el('div', ''); list.style.margin = '10px 0 0';
+        if (!who.length) { list.appendChild(redTag(p.on ? 'Nobody yet – nobody can mark here' : 'Nobody')); }
+        (A.open[p.id] ? who : who.slice(0, 10)).forEach(function (e) { var t = el('span', 'tag', e.name + ' (' + e.code + ')'); t.style.paddingRight = '12px'; list.appendChild(t); });
+        if (who.length > 10) list.appendChild(btn('sec', A.open[p.id] ? 'Show fewer' : '+ ' + (who.length - 10) + ' more', function () { A.open[p.id] = !A.open[p.id]; drawMap(); }));
+        card.appendChild(list);
+        if (isAdmin()) { var tb = el('div', 'tools'); tb.style.margin = '12px 0 0'; tb.appendChild(btn('pri', '+ Add people', function () { A.pview = 'person'; A.target = p.id; A.pnone = false; drawMap(); })); card.appendChild(tb); }
+        root.appendChild(card);
+      });
+      return;
+    }
+    // ---- by person
+    var tools = el('div', 'tools'), q = el('input'); q.id = 'pm_q'; q.placeholder = 'Search name or code'; q.setAttribute('aria-label', 'Search'); q.value = A.pq || ''; q.style.flex = '1';
+    q.oninput = function () { A.pq = q.value; clearTimeout(drawMap.t); drawMap.t = setTimeout(function () { drawMap(); var n = document.getElementById('pm_q'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 250); };
+    var cat = el('select'); cat.setAttribute('aria-label', 'Category'); opt(cat, '', 'All categories', !A.pcat); Object.keys(CAT).forEach(function (k) { opt(cat, k, CAT[k], A.pcat === k); }); cat.onchange = function () { A.pcat = cat.value; drawMap(); };
+    var nl = el('label', ''); nl.style.display = 'inline-flex'; nl.style.alignItems = 'center'; nl.style.gap = '8px'; nl.style.fontSize = '14px'; nl.style.cursor = 'pointer'; var nc = el('input'); nc.type = 'checkbox'; nc.id = 'pm_none'; nc.style.width = '18px'; nc.style.height = '18px'; nc.style.padding = '0'; nc.style.boxShadow = 'none'; nc.style.flex = 'none'; nc.style.minWidth = '0'; nc.style.margin = '0'; nl.style.whiteSpace = 'nowrap'; nc.checked = !!A.pnone; nc.onchange = function () { A.pnone = nc.checked; drawMap(); }; nl.appendChild(nc); nl.appendChild(document.createTextNode('Without a place only'));
+    tools.appendChild(q); tools.appendChild(cat); tools.appendChild(nl); root.appendChild(tools);
+    var find = (A.pq || '').trim().toLowerCase(), rows = d.people.filter(function (e) { return (!find || (e.name + ' ' + e.code).toLowerCase().indexOf(find) > -1) && (!A.pcat || e.category === A.pcat) && (!A.pnone || !e.places.length); });
+    var ids = Object.keys(A.psel).filter(function (k) { return A.psel[k] && d.people.some(function (e) { return e.id === k; }); });
+    if (isAdmin()) {
+      // many at once: tick them (or paste their codes – a column of Excel), choose the place, add or take
+      var bar = el('div', 'tools'); bar.id = 'pm_bulk'; var cnt = el('b', '', ids.length + ' chosen'); cnt.style.alignSelf = 'center'; bar.appendChild(cnt);
+      var codes = el('input'); codes.id = 'pm_codes'; codes.placeholder = 'Paste codes (from Excel) to tick them'; codes.setAttribute('aria-label', 'Paste employee codes'); codes.style.flex = '1';
+      bar.appendChild(codes); bar.appendChild(btn('sec', 'Tick these', function () { var want = codes.value.split(/[\s,;]+/).map(function (c) { return c.trim().toLowerCase(); }).filter(Boolean), hit = 0; d.people.forEach(function (e) { if (want.indexOf(String(e.code).toLowerCase()) > -1) { A.psel[e.id] = true; hit++; } }); toast(hit + ' of ' + want.length + ' codes found and ticked.', hit < want.length); drawMap(); }));
+      var ps = el('select'); ps.id = 'pm_place'; ps.setAttribute('aria-label', 'Work place'); opt(ps, '', 'Choose a work place…', !A.target); d.places.forEach(function (p) { opt(ps, p.id, p.name + (p.on ? '' : ' (off)'), A.target === p.id); }); ps.onchange = function () { A.target = ps.value; };
+      bar.appendChild(ps);
+      var go = function (key) { return function () { if (!ids.length) return toast('Tick at least one employee first.', true); if (!A.target) return toast('Choose the work place first.', true); var b = { place_id: A.target }; b[key] = ids; sendPeople(b); }; };
+      var ba = btn('pri', 'Add to this place', go('add')); ba.id = 'pm_add'; var br = btn('sec', 'Take from this place', go('remove')); br.id = 'pm_take'; bar.appendChild(ba); bar.appendChild(br); root.appendChild(bar);
+    }
+    var all = el('th'), ca = el('input'); ca.type = 'checkbox'; ca.setAttribute('aria-label', 'Choose all shown'); ca.checked = rows.length > 0 && rows.every(function (e) { return A.psel[e.id]; }); ca.onchange = function () { rows.forEach(function (e) { A.psel[e.id] = ca.checked; }); drawMap(); }; all.appendChild(ca);
+    var t = table((isAdmin() ? [all] : []).concat(['Employee', 'Category', 'Can mark at', 'Last marked at']));
+    rows.forEach(function (e) {
+      var tr = el('tr'); tr.style.cursor = 'default';
+      if (isAdmin()) { var c = el('td'), cb = el('input'); cb.type = 'checkbox'; cb.checked = !!A.psel[e.id]; cb.setAttribute('aria-label', 'Choose ' + e.name); cb.onchange = function () { A.psel[e.id] = cb.checked; drawMap(); }; c.appendChild(cb); tr.appendChild(c); }
+      tr.appendChild(face(el('td', 'nm', e.name + ' · ' + e.code), e.code)); tr.appendChild(el('td', '', CAT[e.category] || ''));
+      var at = el('td'); at.style.whiteSpace = 'normal';
+      if (!e.places.length) at.appendChild(redTag('No place – cannot mark'));
+      e.places.forEach(function (pid) { var sp = el('span', 'st s-active', nameOf(d.places, pid)); sp.style.marginRight = '6px'; sp.style.display = 'inline-block'; sp.style.marginBottom = '3px'; at.appendChild(sp); });
+      tr.appendChild(at); tr.appendChild(el('td', 'muted', lastText(e, d))); t.body.appendChild(tr);
+    });
+    if (!rows.length) t.box.appendChild(el('p', 'none', d.people.length ? 'Nobody matches.' : 'No employee on this site yet.'));
+    root.appendChild(t.box);
+    var nonePlace = d.people.filter(function (e) { return !e.places.length; }).length;
+    root.appendChild(el('p', 'muted', nonePlace ? nonePlace + ' of ' + d.people.length + ' employees have no work place – they cannot mark attendance.' : 'Every employee has a work place.'));
+  }
   function drawPlaces() {
-    var root = $('p_att'), d = A.data; root.textContent = ''; var ids = Object.keys(A.sel).filter(function (k) { return A.sel[k] && d.places.some(function (p) { return p.id === k; }); });
+    var root = $('p_att'), d = A.data; root.textContent = ''; viewBar(root); var ids = Object.keys(A.sel).filter(function (k) { return A.sel[k] && d.places.some(function (p) { return p.id === k; }); });
     var tools = el('div', 'tools'), pf = el('select'); pf.setAttribute('aria-label', 'Project'); opt(pf, '', 'All projects', !A.proj); d.projects.forEach(function (p) { opt(pf, p.id, p.name + (p.active ? '' : ' (off)'), A.proj === p.id); }); pf.onchange = function () { A.proj = pf.value; drawPlaces(); }; tools.appendChild(pf);
     var gap = el('span'); gap.style.flex = '1'; tools.appendChild(gap);
     if (isAdmin()) {
@@ -226,6 +310,6 @@
     pages: PAGES,
     has: function (page) { return PAGES.some(function (p) { return p[0] === page; }); },
     open: function (page, me, init) { A.me = me; A.init = init; A.page = page; if (!A.day) A.day = new Date(Date.now() + 19800000).toISOString().slice(0, 10); wire(); if (page === 'places') places(); else if (page === 'phones') phones(); else attendance(); },
-    _size: size, _whom: function (p, init) { A.init = init; return whom(p); }
+    _size: size, _whom: function (p, init) { A.init = init; return whom(p); }, _last: lastText
   };
 })();
