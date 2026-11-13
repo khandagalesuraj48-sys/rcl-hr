@@ -23,7 +23,7 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
   * `masterSave` (HR Admin) – departments, designations.
   * `empList`, `empGet`, `empPick`, `empSave` (HR User too) – code `RCL001, RCL002 …` by itself, or typed, and it can be changed (asked 12-11-2026 – never another employee's; the change is written down); categories Staff / Operator / Driver /
     Labour; a mobile number and an e-mail belong to ONE employee (they are what he will sign in with); under 18 is refused.
-  * Status: **incomplete** (DOB, e-mail or mobile missing) → **pending** (complete – waits for his own e-mail OTP) → **active**
+  * Status: **incomplete** (DOB, e-mail or mobile missing) → **pending** (complete – shown as "Complete" since 13-11-2026) → **active**
     (only by the activation step – not built yet) → **left**.
   * `empTransfer`, `empExit` (HR Admin) – a transfer only to a site of the sign-in, never dated before the present posting.
   * `empImport` – at most 1000 rows; first a check that saves nothing; a faulty row comes back with its line and why.

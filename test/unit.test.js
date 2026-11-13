@@ -154,7 +154,8 @@ test('the employee\'s details: four categories; mobile and e-mail made tidy; DOB
   assert.strictEqual(R.age('2008-11-13', now), 17); assert.strictEqual(R.age('2008-11-12', now), 18);
   let e = R.employee({ name: '  Test   Person ', category: 'Labor', mobile: '09876543210', email: 'T@X.in', dob: '12-11-2008', joined_on: '01-04-2026' }, now);
   assert.deepStrictEqual(e, { row: { name: 'Test Person', category: 'labour', gender: '', mobile: '9876543210', email: 't@x.in', dob: '2008-11-12', joined_on: '2026-04-01' }, errors: [], missing: [] });
-  assert.strictEqual(R.statusOf(e.row, ''), 'pending', 'complete: waits for his own e-mail OTP – never active by itself');
+  assert.strictEqual(R.statusOf(e.row, ''), 'pending', 'complete – never active by itself');
+  assert.match(fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8'), /pending: 'Complete'/, '(13-11-2026) shown as "Complete" – not "Waiting for OTP"');
   e = R.employee({ name: 'Test Person', category: 'driver' }, now); assert.deepStrictEqual(e.errors, []); assert.deepStrictEqual(e.missing, ['Date of birth', 'Mobile or e-mail']); assert.strictEqual(R.statusOf(e.row, ''), 'incomplete');
   // (13-11-2026) he signs in with his e-mail OR his mobile number: one of them, with the date of birth, makes him complete
   for (const one of [{ mobile: '9876543210' }, { email: 'a@b.co' }]) { const c = R.employee(Object.assign({ name: 'Test Person', category: 'driver', dob: '01-01-1990' }, one), now); assert.deepStrictEqual([c.missing, R.statusOf(c.row, '')], [[], 'pending']); }
