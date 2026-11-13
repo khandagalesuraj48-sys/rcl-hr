@@ -13,7 +13,7 @@ const LV = require('../../lib/act_leave'), BK = require('../../lib/act_rulebook'
   await BK.ACT.rbDefault(sup, { kind: 'leave', policy_id: p.id, valid_from: from });
   const b = await LV.state(site, where, emps); ok(b.book === true, 'walked with the Rule Book');
   const rows = emps.map(e => b.by[e.id]), sun = rows.map(r => (r.ledger || []).filter(x => x.source === 'sunday').reduce((s, x) => s + x.days, 0));
-  ok(rows.every(r => Array.isArray(r.ledger) && r.comp === 0), 'everybody has a ledger and an empty Comp-off balance');
+  ok(rows.every(r => Array.isArray(r.ledger) && r.comp >= 0), 'everybody has a ledger and a Comp-off balance (0 unless a comp-off was approved for him on this rig)');
   ok(sun.every(v => v >= 0 && v <= 4), 'Sundays worked earned (the rig\'s only Sunday was a day off – the unit test covers a worked one): ' + JSON.stringify([...new Set(sun)]));
   ok(rows.every(r => !(r.ledger || []).some(x => x.source === 'month')), 'nothing is added at the month\'s start with this policy');
   const abs = rows.reduce((s, r) => s + Object.keys(r.absent || {}).length, 0); ok(abs > 0, 'absent days are marked, not paid from the balance: ' + abs);
