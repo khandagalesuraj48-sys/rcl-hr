@@ -281,6 +281,11 @@ designation's category beside the settings (`hr_settings`, site `*`).
 * **"‹ Portal" and "Log out" on top (13-11-2026, "prt portal la jayla option disat nahiye n log out kahich nahi"):** when HR is
   opened by itself. "‹ Portal" goes back (the sign-in stays); "Log out" ends HR's sign-in and the Portal's, then shows the
   Portal's sign-in page. Inside Mechanical's screen they are not shown (its own are there).
+* **One look wherever HR is opened from (13-11-2026, "hr portal kuthun pn open houde asach disla pahije ani ethun portal madhe
+  back ani site madhe back jata ale pahije"):** when the ERP shows HR in its screen, HR takes the whole window (the site, the
+  page and the person go along in the address) – its own menu on the left, **"‹ ERP"**, "‹ Portal" and "Log out" on top. The
+  ERP also loads HR ahead, out of sight: while its frame is hidden nothing is taken. The browser's Back returns to the ERP.
+  Nothing of the ERP (Mechanical) is changed for it.
 * **Only the web.** Nothing of the phone app and nothing of the database is changed; of the server only `attDash` (reading).
 
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
