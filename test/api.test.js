@@ -218,6 +218,8 @@ test('a punch: himself only, inside only, with a photo, IN then OUT, sent twice 
   r = await ACT.punch(s1, P({ client_id: await selfie(s1, cid()), kind: 'out' })); assert.deepStrictEqual([r.punch.kind, r.next, r.punches.length], ['out', 'in', 2]);
   a = await ACT.myAttend(s1, { device_id: P().device.id }); assert.deepStrictEqual([a.phone, a.punches.map(p => p.kind)], ['this', ['in', 'out']]);
   const mo = await ACT.myMonth(s1, {}); assert.deepStrictEqual([mo.days.length, mo.days[0].punches, /^\d\d:\d\d$/.test(mo.days[0].in), /^\d\d:\d\d$/.test(mo.days[0].out)], [1, 2, true, true]);
+  // (13-11-2026) the day's work place – where its first IN was marked – and the site's rules in words (none set yet: no line)
+  assert.strictEqual(mo.days[0].place, 'Office ' + tag); assert.ok(Array.isArray(mo.rules));
   // the database itself: a punch is never changed or deleted
   await no(db('PATCH', 'hr_punches?id=eq.' + r.punch.id, { kind: 'in' }), /Database|refused/); await no(db('DELETE', 'hr_punches?id=eq.' + r.punch.id), /Database|refused/);
 });
