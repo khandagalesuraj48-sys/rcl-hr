@@ -728,3 +728,12 @@ test('(13-11-2026) HR opened by itself has the way back to the Portal and Log ou
   // Log out: HR's sign-in first, then the Portal's own logout, then the Portal's page – whatever answers
   assert.match(html, /api\('api\/logout', \{\}\)\.catch\(function \(\) \{[^}]*\}\)\.then\(portalOut\)\.then\(away, away\);/); assert.match(html, /fetch\(PORTAL \+ '\/api\/auth', \{ method: 'POST', credentials: 'same-origin', headers: \{ 'Content-Type': 'application\/json', 'X-RCL': '1' \}, body: JSON\.stringify\(\{ action: 'logout' \}\) \}\)/);
 });
+
+test('(13-11-2026) one look wherever HR is opened from: shown by the ERP it takes the whole window – never while the ERP only loads it ahead, out of sight; "‹ ERP" goes back', () => {
+  const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
+  assert.match(html, /var shown = function \(\) \{ try \{ return !!FE && !FE\.hidden && FE\.getClientRects\(\)\.length > 0; \} catch \(e\) \{ return false; \} \};/);
+  assert.match(html, /if \(shown\(\)\) takeWindow\(\); else if \(FE\) var WT = setInterval\(function \(\) \{ if \(shown\(\)\) \{ clearInterval\(WT\); takeWindow\(\); \} \}, 250\);/);
+  assert.match(html, /window\.top\.location\.assign\(BASE \+ \(location\.hash \|\| ''\)\); OUT = true;/, 'the site, the page and the person go along; Back returns to the ERP');
+  assert.match(html, /if \(!OUT\) start\(\);/); assert.match(html, /id="go_erp" type="button"[^>]*hidden>‹ ERP<\/button>/);
+  assert.match(html, /main = \/\\\/hr\\\/\$\/\.test\(BASE\) \? BASE\.replace\(\/hr\\\/\$\/, ''\) : ''; if \(ge\) \{ ge\.hidden = EMBED \|\| !main;/);
+});

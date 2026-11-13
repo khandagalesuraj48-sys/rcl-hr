@@ -242,7 +242,7 @@ body.in .ep-do button:disabled{opacity:1;color:rgba(255,255,255,.72)}body.in .ep
        screen and on a narrow screen the menu is the row of buttons as before -->
   <aside class="sd" id="side"><div class="sd-brand"><img src="favicon.png" alt="" width="36" height="36"><div><b>RCL ERP</b><span>HR · Attendance · Payroll</span></div></div><nav id="tabs" aria-label="The pages of HR"></nav><div class="sd-foot" id="sd_foot"></div></aside>
   <div class="mn">
-  <div class="bar"><button class="fd-open" id="find_open" type="button" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Search a page, an employee, an action…</span><kbd>Ctrl K</kbd></button><select id="site_pick" class="dz-pill" aria-label="Site" hidden></select><span class="who2" id="who2"></span><button class="top-b" id="go_portal" type="button" title="Back to the Portal – the other modules and sites" hidden>‹ Portal</button><button class="top-b out" id="log_out" type="button" title="Sign out of the ERP on this computer" hidden>Log out</button></div>
+  <div class="bar"><button class="fd-open" id="find_open" type="button" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Search a page, an employee, an action…</span><kbd>Ctrl K</kbd></button><select id="site_pick" class="dz-pill" aria-label="Site" hidden></select><span class="who2" id="who2"></span><button class="top-b" id="go_erp" type="button" title="Back to the ERP of the site – Machinery, Store, Engineering, Purchase" hidden>‹ ERP</button><button class="top-b" id="go_portal" type="button" title="Back to the Portal – the other modules and sites" hidden>‹ Portal</button><button class="top-b out" id="log_out" type="button" title="Sign out of the ERP on this computer" hidden>Log out</button></div>
   <div class="dz-top" id="p_head"><div><h2 id="p_title"></h2><small id="p_sub"></small></div><div class="dz-pills"><span id="p_tools" style="display:contents"></span></div></div>
   <section id="p_emp">
     <div class="chips" id="chips"></div>
@@ -477,7 +477,19 @@ body.in .ep-do button:disabled{opacity:1;color:rgba(255,255,255,.72)}body.in .ep
   var $ = function (id) { return document.getElementById(id); };
   var BASE = location.pathname.endsWith('/') ? location.pathname : location.pathname + '/';
   var EMBED = /[?&]embed=1(&|$)/.test(location.search) && (function () { try { return window.parent !== window && !!window.parent.document; } catch (e) { return false; } })();
-  if (EMBED) document.documentElement.classList.add('embed');
+  /* (13-11-2026, asked: "hr portal kuthun pn open houde asach disla pahije ani ethun portal madhe back ani site madhe back jata ale
+   * pahije") ONE LOOK, WHEREVER HR IS OPENED FROM: when the ERP SHOWS HR in its screen, HR takes the whole window instead – its
+   * own menu on the left, "‹ ERP" and "‹ Portal" on top to go back. The site, the page and the person the ERP named go along in
+   * the address. The ERP also loads HR AHEAD, out of sight (so that it opens without waiting): as long as the frame is hidden
+   * nothing is taken – only when it is really shown. */
+  var OUT = false;
+  if (EMBED) {
+    document.documentElement.classList.add('embed');
+    var FE = null; try { FE = window.frameElement; } catch (e) { FE = null; }
+    var shown = function () { try { return !!FE && !FE.hidden && FE.getClientRects().length > 0; } catch (e) { return false; } };
+    var takeWindow = function () { try { window.top.location.assign(BASE + (location.hash || '')); OUT = true; } catch (e) { /* the window cannot be taken: the row of buttons inside the frame, as before */ } };
+    if (shown()) takeWindow(); else if (FE) var WT = setInterval(function () { if (shown()) { clearInterval(WT); takeWindow(); } }, 250);
+  }
   var S = { me: null }, PORTAL = '';
   var BUILT = 'Signed in. The pages of HR are being built. · Sign-in झाले. HR ची pages बनवली जात आहेत. · Sign-in हो गया। HR के pages बनाए जा रहे हैं।';
   function api(path, body) {
@@ -528,6 +540,8 @@ body.in .ep-do button:disabled{opacity:1;color:rgba(255,255,255,.72)}body.in .ep
    * stays; "Log out" ends the sign-in here AND on the Portal, then shows the Portal's sign-in page. */
   function outButtons() {
     var gp = $('go_portal'), lo = $('log_out'); if (!gp || !lo) return; gp.hidden = lo.hidden = EMBED || !PORTAL;
+    // "‹ ERP": HR is served under the ERP's own address (<main>/hr/) – its start page is the ERP of the site
+    var ge = $('go_erp'), main = /\/hr\/$/.test(BASE) ? BASE.replace(/hr\/$/, '') : ''; if (ge) { ge.hidden = EMBED || !main; ge.onclick = function () { location.href = main; }; }
     gp.onclick = function () { location.href = PORTAL + '/'; };
     lo.onclick = function () {
       lo.disabled = gp.disabled = true; lo.textContent = 'Signing out…'; clearInterval(renewT); renewT = 0; S.me = null;
@@ -607,7 +621,7 @@ body.in .ep-do button:disabled{opacity:1;color:rgba(255,255,255,.72)}body.in .ep
       return me.signedIn ? api('api/logout', {}).catch(function () {}).then(next) : next();
     }, function (e) { msg(e.message, '', '', false); });
   }
-  start();
+  if (!OUT) start();      // (on its way to the whole window: nothing is asked from inside the frame)
 })();
 </script>
 </body>
