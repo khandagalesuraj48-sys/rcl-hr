@@ -39,6 +39,7 @@
           var send = function (dec) { api('leaveDecide', { id: q.id, decision: dec, note: note.value }).then(function () { toast(dec === 'approved' ? 'Approved.' : 'Refused.'); draw(); }, fail); };
           a.appendChild(note); a.appendChild(btn('mz-ok', q.stage === 'verify' ? 'Verify' : 'Approve', function () { send('approved'); })); a.appendChild(btn('mz-no', 'Refuse', function () { if (note.hidden) { note.hidden = false; note.focus(); } else send('refused'); }));
         }
+        if (q.files !== undefined && window.HRBOOK && window.HRBOOK.papers && q.status !== 'cancelled') a.appendChild(btn(q.files ? 'sm' : 'sm ghost', q.files ? 'Papers (' + q.files + ')' : 'Attach paper', function () { window.HRBOOK.papers(q, draw); }));      // (step 13) the papers of the request – never compulsory
         tr.appendChild(a); t.body.appendChild(tr);
       });
       if (!r.rows.length) t.box.appendChild(el('p', 'none', V.status === 'pending' ? 'Nothing is waiting.' : 'Nothing here.'));

@@ -136,7 +136,7 @@
     var d = el('div', 'dlg'), s = el('div', 'sheet wide'); s.setAttribute('role', 'dialog'); s.setAttribute('aria-modal', 'true'); s.appendChild(el('h2', '', title)); if (sub) s.appendChild(el('p', 'sub', sub));
     var body = el('div'), err = el('p', 'err'); err.hidden = true; err.setAttribute('role', 'alert'); var acts = el('div', 'acts'); s.appendChild(body); s.appendChild(err); s.appendChild(acts); d.appendChild(s);
     var close = function () { document.removeEventListener('keydown', key); if (d.parentNode) d.parentNode.removeChild(d); }, key = function (ev) { if (ev.key === 'Escape') close(); }; document.addEventListener('keydown', key); document.body.appendChild(d);
-    return { body: body, acts: acts, close: close, err: function (t) { err.textContent = t; err.hidden = false; } };
+    return { body: body, acts: acts, close: close, err: function (t) { err.textContent = t || ''; err.hidden = !t; } };
   }
   function numIn(v, ph) { var i = el('input'); i.type = 'number'; i.step = 'any'; i.min = '0'; if (v !== undefined && v !== null) i.value = v; i.placeholder = ph || 'leave empty = not applied'; return i; }
   function pickIn(list, v) { var s = el('select'); list.forEach(function (x) { var o = el('option', '', x[1]); o.value = x[0]; s.appendChild(o); }); if (v !== undefined) s.value = String(v); return s; }
@@ -318,7 +318,39 @@
     }
   }
 
+  /* ───────── THE PAPERS OF A LEAVE REQUEST (asked: "leave form attachment") – never compulsory; the HR office looks, attaches, removes ───────── */
+  function papers(q, after) {
+    var sh = sheet('Papers of the leave', (q.code ? q.code + ' · ' : '') + (q.name || '') + ' · ' + dmy(q.from) + (q.to && q.to !== q.from ? ' – ' + dmy(q.to) : '')), list = el('div', 'lf-list'), add = el('div', 'lf-add'), changed = false;
+    sh.body.appendChild(list); sh.body.appendChild(add); sh.acts.appendChild(btn('sec', 'Close', function () { sh.close(); if (changed && after) after(); }));
+    var kb = function (n) { return n >= 1048576 ? (Math.round(n / 104857.6) / 10) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; };
+    function load() {
+      api('leaveFiles', { request: q.id }).then(function (r) {
+        list.textContent = ''; add.textContent = ''; sh.err('');
+        if (!r.files.length) list.appendChild(el('p', 'none', 'No paper is attached. A paper is never needed for a leave.'));
+        r.files.forEach(function (f) {
+          var row = el('div', 'lf-row'), nm = el('div', 'lf-nm'); nm.appendChild(el('b', '', f.name || (f.mime === 'application/pdf' ? 'PDF' : 'Photo'))); nm.appendChild(el('small', 'rb-hint', (f.mime === 'application/pdf' ? 'PDF' : 'Photo') + ' · ' + kb(f.size) + ' · ' + f.added_by + ' · ' + dmy(f.added_at)));
+          row.appendChild(el('span', 'lf-ic', f.mime === 'application/pdf' ? 'PDF' : 'IMG')); row.appendChild(nm);
+          row.appendChild(btn('sm', 'Open', function () { var w = window.open('', '_blank'); api('leaveFileLink', { file: f.id }).then(function (k) { if (w) w.location = k.url; else window.location = k.url; }, function (e) { if (w) w.close(); fail(e); }); }));
+          if (f.canRemove) row.appendChild(btn('sm ghost', 'Remove', function () { if (!window.confirm('Remove this paper from the request? It stays in the record.')) return; api('leaveFileRemove', { file: f.id }).then(function () { changed = true; toast('Removed – kept in the record.'); load(); }, fail); }));
+          list.appendChild(row);
+        });
+        if (r.canAdd && r.files.length < r.max) {
+          var inp = el('input'); inp.type = 'file'; inp.accept = 'image/jpeg,image/png,image/webp,application/pdf'; inp.setAttribute('aria-label', 'The paper to attach');
+          var b = btn('pri', 'Attach', function () {
+            var f = inp.files[0]; if (!f) return sh.err('Choose the file first.'); b.disabled = true;
+            api('leaveFileUrl', { request: q.id, type: f.type, bytes: f.size }).then(function (u) {
+              return fetch(u.url, { method: 'PUT', headers: { 'Content-Type': f.type, 'x-upsert': 'false' }, body: f }).then(function (x) { if (!x.ok) throw new Error('"' + f.name + '" was not kept (' + x.status + ') – try again.'); return api('leaveFileAdd', { request: q.id, path: u.path, name: f.name, bytes: f.size }); }, function () { throw new Error('"' + f.name + '" could not be sent – check the internet and try again.'); });
+            }).then(function () { changed = true; toast('Attached.'); load(); }, function (e) { b.disabled = false; sh.err(e.message); });
+          });
+          add.appendChild(inp); add.appendChild(b); add.appendChild(el('small', 'rb-hint', 'A photo (JPG, PNG, WebP) or a PDF, at most ' + r.maxMb + ' MB · at most ' + r.max + ' papers'));
+        } else if (r.canAdd) add.appendChild(el('small', 'rb-hint', 'This request holds ' + r.max + ' papers – no more can be attached.'));
+      }, function (e) { list.textContent = ''; list.appendChild(el('p', 'none', e.message)); });
+    }
+    load();
+  }
+
   window.HRBOOK = {
+    papers: papers,
     ledger: ledger,
     pages: [['rulebook', 'Rule Book'], ['approvals', 'Approvals']],
     has: function (page) { return page === 'rulebook' || page === 'approvals'; },
