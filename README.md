@@ -278,6 +278,9 @@ designation's category beside the settings (`hr_settings`, site `*`).
 * **Sign in / Sign out (time) are not on the page any more (13-11-2026, "apan shift wise deto … ethe he nko"):** the shift says
   the times. The two columns stay in the Excel sheet as before (`sheet: true`); the page, the count of details and the app do
   not show them, and a save of the Job tab leaves them as they are.
+* **"‹ Portal" and "Log out" on top (13-11-2026, "prt portal la jayla option disat nahiye n log out kahich nahi"):** when HR is
+  opened by itself. "‹ Portal" goes back (the sign-in stays); "Log out" ends HR's sign-in and the Portal's, then shows the
+  Portal's sign-in page. Inside Mechanical's screen they are not shown (its own are there).
 * **Only the web.** Nothing of the phone app and nothing of the database is changed; of the server only `attDash` (reading).
 
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
