@@ -222,9 +222,13 @@ designation's category beside the settings (`hr_settings`, site `*`).
   `sql/hr_once_remove_demo_2_delete.sql` (**deletes for ever**, in one transaction: every employee of every site and what hangs
   on him – attendance, phones, faces, leave, months, salaries, payslips; the masters, work places, shifts, rules, settings and
   the audit stay; the Portal and the files in Storage are not touched). A backup first.
-* Not in this piece (his decisions of 13-11-2026, to be built next): sign-in by **mobile number + password** beside the e-mail
-  (a change of the Portal and its database), the first password `Name@1234` and the temporary one from HR, the phone app's
-  screens for the new details, and the removal of the demo employees (an SQL he runs himself).
+* **Sign-in by e-mail OR mobile number; everybody at once (13-11-2026 – with the Portal's step 12).** An employee is complete with
+  his date of birth and an e-mail **or** a mobile number (`lib/rules.js`). His page's "Sign-in" sends both to the Portal
+  (`api/hrlogin`); the user ID of an employee without an e-mail (`<number>@mobile.id`) is kept in `hr_employees.portal_email`
+  (`signinLinked`) – "My HR" finds him by it, also after his number changed. **"Give sign-in to all"** (`signinPeople`, the
+  Portal 20 a call): the Super Admin, or an HR Admin he gave the power `signin` (Shifts & rules → Powers; off until given).
+  HR's server keeps and sees nothing of the passwords. No SQL step in HR.
+* Still to come: the phone app's sign-in box and its screens for the new details.
 
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
 | Name | What |

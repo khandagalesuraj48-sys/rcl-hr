@@ -153,7 +153,7 @@ body.in .sheet{overflow-x:hidden}
     <div class="tools">
       <input id="q" type="search" placeholder="Search name, code, mobile or e-mail" aria-label="Search">
       <select id="cat" aria-label="Category"><option value="">All categories</option><option value="staff">Staff</option><option value="operator">Operator</option><option value="driver">Driver</option><option value="labour">Labour</option></select>
-      <button class="sec" id="b_imp" type="button">Import Excel</button><button class="sec" id="b_exp" type="button">Export Excel</button><button class="pri" id="b_add" type="button">+ Add employee</button>
+      <button class="sec" id="b_signin" type="button" hidden>Give sign-in to all</button><button class="sec" id="b_imp" type="button">Import Excel</button><button class="sec" id="b_exp" type="button">Export Excel</button><button class="pri" id="b_add" type="button">+ Add employee</button>
     </div>
     <div class="box"><table><thead><tr><th>Employee</th><th>Category</th><th>Designation</th><th>Department</th><th>Mobile</th><th>Active from</th><th>Relieving date</th><th>Status</th></tr></thead><tbody id="emp_rows"></tbody></table>
       <p class="none" id="emp_none" hidden></p><p class="none muted" id="emp_more" hidden>Only the first 500 are shown – search to find the others.</p></div>
@@ -338,11 +338,19 @@ body.in .sheet{overflow-x:hidden}
 </div></div>
 <div class="dlg" id="dlg_login" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="lg_title">
   <h2 id="lg_title"></h2>
-  <p class="sub" id="lg_sub">He gets a <b>one-time password</b>: he signs in with his e-mail and this password (app or web), sets his own password at once, and then marks his attendance under HR. He sees only his own attendance – nothing else of the ERP. Forgot his password? Give a new one-time password here: the old one and his sign-ins end.</p>
-  <dl><dt>E-mail</dt><dd id="lg_email"></dd></dl>
+  <p class="sub" id="lg_sub">He signs in (app or web) with his <b>e-mail or his mobile number</b> and the password shown here, sets his own password at once, and then marks his attendance under HR. He sees only his own attendance – nothing else of the ERP. The <b>first</b> password is his first name and <b>@1234</b> (Ramesh@1234). Forgot his password? Give a new one-time password here: the old one and his sign-ins end.</p>
+  <dl><dt>E-mail</dt><dd id="lg_email"></dd><dt>Mobile number</dt><dd id="lg_mobile"></dd></dl>
   <div id="lg_done" hidden><label>One-time password – shown only now</label><p id="lg_pw" style="font:700 26px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:2px;background:#F6F9FF;border-radius:14px;padding:14px 16px;margin:6px 0 8px;user-select:all"></p><p class="muted">Tell it to him yourself. It is kept nowhere – when this box is closed it cannot be seen again; a new one can always be given.</p></div>
   <p class="err" id="lg_err" role="alert" hidden></p>
   <div class="acts"><button class="sec" type="button" data-close="dlg_login">Close</button><button class="pri" id="lg_go" type="button">Give a one-time password</button></div>
+</div></div>
+
+<div class="dlg" id="dlg_signin" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sg_title">
+  <h2 id="sg_title">Give a sign-in to every employee</h2>
+  <p class="sub">Every employee of this site who has an e-mail or a mobile number and has no sign-in yet gets one: he signs in with his e-mail or mobile number, and his <b>first password is his first name and @1234</b> (Ramesh@1234) – at his first sign-in he must set his own. Nobody who already has a sign-in is changed. He sees only his own attendance.</p>
+  <p class="sum" id="sg_sum"></p><div id="sg_res" hidden style="margin-top:12px"></div>
+  <p class="err" id="sg_err" role="alert" hidden></p>
+  <div class="acts"><button class="sec" type="button" data-close="dlg_signin">Close</button><button class="pri" id="sg_go" type="button">Give the sign-ins</button></div>
 </div></div>
 
 <p id="toast" role="status" hidden></p>
