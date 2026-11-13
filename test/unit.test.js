@@ -673,3 +673,18 @@ test('the new look, the rest (13-11-2026): the counts of the pages are counted f
   assert.match(att, /split\.appendChild\(t\.box\); split\.appendChild\(mb\); root\.appendChild\(split\); allMap\(mb, rows\);/); assert.match(att, /l\.on\('click', function \(\) \{ place\(o\); \}\)/);
   for (const s of [att, lv, roll, js]) assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(s));
 });
+
+test('an employee is ONE full page (13-11-2026): his head, Overview and the tabs of his full profile in it; no window on a window; the same actions as before', () => {
+  const rd = f => fs.readFileSync(path.join(root, 'public', f), 'utf8'), html = rd('index.html'), js = rd('hr.js'), prof = rd('prof.js');
+  assert.match(html, /<div class="dlg pg" id="dlg_emp" hidden>[\s\S]*class="ep-back" type="button" data-close="dlg_emp"[\s\S]*id="d_tabs"[\s\S]*<div id="d_over">[\s\S]*id="d_todo_body"[\s\S]*<div id="d_pbody" hidden><\/div>/);
+  assert.match(html, /<div class="dlg pg" id="dlg_form" hidden>/); assert.match(html, /body\.in \.dlg\.pg\{display:block;background:#F3F6FC/);
+  for (const id of ['d_edit', 'd_tr', 'd_login', 'd_salary', 'd_facebtn', 'd_exit', 'd_del', 'd_kyc', 'd_docs', 'd_prof']) assert.strictEqual(html.split('id="' + id + '"').length, 2, 'one button #' + id);
+  // the profile is drawn INTO the page (the same actions of the server); the window of before still works without `into`
+  assert.match(prof, /function profile\(id, done, into\) \{/); assert.match(prof, /if \(into\) all\.unshift\(\{ key: 'overview', name: 'Overview' \}\);/); assert.match(prof, /if \(into && into\.live && !into\.live\(\)\) return;/);
+  assert.deepStrictEqual([...new Set([...prof.matchAll(/api\('(prof[A-Za-z]+)'/g)].map(x => x[1]))].sort(), ['profGet', 'profRequiredSave', 'profRowRemove', 'profRowSave', 'profSave']);
+  assert.match(js, /S\.prof = window\.HRPROF\.profile\(id, null, \{ tabs: \$\('d_tabs'\), body: \$\('d_pbody'\)/);
+  // a window closed without saving goes back to his page; a change saved too; another page of the menu leaves it
+  assert.match(js, /function back\(d\) \{ if \(\{ dlg_form: 1, dlg_tr: 1, dlg_exit: 1, dlg_del: 1 \}\[d\] && S\.open && S\.open\.employee/); assert.match(js, /\['dlg_emp', 'dlg_form'\]\.forEach\(function \(d\) \{ if \(\$\(d\) && !\$\(d\)\.hidden\) hide\(d\); \}\);/);
+  assert.match(js, /if \(\$\('f_id'\)\.value && !\(r\.site && r\.site !== S\.me\.site\)\) openEmp\(\$\('f_id'\)\.value\);/);
+  assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(prof));
+});

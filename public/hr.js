@@ -42,6 +42,7 @@
   function head(title, sub, nodes) { $('p_title').textContent = title; $('p_sub').textContent = sub || ''; var t = $('p_tools'); t.textContent = ''; (nodes || []).forEach(function (n) { t.appendChild(n); }); }
   window.HRHEAD = { set: head };
   function go(page) {
+    ['dlg_emp', 'dlg_form'].forEach(function (d) { if ($(d) && !$(d).hidden) hide(d); });      // (13-11-2026) an employee's full page and his form are left when another page is chosen in the menu
     if ((page === 'departments' || page === 'designations' || page === 'lists') && !isAdmin()) page = 'employees';
     var att = !!window.HRATT && window.HRATT.has(page);      // (step 4) Attendance, Work places, Phones – att.js
     var mus = !!window.HRMUS && window.HRMUS.has(page);      // (step 5) Muster, Requests, Shifts & rules – mus.js
@@ -134,10 +135,26 @@
     }, function (x) { if (seq === S.seq) { if (had) hide('dlg_emp'); fail(x); } });
     $('d_docs_miss').hidden = true;
     api('privGet', { id: id }).then(function (p) { if (seq !== S.seq || !S.open) return; var e = S.open.employee, m = p.docsMissing; $('d_docs_miss').hidden = !m.length || e.status === 'left'; $('d_docs_miss').textContent = 'Documents still to attach: ' + m.join(', ') + '.'; }, function () { /* the details are asked again when their page is opened */ });
-    around(id);
+    around(id); profIn(id, seq);
+  }
+  /* (13-11-2026, "ekach screen madhe sagle") his FULL PROFILE is in the same page: its tabs beside "Overview" (prof.js draws them
+   * here), how far it is filled in the head, what is still missing in "Still to do". */
+  function profIn(id, seq, tab) {
+    var box = $('d_todo_body'), pct = $('d_pct'); box.textContent = ''; box.appendChild(el('p', 'muted', 'Reading…')); pct.hidden = true; $('d_tabs').textContent = ''; $('d_pbody').textContent = ''; $('d_over').hidden = false; $('d_pbody').hidden = true; S.prof = null;
+    if (!window.HRPROF) { box.textContent = ''; $('d_todo').hidden = true; return; }
+    var live = function () { return seq === S.seq; };
+    S.prof = window.HRPROF.profile(id, null, { tabs: $('d_tabs'), body: $('d_pbody'), tab: tab || 'overview', live: live,
+      show: function (on) { $('d_over').hidden = !on; $('d_pbody').hidden = on; },
+      fail: function () { box.textContent = ''; box.appendChild(el('p', 'muted', 'The profile could not be read – open the person again.')); },
+      data: function (r) {
+        var c = r.complete, m = c.missing || []; pct.textContent = ''; pct.appendChild(window.HRPROF.ring(c.pct)); pct.appendChild(el('small', '', c.filled + ' of ' + c.of + ' details')); pct.hidden = false;
+        box.textContent = ''; var top = el('div', 'td-top'), t = el('div'); t.appendChild(el('b', '', c.pct + '% filled')); t.appendChild(el('small', '', c.filled + ' of ' + c.of + ' details · ' + m.length + ' compulsory missing')); top.appendChild(t); box.appendChild(top);
+        if (m.length) box.appendChild(el('p', 'warn', 'Compulsory, still missing: ' + m.slice(0, 12).join(', ') + (m.length > 12 ? ' … and ' + (m.length - 12) + ' more' : '') + '.')); else box.appendChild(el('p', 'muted', 'Every compulsory detail is filled.'));
+        S.profFirst = (function () { var g = r.defs.groups.filter(function (g) { return g.fields.some(function (f) { return m.indexOf(f.label) > -1; }); })[0], w = r.defs.rows.filter(function (w) { return m.some(function (x) { return x.indexOf(w.name) === 0; }); })[0]; return g ? g.key : w ? w.key : r.defs.groups[0] ? r.defs.groups[0].key : ''; })();
+      } });
   }
   function drawEmp(r, full) {
-      var e = r.employee; S.open = r; $('d_title').textContent = e.name; $('d_code').textContent = e.code + ' · ' + (CAT[e.category] || '');
+      var e = r.employee; S.open = r; $('d_title').textContent = e.name; $('d_code').textContent = e.code + ' · ' + (CAT[e.category] || ''); $('d_crumb').textContent = '› ' + e.name; var sgv = S.sgn && S.sgn.by[e.id], sgt = $('d_sg'); sgt.hidden = !sgv; if (sgv) { sgt.className = 'st ' + (sgv === 'has' ? 's-active' : sgv === 'off' ? 's-incomplete' : 's-left'); sgt.textContent = 'Sign-in: ' + (sgv === 'has' ? 'given' : sgv === 'off' ? 'switched off' : 'not given'); }
       var fc = $('d_face'), st = $('d_st'); fc.textContent = e.name.trim().split(/\s+/).map(function (w) { return w.charAt(0); }).slice(0, 2).join('').toUpperCase(); st.className = 'st ep-st s-' + e.status; st.textContent = STATUS[e.status]; pic(fc, S.photos && S.photos[e.id]);
       var dl = $('d_list'), dl2 = $('d_list2'); dl.textContent = ''; dl2.textContent = '';
       row(dl, 'Site', siteName(e.site)); row(dl, 'Designation', nameOf(S.init.designations, e.designation_id)); row(dl, 'Department', nameOf(S.init.departments, e.department_id));
@@ -161,7 +178,7 @@
     var e = S.open.employee, any = !!(e.email || e.mobile); $('lg_title').textContent = 'Sign-in for ' + e.name + ' (' + e.code + ')'; $('lg_email').textContent = e.email || '– none –'; $('lg_mobile').textContent = e.mobile || '– none –';
     $('lg_done').hidden = true; $('lg_pw').textContent = ''; $('lg_err').hidden = any; if (!any) $('lg_err').textContent = 'He has no e-mail and no mobile number: put one of them in his record first – he signs in with it.';
     $('lg_go').hidden = !any; $('lg_go').disabled = false; $('lg_go').textContent = 'Give the password';
-    hide('dlg_emp'); show('dlg_login');
+    show('dlg_login');
   }
   function loginGive() {
     var e = S.open.employee, b = $('lg_go'); b.disabled = true; $('lg_err').hidden = true;
@@ -222,7 +239,7 @@
     busy(b, true);
     api('empSave', { id: $('f_id').value, code: $('f_code').value, name: $('f_name').value, category: $('f_cat').value, gender: $('f_gender').value, mobile: $('f_mobile').value, email: $('f_email').value, dob: $('f_dob').value, joined_on: $('f_join').value, site: $('f_site').value,
       department_id: $('f_dep').value, designation_id: $('f_des').value, reports_to: $('f_boss').dataset.id }).then(function (r) {
-      busy(b, false); hide('dlg_form'); toast(r.code + ' saved' + (r.site && r.site !== S.me.site ? ' at ' + siteName(r.site) + ' – choose that site (top right) to see him' : '') + (r.missing.length ? ' – incomplete: ' + r.missing.join(', ') + ' still needed.' : '.')); list();
+      busy(b, false); hide('dlg_form'); toast(r.code + ' saved' + (r.site && r.site !== S.me.site ? ' at ' + siteName(r.site) + ' – choose that site (top right) to see him' : '') + (r.missing.length ? ' – incomplete: ' + r.missing.join(', ') + ' still needed.' : '.')); list(); if ($('f_id').value && !(r.site && r.site !== S.me.site)) openEmp($('f_id').value);      // a change saved: back on his page
     }, function (e) { busy(b, false); $('f_err').textContent = e.message; $('f_err').hidden = false; });
   }
 
@@ -275,7 +292,7 @@
       var p = r.personal; $('k_title').textContent = e.name + ' (' + e.code + ') – personal details'; $('k_aadhaar').value = p.aadhaar || p.aadhaar_mask || ''; $('k_pan').value = p.pan; $('k_mobile2').value = p.mobile2; $('k_fmobile').value = p.family_mobile; $('k_fname').value = p.family_name;
       var sel = $('k_frel'); sel.textContent = ''; var o = el('option', '', '–'); o.value = ''; sel.appendChild(o); r.relations.forEach(function (x) { var q = el('option', '', x.charAt(0).toUpperCase() + x.slice(1)); q.value = x; sel.appendChild(q); }); sel.value = p.family_relation;
       $('k_addr').value = p.address_current; $('k_addr2').value = p.address_permanent; $('k_same').checked = false; $('k_err').hidden = true;
-      var left = e.status === 'left'; $('k_save').hidden = left; hide('dlg_emp'); show('dlg_kyc');
+      var left = e.status === 'left'; $('k_save').hidden = left; show('dlg_kyc');
     }, fail);
   }
   function kycSave(ev) {
@@ -300,7 +317,7 @@
         else if (d.active) li.appendChild(el('span', 'muted', ' · opened only by the HR Admin'));
         ul.appendChild(li);
       });
-      $('o_none').hidden = r.docs.length > 0; $('o_add').parentNode.hidden = e.status === 'left'; hide('dlg_emp'); show('dlg_docs');
+      $('o_none').hidden = r.docs.length > 0; $('o_add').parentNode.hidden = e.status === 'left'; show('dlg_docs');
     }, fail);
   }
   function docAdd() {
@@ -401,6 +418,9 @@
   function mSave(kind, x, btn) { busy(btn, true); api('masterSave', Object.assign({ kind: kind }, x)).then(function (r) { busy(btn, false); S.init.departments = r.departments; S.init.designations = r.designations; toast('Saved.'); masters(); }, function (e) { busy(btn, false); fail(e); }); }
 
   function show(id) { $(id).hidden = false; } function hide(id) { $(id).hidden = true; }
+  /* (13-11-2026, an employee is ONE full page) a window of his that is closed WITHOUT saving (Change, Transfer, Relieve, Delete)
+   * goes back to his page – not to the list. The small windows (sign-in, KYC, documents) open over his page and leave it there. */
+  function back(d) { if ({ dlg_form: 1, dlg_tr: 1, dlg_exit: 1, dlg_del: 1 }[d] && S.open && S.open.employee && (d !== 'dlg_form' || $('f_id').value) && $('dlg_emp').hidden && S.page === 'employees') openEmp(S.open.employee.id); }
 
   window.HR = {
     open: function (me, page) {
@@ -412,14 +432,14 @@
         var t; $('q').oninput = function () { clearTimeout(t); t = setTimeout(function () { S.q = $('q').value; list(); }, 300); };
         $('cat').onchange = function () { S.category = $('cat').value; list(); };
         $('b_add').onclick = function () { form(null, null); }; $('b_imp').onclick = function () { $('i_file').value = ''; $('i_err').hidden = true; $('i_res').hidden = true; $('i_save').hidden = true; show('dlg_imp'); };
-        $('d_edit').onclick = function () { form(S.open.employee, S.open.boss); }; $('d_tr').onclick = transfer; $('d_exit').onclick = exit; $('d_del').onclick = del; $('d_prof').onclick = function () { var id = S.open.employee.id; hide('dlg_emp'); if (window.HRPROF) window.HRPROF.profile(id, function () { openEmp(id); }); }; $('del_form').onsubmit = delSave; $('b_exp').onclick = exportList;
+        $('d_edit').onclick = function () { form(S.open.employee, S.open.boss); }; $('d_tr').onclick = transfer; $('d_exit').onclick = exit; $('d_del').onclick = del; $('d_prof').onclick = function () { if (S.prof && S.profFirst) { S.prof.open(S.profFirst); $('dlg_emp').scrollTop = 0; } }; $('del_form').onsubmit = delSave; $('b_exp').onclick = exportList;
         $('d_login').onclick = login; $('lg_go').onclick = loginGive; $('b_signin').hidden = !S.init.signin; $('b_signin').onclick = signinOpen; $('sg_go').onclick = signinGo; $('d_salary').onclick = function () { if (window.HRPAY) window.HRPAY.sheet(S.open.employee); }; $('d_facebtn').onclick = function () { if (window.HRMUS && window.HRMUS.face) window.HRMUS.face(S.open.employee); };
         $('d_kyc').onclick = kyc; $('d_docs').onclick = docs; $('k_form').onsubmit = kycSave; $('o_add').onclick = docAdd;
         $('f_form').onsubmit = save; $('t_form').onsubmit = transferSave; $('x_form').onsubmit = exitSave;
         var bt; $('f_boss').oninput = function () { clearTimeout(bt); bt = setTimeout(pickBoss, 250); };
         $('i_file').onchange = function () { importFile($('i_file').files[0]); }; $('i_save').onclick = importSave; $('i_fmt').onclick = formatFile;
-        Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (b) { b.onclick = function () { hide(b.dataset.close); if (b.dataset.close === 'dlg_login') { $('lg_pw').textContent = ''; $('lg_done').hidden = true; } }; });      // (the one-time password leaves the page with its box)
-        document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') ['dlg_form', 'dlg_tr', 'dlg_exit', 'dlg_del', 'dlg_login', 'dlg_imp', 'dlg_kyc', 'dlg_docs', 'dlg_emp'].some(function (d) { if (!$(d).hidden) { hide(d); return true; } return false; }); });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (b) { b.onclick = function () { hide(b.dataset.close); back(b.dataset.close); if (b.dataset.close === 'dlg_login') { $('lg_pw').textContent = ''; $('lg_done').hidden = true; } }; });      // (the one-time password leaves the page with its box)
+        document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') ['dlg_form', 'dlg_tr', 'dlg_exit', 'dlg_del', 'dlg_login', 'dlg_imp', 'dlg_kyc', 'dlg_docs', 'dlg_emp'].some(function (d) { if (!$(d).hidden) { hide(d); back(d); return true; } return false; }); });
         go(page || (window.HRDASH ? 'dashboard' : 'employees'));
       }, function (e) { window.HRMSG(e.message); });
     },
