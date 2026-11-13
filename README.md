@@ -88,6 +88,28 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
   of this site's people whose date runs out within 30 days or has run out, the birthdays and the years at work of the coming 7
   days. A person's own (`myHr.coming`): his papers running out, his birthday today, his years at work today – for the app.
   `myAttend` also says `week_off` / `days_off` for the phone's IN / OUT reminders.
+* **The Rule Book (step 13, 13-11-2026)** – his words: "super admin kade ek main rule book haway … ek hun anek policy banwayta
+  yeil … employee la site la ho la asign krta yetil … authorization … kon verify krel kon approval krel". **UNTIL A POLICY IS GIVEN
+  TO A SITE OR A PERSON NOTHING CHANGES** – the muster and the pay sheet of the test rig are the same as before (checked against
+  `main` after every part). Six kinds of policy – Attendance, Late & early, Weekly off, Leave, Comp-off, Overtime – each with
+  versions from a date and its own "who verifies / who approves" (by role or by name with a stand-in). Only the Super Admin makes
+  or changes one; the HR Admin of a site, the HO HR and the Super Admin give it: the site's own (everybody) or chosen people, from
+  a date. `lib/rulebook.js` (plain rules), `lib/act_rulebook.js`, page `public/book.js` ("Rule Book", "Approvals").
+  * **Leave:** two balances, Paid leave and Comp-off, shown and used as ONE (a leave takes the Comp-off days first – the person
+    never chooses); a ledger of every day added and taken; a Sunday worked earns a leave on a site (at most so many a month); a
+    request may be longer than the balance (the rest stays absent, marked: refused ✗ / no balance / nothing asked); papers on a
+    request (`lib/act_leave_files.js` – never compulsory, never deleted); the opening balance of many people from one sheet
+    (looked at first, ONE request, credited when approved, never twice); extra leave through approval.
+  * **Approvals** (`lib/act_asks.js`): overtime and comp-off of a month are found from the muster and count only after "verify"
+    and "approve"; a bulk correction of a month's attendance from Excel (`lib/act_import.js` – only in the person's favour, one
+    reason for the file, the punches stay; a month the HO HR approved is closed).
+  * **Pay** (`lib/pay.js`, `lib/act_payroll.js`): approved overtime "for pay" = the hours × a day's pay ÷ the shift's hours × the
+    policy's rate; a person WITH a comp-off policy is paid an extra day only for a day approved "for pay"; unused leave is paid
+    in the month of his last day when his leave policy says so. A person with no such policy is paid exactly as before. A late
+    correction of a locked month is NOT counted by itself: the HO HR adds it as "Other earning" with its note in the next month.
+  * **Punch** (`lib/act_attend.js` → `stand`): one IN and OUT a day and the weekly off are the person's own policy's.
+  * `sql/hr_step13_rulebook.sql` – ten new tables and one new column with a default, run by the owner ONLY in rcl-hr; before it
+    the pages say so and everything else works as before. Tests on the local rig only: `test/rig/rulebook_*.js`.
 * **Payroll (step 12, 12-11-2026)** – his words: "HO HR … SALARY CALCULATE KRU SHAKEL JYAT PT PF DEDUCTION SALARY ADVANCE HE SAGLE HO
   WARUN KARTA YEIL"; decided: a day's pay = the month's salary ÷ the days of that month, an extra day = one day's pay. Page
   **Payroll** (web; the HO HR and the Super Admin only – `init.ho`, menu `who: 'ho'`). **Pay sheet:** a site's month, only after
