@@ -859,3 +859,38 @@ test('(13-11-2026) a sign-in for everybody at once: the Super Admin, or an HR Ad
   await ACT.empSave(s('admin'), { id: a.id, name: 'Signin Mobile', category: 'driver', mobile: m2 }); assert.strictEqual((await ACT.myHr(self, {})).employee.code, a.code);
   await no(ACT.myHr({ site: S3, email: m2 + '@mobile.id', name: 'X', role: 'self', info: { sites: [] } }, {}), /is not in the Employee Master/, 403);
 });
+
+test('(13-11-2026) masters: one not in use is deleted (written down), one in use is refused; the usual list only adds what is missing; an employee\'s page in one reading; "Not available"; the sheet-only times survive a save', async () => {
+  // delete: an HR User cannot; in use → 409; not in use → gone
+  let m = await ACT.masterSave(admin, { kind: 'department', name: 'Del ' + tag }); const d = m.departments.find(x => x.name === 'Del ' + tag);
+  m = await ACT.masterSave(admin, { kind: 'designation', name: 'DelG ' + tag, category: 'driver' }); const g = m.designations.find(x => x.name === 'DelG ' + tag); assert.strictEqual(g.category, 'driver');
+  await no(ACT.masterDelete(user, { kind: 'department', id: d.id }), /Only the HR Admin/, 403);
+  const e = await ACT.empSave(admin, { name: 'Master User', category: 'staff', mobile: mob(), department_id: d.id });
+  await no(ACT.masterDelete(admin, { kind: 'department', id: d.id }), /is in use \(1 employee.*Switch it off/, 409);
+  await ACT.empSave(admin, { id: e.id, name: 'Master User', category: 'staff', mobile: e.mobile || (await ACT.empGet(admin, { id: e.id })).employee.mobile, department_id: '' });
+  const still = await ACT.masterDelete(admin, { kind: 'department', id: d.id }).then(() => 'gone', x => x.message);      // his history may still name it – then it stays, switched off by hand
+  assert.ok(still === 'gone' || /in the history/.test(still), still);
+  m = await ACT.masterDelete(admin, { kind: 'designation', id: g.id }); assert.strictEqual(m.deleted, 'DelG ' + tag); assert.ok(!m.designations.some(x => x.id === g.id));
+  assert.ok(((await db('GET', 'hr_audit?select=action&action=eq.Master%20deleted&target=eq.' + encodeURIComponent('designation DelG ' + tag))) || []).length === 1, 'written down');
+  await no(ACT.masterDelete(admin, { kind: 'designation', id: g.id }), /Not found/, 404); await no(ACT.masterDelete(admin, { kind: 'nothing', id: g.id }), /Unknown list/);
+  // the usual list: adds; a second time adds nothing; nothing of before is changed
+  await no(ACT.masterSeed(user, {}), /Only the HR Admin/, 403);
+  const before = await ACT.init(admin), s1 = await ACT.masterSeed(admin, {}), s2 = await ACT.masterSeed(admin, {});
+  assert.deepStrictEqual(s2.added, { departments: 0, designations: 0 }); assert.strictEqual(s1.departments.length, before.departments.length + s1.added.departments); assert.strictEqual(s1.designations.length, before.designations.length + s1.added.designations);
+  for (const x of before.designations) assert.deepStrictEqual(s2.designations.find(y => y.id === x.id), x, 'as it was');
+  const tip = s2.designations.find(x => x.name === 'Tipper Driver'), exc = s2.designations.find(x => x.name === 'Grader Operator'); assert.ok(tip && tip.category === 'driver' && exc && exc.category === 'operator');
+  // an employee's page: the four readings in one; an HR User gets what he may see; another site's person is refused as before
+  const pg = await ACT.empPage(user, { id: E1.id }); assert.strictEqual(pg.emp.employee.id, E1.id); assert.ok(Array.isArray(pg.emp.history) && pg.around && Array.isArray(pg.around.places) && pg.prof && pg.prof.complete && pg.prof.defs.groups.length >= 3);
+  assert.deepStrictEqual(pg.emp, await ACT.empGet(user, { id: E1.id })); assert.deepStrictEqual(pg.prof.complete, (await ACT.profGet(user, { id: E1.id })).complete);
+  await assert.rejects(ACT.empPage(ses('user', SITE2), { id: E1.id }));
+  // "Not available": kept as NA, counts as filled; an amount or a list refuses it; the page is told which boxes may have the tick
+  const job = pg.prof.defs.groups.find(x => x.key === 'job'), prf = pg.prof.defs.groups.find(x => x.key === 'profile');
+  assert.ok(!job.fields.some(f => /^sign_(in|out)$/.test(f.key)), 'the times are not on the page'); assert.ok(prf.fields.find(f => f.key === 'cug').na && !job.fields.find(f => f.key === 'notice_days').na);
+  const was = pg.prof.complete.filled; let p = await ACT.profSave(admin, { id: E1.id, group: 'profile', data: Object.assign({}, pg.prof.data, { cug: 'Not available', official_email: 'NA' }) });
+  assert.strictEqual(p.data.cug, 'NA'); assert.strictEqual(p.data.official_email, 'NA'); assert.ok(p.complete.filled >= was + (pg.prof.data.cug ? 0 : 1));
+  await no(ACT.profSave(admin, { id: E1.id, group: 'job', data: { notice_days: 'NA' } }), /Notice period/);
+  // the times of the Excel sheet are kept when the Job tab is saved from the page (which does not send them)
+  await db('PATCH', 'hr_employee_profile?employee_id=eq.' + E1.id, { data: Object.assign({}, p.data, { sign_in: '09:05', sign_out: '18:00' }) }, 'return=minimal');
+  p = await ACT.profSave(admin, { id: E1.id, group: 'job', data: { notice_days: '15' } }); assert.deepStrictEqual([p.data.sign_in, p.data.sign_out, p.data.notice_days], ['09:05', '18:00', 15]);
+  const out = await ACT.sheetExport(admin, {}).catch(x => ({ err: x.message })); assert.ok(!out.err, out.err);      // the export still works with "NA" and the times in a profile
+});

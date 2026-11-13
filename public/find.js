@@ -23,8 +23,8 @@
     if (q && H && H.lists && H.lists()) {
       var L = H.lists(), can = function (k) { return H.pages().some(function (p) { return p[0] === k; }); };
       [['departments', 'Departments', L.departments], ['designations', 'Designations', L.designations]].forEach(function (k) {
-        if (!can(k[0])) return;
-        out = out.concat(rank((k[2] || []).map(function (x) { return { kind: k[1], mark: k[1].slice(0, 1), title: x.name, sub: x.active === false ? 'Inactive' : k[1].slice(0, -1), m: match(x.name, q), run: function () { H.go(k[0]); } }; })).slice(0, 5));
+        if (!can('departments')) return;      // (the two lists are one page)
+        out = out.concat(rank((k[2] || []).map(function (x) { return { kind: k[1], mark: k[1].slice(0, 1), title: x.name, sub: x.active === false ? 'Inactive' : k[1].slice(0, -1), m: match(x.name, q), run: function () { H.go('departments'); } }; })).slice(0, 5));
       });
     }
     return out;

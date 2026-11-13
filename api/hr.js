@@ -358,7 +358,8 @@ const ACT = {
 };
 
 const SHEET_ACT = SHEET({ masters: masters, masterId: masterId, taken: taken, newCodes: newCodes, codeTyped: codeTyped, CODE_OK: CODE_OK, needOffice: ATT.needOffice }).ACT;
-[ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT, LEAVE.ACT, MONTH.ACT, PAY.ACT, ROLL.ACT, MORE.ACT, SHEET_ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
+const MAST_ACT = require('../lib/act_masters')({ masters: masters, needAdmin: needAdmin, id: id, desCatSave: SHEET.desCatSave, ACT: ACT }).ACT;      // (13-11-2026) delete / the usual list of the masters; an employee's page in one reading
+[ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT, LEAVE.ACT, MONTH.ACT, PAY.ACT, ROLL.ACT, MORE.ACT, SHEET_ACT, MAST_ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
 // (12-11-2026) the app's "Me": a person's own record and papers – the office's own paper actions, for the employee the sign-in is
 const MINE = require('../lib/act_self')(ACT);
 Object.keys(MINE.ACT).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = MINE.ACT[k]; });

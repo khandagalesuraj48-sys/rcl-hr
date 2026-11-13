@@ -263,6 +263,21 @@ designation's category beside the settings (`hr_settings`, site `*`).
   button says "Saving…" the moment it is pressed; when the server has saved, a window in the middle says "Saved" (it goes by
   itself, or OK / Enter / Esc); an error stays on the page and nothing is said saved. A profile tab is answered from what was
   just read and saved (`profSave` does not read the whole profile a second time).
+* **Departments & designations on ONE page (13-11-2026, "department and designation ektr thew … edit and delet pn karta yawet …
+  construction line madhe je astat te auto tu fill kr"):** the two lists side by side with a search; a name is a line – Edit,
+  Switch off / on, **Delete** (`masterDelete`: only a name that no employee has today or in his history – one in use is refused
+  and is switched off instead; written in the audit). **"Add the usual construction list"** (`masterSeed`, `lib/act_masters.js`):
+  the usual departments and designations of a road / construction company, each designation with its category – only the names
+  that are not there yet; nothing of before is changed. (His Excel has no department / designation column – nothing was taken from it.)
+* **An employee's page in ONE reading (13-11-2026, "data lagech yet nahi to pn fast yeyla hawa"):** `empPage` gives the person, his
+  attendance, his papers and his profile together (the four readings of before, each with its own check); opened again within
+  5 minutes the page shows at once what it read, and the fresh answer follows. The buttons of his head stay readable meanwhile.
+* **"Not available" (13-11-2026, "jith details available nahit … not available ha option de"):** a tick under a box of the profile
+  that is a name, a number or a date (PF number, CUG number, IFSC …) – kept as `NA`, it counts as filled. Never for an amount,
+  Yes / No, a time or a list. The Excel sheet takes and gives "NA" too.
+* **Sign in / Sign out (time) are not on the page any more (13-11-2026, "apan shift wise deto … ethe he nko"):** the shift says
+  the times. The two columns stay in the Excel sheet as before (`sheet: true`); the page, the count of details and the app do
+  not show them, and a save of the Job tab leaves them as they are.
 * **Only the web.** Nothing of the phone app and nothing of the database is changed; of the server only `attDash` (reading).
 
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
