@@ -853,10 +853,13 @@ test('rule book: leave – a Sunday worked earns one (at most 4 a month), two ba
   const d2 = []; for (let i = 1; i <= 12; i++) d2.push({ day: day(i), code: i >= 3 && i <= 5 ? 'A' : i === 10 ? 'A' : 'P' });
   k = L.walk2(d2, { polOn: () => site, leave: { [day(3)]: { days: 1, bucket: 'paid' }, [day(4)]: { days: 1, bucket: 'paid' }, [day(5)]: { days: 1, bucket: 'paid' } }, refused: { [day(10)]: true } });
   assert.deepStrictEqual(Object.keys(k.marks), [day(3)]); assert.deepStrictEqual(k.absent, { [day(4)]: 'nobalance', [day(5)]: 'nobalance', [day(10)]: 'refused' }); assert.strictEqual(k.paid, 1, '1 (Sunday the 1st) − 1 (leave) + 1 (Sunday the 8th)');
-  // comp-off: its own balance; a leave from it does not touch the paid one; the HR office's days and the opening balance are lines of the ledger
-  k = L.walk2(d2, { polOn: () => site, credits: { [day(1)]: [{ bucket: 'paid', days: 6, source: 'opening', reason: 'Opening balance' }], [day(2)]: [{ bucket: 'comp', days: 1, source: 'compoff', reason: 'Worked on a holiday' }] }, leave: { [day(3)]: { days: 1, bucket: 'comp' }, [day(4)]: { days: 1, bucket: 'comp' } } });
-  assert.deepStrictEqual([k.paid, k.comp], [8, 0]); assert.deepStrictEqual(k.marks[day(3)], { days: 1, auto: false, bucket: 'comp' }); assert.strictEqual(k.absent[day(4)], 'nobalance');
-  assert.ok(k.ledger.some(x => x.source === 'opening' && x.days === 6) && k.ledger.some(x => x.source === 'leave' && x.bucket === 'comp' && x.days === -1));
+  // (his correction) ONE leave for the person: the Comp-off days are used first, then the Paid leave – he never chooses; the ledger says from which
+  k = L.walk2(d2, { polOn: () => site, credits: { [day(1)]: [{ bucket: 'paid', days: 6, source: 'opening', reason: 'Opening balance' }], [day(2)]: [{ bucket: 'comp', days: 1.5, source: 'compoff', reason: 'Worked on a holiday' }] }, leave: { [day(3)]: { days: 1 }, [day(4)]: { days: 1 }, [day(5)]: { days: 1 } } });
+  assert.deepStrictEqual([k.marks[day(3)].bucket, k.marks[day(4)].bucket, k.marks[day(5)].bucket], ['comp', 'both', 'paid'], 'the 3rd from Comp-off, the 4th half and half, the 5th from Paid leave');
+  assert.deepStrictEqual([k.paid, k.comp], [6.5, 0], 'paid: 1 (Sunday) + 6 − 0.5 − 1 + 1 (Sunday the 8th); comp-off used up'); assert.deepStrictEqual(k.absent, { [day(10)]: 'none' });
+  assert.ok(k.ledger.some(x => x.source === 'opening' && x.days === 6) && k.ledger.filter(x => x.source === 'leave').map(x => x.bucket + x.days).join(',') === 'comp-1,comp-0.5,paid-0.5,paid-1');
+  // nothing in either balance: the day stays absent
+  k = L.walk2(d2.slice(1, 6), { polOn: () => site, leave: { [day(3)]: { days: 1 } } }); assert.deepStrictEqual([Object.keys(k.marks), k.absent[day(3)]], [[], 'nobalance']);
   // the Head Office: 1 at the start of every month, carried on; a weekly off or a day at work never takes a leave
   const ho = { earn: 'month', per_month: 1, carry: true, auto_absent: false, strict: true }, two = [{ day: '2026-10-01', code: 'P' }, { day: '2026-10-02', code: 'P' }, { day: '2026-11-01', code: 'WO' }, { day: '2026-11-02', code: 'A' }, { day: '2026-11-03', code: 'P' }];
   k = L.walk2(two, { polOn: () => ho, leave: { '2026-11-01': { days: 1, bucket: 'paid' }, '2026-11-02': { days: 1, bucket: 'paid' }, '2026-11-03': { days: 1, bucket: 'paid' } } });
