@@ -181,6 +181,15 @@ test('work places: only the HR Admin; a circle, an area, along the road; for who
   assert.ok(w.people.find(e => e.id === E1.id).places.indexOf(camp) < 0 && w.people.find(e => e.id === E2.id).places.indexOf(camp) > -1); assert.strictEqual(w.places.find(p => p.id === camp).scope, 'people');
   w = await ACT.placePeople(admin, { place_id: camp, add: [E1.id] }); assert.ok(w.people.find(e => e.id === E1.id).places.indexOf(camp) > -1); assert.strictEqual(w.people_now, w.places.find(p => p.id === camp).count);
   await no(ACT.placePeople(ses('admin', SITE2), { place_id: camp, add: [E1.id] }), /not found on this site/, 404);
+  // (13-11-2026, "employee ch location change krta yeil … multiple location access") one person's places set to exactly the chosen
+  await no(ACT.placePerson(user, { employee_id: E1.id, places: [camp] }), /Only the HR Admin/, 403);
+  await no(ACT.placePerson(admin, { employee_id: E1.id, places: [camp] }), /is for everybody of the site \(\d+ people now\).* – such a place holds no single people/, 409);
+  w = await ACT.placePerson(admin, { employee_id: E1.id, places: [camp, placeId], convert: true }); const mine = () => w.people.find(e => e.id === E1.id).places.slice().sort();
+  assert.deepStrictEqual(mine(), [camp, placeId].sort(), 'two places for him; the other places for everybody were taken from him only');
+  assert.ok(w.people.find(e => e.id === E2.id).places.indexOf(road) > -1, 'the others keep what they had'); assert.strictEqual(w.places.find(p => p.id === placeId).scope, 'all', 'a place that did not change for him is left alone');
+  w = await ACT.placePerson(admin, { employee_id: E1.id, places: [placeId] }); assert.deepStrictEqual(mine(), [placeId]);
+  w = await ACT.placePerson(admin, { employee_id: E1.id, places: [placeId, camp] }); assert.deepStrictEqual(mine(), [camp, placeId].sort()); assert.strictEqual(w.changed, 1);
+  await no(ACT.placePerson(admin, { employee_id: E1.id, places: ['00000000-0000-4000-8000-000000000000'] }), /not found on this site/, 404);
   await no(ACT.placeRemove(admin, { id: yard, reason: '' }), /write why/); l = await ACT.placeRemove(admin, { id: yard, reason: 'Work over' });
   assert.ok(!l.places.some(p => p.id === yard)); assert.strictEqual((await db('GET', 'hr_places?select=removed_by,active&id=eq.' + yard))[0].removed_by, 'admin@rig.test', 'the row stays');
   await no(ACT.placeSave(ses('admin', SITE2), { id: placeId, name: 'Stolen', lat: 1, lng: 1, radius_m: 100 }), /not found on this site/, 404);

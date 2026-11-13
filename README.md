@@ -48,6 +48,9 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
     `placeMap` reads it with the same rule a punch is checked with; `placePeople` adds / takes single people – one or many
     (tick them, or paste their codes from Excel). A place for everybody / categories / departments is changed only after the
     Admin said yes: it becomes "Chosen people" with the people it is for now. No database change.
+    (13-11-2026, "name nko dakhu count war click kel ki list disel … employee ch location change krta yeil mala ani multiple
+    location access deu shakel") by place: only the number – a press on it opens the list, with "Change his places" and "Take
+    out of here"; by person: "Change" opens his work places as ticks – one or several – `placePerson` sets exactly those.
   * **Work places** (`placeList`, `placeSave`, `placeBulk`, `placeImport`, `placeRemove`, `projSave` – changes: HR Admin / Super
     Admin): a point + metres (20–5000), an area drawn on the map, or along the road with metres each side; for everybody, some
     categories, some departments or chosen people; from a date; On / Off; many at once. Removed = kept with who and why.
