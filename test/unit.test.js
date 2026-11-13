@@ -136,7 +136,8 @@ test('the menu, the page and the hosting: one page, nothing of an employee, neve
   const page = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   for (const m of page.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)) new Function(m[1]);
   assert.match(page, /<meta name="robots" content="noindex, nofollow">/);
-  assert.match(page, /history\.replaceState\(null, '', location\.pathname \+ location\.search\)/, 'the ticket leaves the address bar');
+  assert.match(page, /history\.replaceState\(null, '', location\.pathname \+ location\.search \+ pg\)/, 'the ticket leaves the address bar');
+  assert.match(page, /var pg = hashArg\('page'\); pg = \/\^\[a-z0-9_-\]\{1,40\}\$\/i\.test\(pg\) \? '#page=' \+ pg : '';/, '(step 13) only the plain name of the page stays – never the ticket');
   assert.match(page, /fetch\(BASE \+ path,/, 'relative: also under <main>/hr/'); assert.match(page, /\/api\/go\?module=hr&site=/);
   assert.deepStrictEqual(v.regions, ['bom1']);
   const all = v.headers.find(h => h.source === '/(.*)').headers, get = k => (all.find(h => h.key === k) || {}).value;
@@ -181,7 +182,8 @@ test('the actions: every one asks the sign-in first; the Admin\'s ones are refus
   const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
   assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'empDelete', 'empExport', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'empPhotos', 'docRemove', 'signinPeople', 'signinLinked', 'empImport',
     'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'placeMap', 'placePeople', 'placePerson', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'selfieUrl', 'punch',
-    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave', 'monthList', 'monthVerify', 'monthReturn', 'monthApprove', 'monthReopen', 'monthSites', 'hoList', 'hoSet', 'salaryGet', 'salaryAsk', 'salaryWaiting', 'salaryDecide', 'payList', 'payFlags', 'payAdjust', 'payLock', 'paySettings', 'paySettingsSave', 'advList', 'advGive', 'advClose', 'mySlips', 'hrComing', 'paySlipOf', 'payBank', 'sheetCols', 'sheetImport', 'sheetExport', 'masterDelete', 'masterSeed', 'empPage', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
+    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave', 'monthList', 'monthVerify', 'monthReturn', 'monthApprove', 'monthReopen', 'monthSites', 'hoList', 'hoSet', 'salaryGet', 'salaryAsk', 'salaryWaiting', 'salaryDecide', 'payList', 'payFlags', 'payAdjust', 'payLock', 'paySettings', 'paySettingsSave', 'advList', 'advGive', 'advClose', 'mySlips', 'hrComing', 'paySlipOf', 'payBank', 'sheetCols', 'sheetImport', 'sheetExport', 'masterDelete', 'masterSeed', 'empPage',
+    'rbList', 'rbSave', 'rbClose', 'rbDelete', 'rbDefault', 'rbAssign', 'rbPeople', 'rbOf', 'rbDayOff', 'askList', 'askDecide', 'extraFind', 'extraAsk', 'leaveOpening', 'leaveCreditAsk', 'leaveLedger', 'attImport', 'attImports', 'myLeaveFiles', 'myLeaveFileUrl', 'myLeaveFileAdd', 'myLeaveFileLink', 'myLeaveFileRemove', 'leaveFiles', 'leaveFileUrl', 'leaveFileAdd', 'leaveFileLink', 'leaveFileRemove', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
   assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n[^\n]+\n  if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'empDelete', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   // (12-11-2026) ONE action deletes: empDelete – an employee added by mistake, after the check that nothing hangs on him, with the reason, written in the audit
@@ -268,7 +270,7 @@ test('a work place as typed; for whom it is; the moment of a punch sent later', 
 
 test('attendance actions: the office\'s ones are closed to "My HR"; changes are the Admin\'s; a punch is never changed', () => {
   const { ACT, SELF } = require('../api/hr'), src = fs.readFileSync(path.join(root, 'lib', 'act_attend.js'), 'utf8');
-  assert.deepStrictEqual(SELF, ['myAttend', 'selfieUrl', 'punch', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink', 'mySlips']);
+  assert.deepStrictEqual(SELF, ['myAttend', 'selfieUrl', 'punch', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink', 'mySlips', 'myLeaveFiles', 'myLeaveFileUrl', 'myLeaveFileAdd', 'myLeaveFileLink', 'myLeaveFileRemove']);
   for (const [a, p] of [['projSave', 'places'], ['placeSave', 'places'], ['placeBulk', 'places'], ['placeImport', 'places'], ['placeRemove', 'places'], ['placePeople', 'places'], ['placePerson', 'places'], ['devRelease', 'phones'], ['punchReview', 'review'], ['shiftSave', 'shifts'], ['shiftRemove', 'shifts'], ['holidaySave', 'shifts'], ['holidayRemove', 'shifts'], ['rulesSave', 'shifts'], ['regDecide', 'regularize']]) assert.ok(String(ACT[a]).indexOf("await power.need(s, '" + p + "')") > -1, a + ': the power ' + p);
   assert.match(String(ACT.daySet), /await power\.need\(s, has \? 'correct' : 'manual'\)/); assert.match(String(ACT.powerSet), /s\.role !== 'super'/);
   for (const a of ['placeList', 'placeMap', 'devList', 'punchDay', 'punchSelfie', 'attSetup', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'attDash']) assert.match(String(ACT[a]), /needOffice\(s\)/, a);
@@ -644,7 +646,7 @@ test('the new look (13-11-2026): the menu on the left with every page as before,
   assert.match(html, /<script src="find\.js"><\/script>/); for (const id of src.match(/\$\('([a-z_0-9]+)'\)/g).map(x => x.slice(3, -2))) assert.ok(html.indexOf('id="' + id + '"') > -1, 'the page has #' + id);
   // every page of before has its group; the pages a person may not open are not in the menu – nor in the search (the same list)
   const G = new Function('return ' + /var GROUP = (\{[^}]+\})/.exec(js)[1])();
-  assert.deepStrictEqual(Object.keys(G).sort(), ['attendance', 'departments', 'employees', 'leave', 'lists', 'month', 'muster', 'payroll', 'phones', 'places', 'requests', 'rules']);
+  assert.deepStrictEqual(Object.keys(G).sort(), ['approvals', 'attendance', 'departments', 'employees', 'leave', 'lists', 'month', 'muster', 'payroll', 'phones', 'places', 'requests', 'rulebook', 'rules']);      // (step 13) the Rule Book
   assert.match(js, /\.filter\(function \(p\) \{ return p\[2\]; \}\);/); assert.match(js, /pages: function \(\) \{ return S\.init \? pages\(\) : \[\]; \}/);
   // Ctrl K: the words typed must all be there; what starts with them comes first; an employee is asked from the server's own list
   const win = {}; new Function('window', 'document', 'navigator', src)(win, { getElementById: () => null, readyState: 'complete' }, {});
@@ -753,4 +755,147 @@ test('(13-11-2026) the RCL look: the logo\'s red in balance, the white menu with
   // red in balance: no blue of before is left in the page's styles; the dashboard still asks nothing new
   const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>')); for (const c of ['#1E63E9', '#1570EF', '#1857D0']) assert.ok(css.indexOf(c) === -1, c);
   assert.deepStrictEqual([...new Set([...dash.matchAll(/api\('([a-zA-Z]+)'/g)].map(x => x[1]))].sort(), ['attDash', 'punchSelfie']); assert.match(dash, /function hello\(now\)/);
+});
+
+/* ───────────── step 13 (13-11-2026): THE RULE BOOK – lib/rulebook.js, pure ───────────── */
+test('rule book: what each kind of policy may say – only what is filled is kept, a wrong number is refused', () => {
+  const B = require('../lib/rulebook');
+  assert.deepStrictEqual(B.KINDS, ['attendance', 'late', 'weekoff', 'leave', 'compoff', 'overtime']);
+  assert.deepStrictEqual(B.body('attendance', { full_hours: '8', half_hours: 4, once: 'yes' }), { body: { full_hours: 8, half_hours: 4, once: true }, errors: [] });
+  assert.strictEqual(B.body('attendance', { full_hours: 4, half_hours: 4 }).errors.length, 1);
+  assert.deepStrictEqual(B.body('late', {}).body, {}, 'nothing filled = nothing applied');
+  assert.deepStrictEqual(B.body('late', { grace_min: 15, early_min: 15, free: 3, half_after_min: 120, half_before_min: 120 }).errors, []);
+  assert.strictEqual(B.body('late', { grace_min: 30, half_after_min: 20 }).errors.length, 1);
+  // a weekly off: Sunday, and the 2nd and 4th Saturday; all five Saturdays = every Saturday
+  assert.deepStrictEqual(B.body('weekoff', { days: [0], nth: { 6: [4, 2, 2] } }).body, { days: [0], nth: { 6: [2, 4] } });
+  assert.deepStrictEqual(B.body('weekoff', { days: [0], nth: { 6: [1, 2, 3, 4, 5] } }).body, { days: [0, 6] });
+  assert.deepStrictEqual(B.body('weekoff', {}).body, { days: [] }, 'a road site: no weekly off');
+  // leave: earned by the month (Head Office) or by a Sunday worked (a site)
+  assert.deepStrictEqual(B.body('leave', { earn: 'sunday', per_month: 4 }).body, { earn: 'sunday', per_month: 4, carry: true, auto_absent: false });
+  assert.deepStrictEqual(B.body('leave', { earn: 'month', per_month: 1, carry: true, exit: 'pay', exit_max: 30 }).body, { earn: 'month', per_month: 1, carry: true, auto_absent: false, exit: 'pay', exit_max: 30 });
+  assert.ok(B.body('leave', { per_month: 1 }).errors.length && B.body('leave', { earn: 'sunday', per_month: 1.5 }).errors.length && B.body('leave', { earn: 'month' }).errors.length);
+  assert.deepStrictEqual(B.body('compoff', { result: 'leave' }).body, { result: 'leave', full_shift: true });
+  assert.deepStrictEqual(B.body('overtime', { after_min: 30, round_min: 30, result: 'pay', rate: 1 }).body, { after_min: 30, round_min: 30, result: 'pay', rate: 1 });
+  assert.ok(B.body('overtime', {}).errors.length && B.body('nothing', {}).errors.length);
+});
+
+test('rule book: who verifies and who approves – by role or by name with a stand-in; verify may be left out; the steps of a request', () => {
+  const B = require('../lib/rulebook');
+  const a = B.auth({ verify: [{ role: 'site_hr' }], approve: [{ role: 'ho_hr' }, { email: 'Boss@X.test', stand_in: 'second@x.test' }] });
+  assert.deepStrictEqual(a, { auth: { verify: [{ role: 'site_hr' }], approve: [{ role: 'ho_hr' }, { email: 'boss@x.test', stand_in: 'second@x.test' }] }, errors: [] });
+  assert.ok(B.auth({ verify: [{ role: 'site_hr' }] }).errors.length, 'somebody must approve');
+  assert.ok(B.auth({ approve: [{ role: 'king' }] }).errors.length && B.auth({ approve: [{ email: 'not a mail' }] }).errors.length);
+  assert.strictEqual(B.firstStage(a.auth), 'verify'); assert.strictEqual(B.firstStage({ verify: [], approve: [{ role: 'ho_hr' }] }), 'approve');
+  const siteHr = { email: 'hr@site.test', roles: { site_hr: true } }, hoHr = { email: 'ho@x.test', roles: { ho_hr: true } }, sub = { email: 'second@x.test', roles: {} }, sup = { email: 's@x.test', roles: { super: true } };
+  assert.ok(B.mayDo(a.auth.verify, siteHr) && !B.mayDo(a.auth.approve, siteHr) && B.mayDo(a.auth.approve, hoHr) && B.mayDo(a.auth.approve, sub) && B.mayDo([], sup));
+  assert.ok(B.mayDo([{ role: 'reporting' }], { email: 'b@x.test', roles: {}, reports: true }) && !B.mayDo([{ role: 'reporting' }], { email: 'b@x.test', roles: {} }));
+  let ask = { status: 'pending', stage: 'verify', auth: a.auth, steps: [] };
+  assert.ok(B.decide(ask, true, hoHr, 'T1').error, 'the HO HR cannot verify what waits for the site HR');
+  const v = B.decide(ask, true, siteHr, 'T1'); assert.deepStrictEqual([v.status, v.stage, v.done, v.steps.length], ['pending', 'approve', false, 1]);
+  ask = Object.assign({}, ask, v); assert.ok(B.decide(ask, true, siteHr, 'T2').error);
+  const ok = B.decide(ask, true, hoHr, 'T2'); assert.deepStrictEqual([ok.status, ok.done, ok.steps.length, ok.steps[1].by], ['approved', true, 2, 'ho@x.test']);
+  assert.strictEqual(B.decide(ask, false, hoHr, 'T2').status, 'refused'); assert.ok(B.decide(Object.assign({}, ask, ok), true, sup, 'T3').error, 'decided once');
+});
+
+test('rule book: a person has his own policy from a date, else his site\'s, else none; a day is measured with the version of that day', () => {
+  const B = require('../lib/rulebook');
+  const versions = { 1: [{ id: 10, valid_from: '2026-01-01', body: { grace_min: 15 } }, { id: 11, valid_from: '2026-12-01', body: { grace_min: 10 } }], 2: [{ id: 20, valid_from: '2026-06-01', body: { grace_min: 5 } }] };
+  const site = [{ id: 1, policy_id: 1, valid_from: '2026-01-01' }];
+  assert.strictEqual(B.policyOn({ assign: [], defaults: [], versions: versions }, '2026-11-13'), null, 'no policy of the Rule Book: the rules of before');
+  assert.deepStrictEqual(B.policyOn({ assign: [], defaults: site, versions: versions }, '2026-11-13'), { policy_id: 1, from: 'site', body: { grace_min: 15 }, auth: {}, version_id: 10 });
+  assert.strictEqual(B.policyOn({ assign: [], defaults: site, versions: versions }, '2026-12-05').body.grace_min, 10, 'the new version counts from its date – the days before keep the old one');
+  const own = [{ id: 5, policy_id: 2, valid_from: '2026-11-10' }];
+  assert.strictEqual(B.policyOn({ assign: own, defaults: site, versions: versions }, '2026-11-09').from, 'site'); assert.deepStrictEqual([B.policyOn({ assign: own, defaults: site, versions: versions }, '2026-11-10').from, B.policyOn({ assign: own, defaults: site, versions: versions }, '2026-11-10').body.grace_min], ['person', 5]);
+  // taken back from a date: an empty row = the site's own again
+  assert.strictEqual(B.policyOn({ assign: own.concat([{ id: 6, policy_id: null, valid_from: '2026-11-20' }]), defaults: site, versions: versions }, '2026-11-21').from, 'site');
+  assert.strictEqual(B.policyOn({ assign: [{ id: 7, policy_id: 2, valid_from: '2026-03-01' }], defaults: [], versions: versions }, '2026-03-02'), null, 'the policy says nothing before its first version');
+});
+
+test('rule book: weekly off – the 2nd and 4th Saturday, the HR office\'s word on a fifth Saturday; the rules of a day from the policies', () => {
+  const B = require('../lib/rulebook');
+  const ho = { days: [0], nth: { 6: [2, 4] } };      // November 2026: Saturdays 7, 14, 21, 28; Sundays 1, 8, 15, 22, 29
+  assert.deepStrictEqual(['2026-11-07', '2026-11-14', '2026-11-21', '2026-11-28', '2026-11-15', '2026-11-16'].map(d => B.isOff(ho, d)), [false, true, false, true, true, false]);
+  assert.strictEqual(B.nthOf('2026-10-31'), 5); assert.strictEqual(B.isOff({ days: [0], nth: { 6: [5] } }, '2026-10-31'), true);
+  assert.strictEqual(B.isOff({ days: [0], nth: { 6: [5] } }, '2026-10-31', false), false, 'the HR office said: this fifth Saturday is a working day');
+  assert.strictEqual(B.isOff({ days: [] }, '2026-11-15'), false, 'a road site works on a Sunday');
+  const siteRules = { full_hours: 8, grace_min: 30, late_free: 5, week_off: [0], face: true };
+  assert.deepStrictEqual(B.dayRules(siteRules, null, '2026-11-15'), siteRules, 'no policy: the site\'s own rules, untouched');
+  const r = B.dayRules(siteRules, { late: { grace_min: 15, free: 3, half_before_min: 120 }, weekoff: { days: [] } }, '2026-11-15');
+  assert.deepStrictEqual(r, { full_hours: 8, face: true, grace_min: 15, half_before_min: 120, late_free: 3, early_counts: true, week_off: [] });
+  assert.deepStrictEqual(B.dayRules(siteRules, { weekoff: ho }, '2026-11-14').week_off, [6]); assert.deepStrictEqual(B.dayRules(siteRules, null, '2026-11-15', false).week_off, []);
+});
+
+test('rule book: overtime in steps, overtime as leave, comp-off for a whole shift, a bulk correction only in the person\'s favour', () => {
+  const B = require('../lib/rulebook');
+  const ot = { after_min: 30, round_min: 30 }, end = Date.parse('2026-11-13T12:30:00Z');
+  assert.deepStrictEqual([10, 29, 30, 50, 70, 125].map(m => B.overtimeMin(ot, end + m * 60000, end)), [0, 0, 30, 30, 60, 120]);
+  assert.strictEqual(B.overtimeMin(null, end + 3600000, end), 0); assert.strictEqual(B.overtimeMin(ot, null, end), 0);
+  assert.deepStrictEqual([B.overtimeDays(540, 9), B.overtimeDays(270, 9), B.overtimeDays(200, 9), B.overtimeDays(60, 0)], [1, 0.5, 0, 0]);
+  const co = { result: 'leave', full_shift: true };
+  assert.deepStrictEqual([B.compoffDays(co, 'WOP', 9, 9), B.compoffDays(co, 'HP', 8.5, 9), B.compoffDays(co, 'P', 9, 9), B.compoffDays({ result: 'none' }, 'WOP', 9, 9), B.compoffDays({ result: 'pay', full_shift: false }, 'HP', 2, 9)], [1, 0, 0, 0, 1]);
+  assert.deepStrictEqual(B.importChange('A', 'P'), { to: 'P' }); assert.deepStrictEqual(B.importChange('A', 'hd'), { to: 'HD' }); assert.deepStrictEqual(B.importChange('MIS', 'L'), { to: 'L' });
+  assert.deepStrictEqual(B.importChange('A', 'A'), { skip: true }); assert.deepStrictEqual(B.importChange('P', ''), { skip: true });
+  assert.ok(B.importChange('P', 'A').error && B.importChange('P', 'HD').error && B.importChange('A', 'X').error && B.importChange('WO', 'P').error, 'never against the person, never a day off');
+  assert.deepStrictEqual(B.importChange('HD', 'P'), { to: 'P' }); assert.deepStrictEqual(B.importChange('L', 'P'), { to: 'P' }); assert.deepStrictEqual(B.importChange('L', 'L'), { skip: true });
+});
+
+test('rule book: leave – a Sunday worked earns one (at most 4 a month), two balances, a leave only while the balance has it, the ledger says where each day came from', () => {
+  const L = require('../lib/leave');
+  // November 2026: Sundays 1, 8, 15, 22, 29. A road site: every day is a working day.
+  const site = { earn: 'sunday', per_month: 4, carry: true, auto_absent: false, strict: true }, day = n => '2026-11-' + String(n).padStart(2, '0');
+  const days = []; for (let i = 1; i <= 30; i++) days.push({ day: day(i), code: i === 8 ? 'A' : i === 15 ? 'HD' : 'P' });
+  let k = L.walk2(days, { polOn: () => site });
+  assert.deepStrictEqual([k.paid, k.comp], [3.5, 0], 'Sundays 1, 22, 29 worked = 3, the 15th half = 0.5, the 8th absent = 0');
+  assert.deepStrictEqual(k.ledger.map(x => [x.day.slice(8), x.days, x.source]), [['01', 1, 'sunday'], ['15', 0.5, 'sunday'], ['22', 1, 'sunday'], ['29', 1, 'sunday']]);
+  assert.deepStrictEqual(k.absent, { [day(8)]: 'none' }, 'absent without a request: nothing is taken, the day is marked');
+  // five Sundays all worked: still 4
+  k = L.walk2(days.map(d => ({ day: d.day, code: 'P' })), { polOn: () => site }); assert.strictEqual(k.paid, 4);
+  // a leave of 3 days with a balance of 1: one day is leave, the others stay absent; a refused request is marked
+  const d2 = []; for (let i = 1; i <= 12; i++) d2.push({ day: day(i), code: i >= 3 && i <= 5 ? 'A' : i === 10 ? 'A' : 'P' });
+  k = L.walk2(d2, { polOn: () => site, leave: { [day(3)]: { days: 1, bucket: 'paid' }, [day(4)]: { days: 1, bucket: 'paid' }, [day(5)]: { days: 1, bucket: 'paid' } }, refused: { [day(10)]: true } });
+  assert.deepStrictEqual(Object.keys(k.marks), [day(3)]); assert.deepStrictEqual(k.absent, { [day(4)]: 'nobalance', [day(5)]: 'nobalance', [day(10)]: 'refused' }); assert.strictEqual(k.paid, 1, '1 (Sunday the 1st) − 1 (leave) + 1 (Sunday the 8th)');
+  // (his correction) ONE leave for the person: the Comp-off days are used first, then the Paid leave – he never chooses; the ledger says from which
+  k = L.walk2(d2, { polOn: () => site, credits: { [day(1)]: [{ bucket: 'paid', days: 6, source: 'opening', reason: 'Opening balance' }], [day(2)]: [{ bucket: 'comp', days: 1.5, source: 'compoff', reason: 'Worked on a holiday' }] }, leave: { [day(3)]: { days: 1 }, [day(4)]: { days: 1 }, [day(5)]: { days: 1 } } });
+  assert.deepStrictEqual([k.marks[day(3)].bucket, k.marks[day(4)].bucket, k.marks[day(5)].bucket], ['comp', 'both', 'paid'], 'the 3rd from Comp-off, the 4th half and half, the 5th from Paid leave');
+  assert.deepStrictEqual([k.paid, k.comp], [6.5, 0], 'paid: 1 (Sunday) + 6 − 0.5 − 1 + 1 (Sunday the 8th); comp-off used up'); assert.deepStrictEqual(k.absent, { [day(10)]: 'none' });
+  assert.ok(k.ledger.some(x => x.source === 'opening' && x.days === 6) && k.ledger.filter(x => x.source === 'leave').map(x => x.bucket + x.days).join(',') === 'comp-1,comp-0.5,paid-0.5,paid-1');
+  // nothing in either balance: the day stays absent
+  k = L.walk2(d2.slice(1, 6), { polOn: () => site, leave: { [day(3)]: { days: 1 } } }); assert.deepStrictEqual([Object.keys(k.marks), k.absent[day(3)]], [[], 'nobalance']);
+  // the Head Office: 1 at the start of every month, carried on; a weekly off or a day at work never takes a leave
+  const ho = { earn: 'month', per_month: 1, carry: true, auto_absent: false, strict: true }, two = [{ day: '2026-10-01', code: 'P' }, { day: '2026-10-02', code: 'P' }, { day: '2026-11-01', code: 'WO' }, { day: '2026-11-02', code: 'A' }, { day: '2026-11-03', code: 'P' }];
+  k = L.walk2(two, { polOn: () => ho, leave: { '2026-11-01': { days: 1, bucket: 'paid' }, '2026-11-02': { days: 1, bucket: 'paid' }, '2026-11-03': { days: 1, bucket: 'paid' } } });
+  assert.deepStrictEqual([k.paid, Object.keys(k.marks)], [1, ['2026-11-02']], 'October\'s leave is carried on: 2, one taken');
+  // no policy of the Rule Book on a day: nothing is earned and nothing is taken there
+  assert.deepStrictEqual(L.walk2(two, { polOn: () => null }).ledger, []);
+  // a policy of before read through the same walk gives the same balance as the old walk (not strict: a leave is taken as asked)
+  const old = { per_month: 4, carry: true, auto_absent: true, valid_from: '2026-11-01' }, od = [{ day: '2026-11-01', code: 'A' }, { day: '2026-11-02', code: 'P' }, { day: '2026-11-03', code: 'A' }];
+  assert.strictEqual(L.walk2(od, { polOn: () => ({ earn: 'month', per_month: 4, carry: true, auto_absent: true, strict: false }) }).paid, L.walk(od, { policies: [old] }).balance);
+});
+
+test('the Rule Book in the pay: approved overtime and comp-off "for pay" – and nothing changes without them', () => {
+  const P = require('../lib/pay'), c = { present: 24, half: 0, leave: 0, week_off: 4, holiday: 0, extra: 2, paid: 30 }, base = { salary: { pay_type: 'monthly', amount: 30000 }, counts: c, month_days: 30, flags: { pf: true }, settings: { pf_pct: 12 }, adjust: {} };
+  const a = P.slip(base); assert.deepStrictEqual([a.day, a.earned, a.extra_days, a.extra, a.gross, a.pf], [1000, 30000, 2, 2000, 32000, 3600]); assert.ok(!('overtime' in a) && !('ot_hours' in a), 'no overtime: the slip has no such line');
+  assert.deepStrictEqual(P.slip(Object.assign({}, base, { extra_days: undefined, overtime: [] })), a, 'nothing of the Rule Book: the very same slip');
+  // a comp-off policy: of the 2 days worked on a day off only the one approved "for pay" is paid
+  const b = P.slip(Object.assign({}, base, { extra_days: 1 })); assert.deepStrictEqual([b.extra_days, b.extra, b.gross], [1, 1000, 31000]); assert.strictEqual(P.slip(Object.assign({}, base, { extra_days: 0 })).extra, 0, 'none approved for pay: no extra day');
+  // overtime: 90 + 30 minutes with an 8-hour shift, plain hourly rate: 1000 / 8 × 2 h = 250; at 1.5 ×: 375; PF stays on the earned pay
+  const o = P.slip(Object.assign({}, base, { overtime: [{ minutes: 90, shift_hours: 8, rate: 1 }, { minutes: 30, shift_hours: 8 }] })); assert.deepStrictEqual([o.ot_hours, o.overtime, o.gross, o.pf], [2, 250, 32250, 3600]);
+  assert.strictEqual(P.slip(Object.assign({}, base, { overtime: [{ minutes: 120, shift_hours: 8, rate: 1.5 }] })).overtime, 375);
+  assert.strictEqual(P.slip(Object.assign({}, base, { overtime: [{ minutes: 120, shift_hours: 0, rate: 1 }] })).overtime, 0, 'no shift hours known: nothing is made up');
+  // a day's rate: the day's pay is the rate itself
+  assert.strictEqual(P.slip({ salary: { pay_type: 'daily', amount: 800 }, counts: c, month_days: 30, flags: {}, settings: {}, overtime: [{ minutes: 60, shift_hours: 8, rate: 1 }] }).overtime, 100);
+  // the totals carry overtime only in a month that has any
+  assert.ok(!('overtime' in P.totals([a, b]))); assert.strictEqual(P.totals([a, o]).overtime, 250); assert.strictEqual(P.totals([a, o]).gross, 64250);
+  const src = fs.readFileSync(path.join(root, 'lib', 'act_payroll.js'), 'utf8'); assert.match(src, /status=eq\.approved&kind=in\.\(overtime,compoff\)/, 'only approved requests count'); assert.match(src, /\(q\.body \|\| \{\}\)\.result === 'pay'/, 'only the ones "for pay"');
+});
+
+test('the Rule Book in the pay: unused leave paid on relieving; nothing is earned after the last day', () => {
+  const P = require('../lib/pay'), L = require('../lib/leave'), c = { present: 10, paid: 12, extra: 0 }, base = { salary: { pay_type: 'monthly', amount: 30000 }, counts: c, month_days: 30, flags: { pf: true }, settings: { pf_pct: 12 }, adjust: {} };
+  const a = P.slip(base), b = P.slip(Object.assign({}, base, { leave_days: 4.5 })); assert.ok(!('leave_pay' in a)); assert.deepStrictEqual([b.leave_pay_days, b.leave_pay, b.gross - a.gross, b.pf], [4.5, 4500, 4500, a.pf]);
+  assert.deepStrictEqual(P.slip(Object.assign({}, base, { leave_days: 0 })), a, 'no days left: the very same slip'); assert.strictEqual(P.totals([a, b]).leave_pay, 4500); assert.ok(!('leave_pay' in P.totals([a])));
+  // the balance as of the last day: the months after it add nothing
+  const days = []; for (let m = 9; m <= 11; m++) for (let d = 1; d <= 28; d++) days.push({ day: '2026-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'), code: 'P' });
+  const pol = () => ({ earn: 'month', per_month: 2, carry: true, strict: true });
+  assert.strictEqual(L.walk2(days, { polOn: pol }).paid, 6); assert.strictEqual(L.walk2(days, { polOn: pol, last: '2026-10-10' }).paid, 4, 'relieved on 10 October: September and October only'); assert.strictEqual(L.walk2(days, { polOn: pol, last: '' }).paid, 6);
+  const src = fs.readFileSync(path.join(root, 'lib', 'act_payroll.js'), 'utf8'); assert.match(src, /e\.left_on\.slice\(0, 7\) !== month\) continue/, 'only in the month of his last day'); assert.match(src, /lp\.body\.exit !== 'pay'\) continue/, 'only when his policy says so');
 });
