@@ -19,7 +19,7 @@
   function fail(e) { toast(e && e.message ? e.message : 'HR did not answer – try again.', true); }
   function btn(cls, text, fn) { var b = el('button', cls, text); b.type = 'button'; b.onclick = fn; return b; }
   function table(heads) { var box = el('div', 'box'), t = el('table'), h = el('thead'), r = el('tr'); heads.forEach(function (x) { r.appendChild(typeof x === 'string' ? el('th', '', x) : x); }); h.appendChild(r); t.appendChild(h); var b = el('tbody'); t.appendChild(b); box.appendChild(t); return { box: box, body: b }; }
-  function note(text, kind) { var p = el('p', '', text); p.style.cssText = 'margin:0 0 12px;padding:11px 14px;border-radius:14px;font-size:14.5px;' + (kind === 'ok' ? 'background:#DDF5E6;color:#0B6B3A' : kind === 'warn' ? 'background:#FFF1CC;color:#6B4700' : 'background:#E9F2FF;color:#0B3A6B'); return p; }
+  function note(text, kind) { var p = el('p', '', text); p.style.cssText = 'margin:0 0 12px;padding:11px 14px;border-radius:14px;font-size:15.5px;' + (kind === 'ok' ? 'background:#DDF5E6;color:#0B6B3A' : kind === 'warn' ? 'background:#FFF1CC;color:#6B4700' : 'background:#E9F2FF;color:#0B3A6B'); return p; }
   function monthPick() { var i = el('input'); i.type = 'month'; i.value = V.month; i.max = new Date(Date.now() + 19800000).toISOString().slice(0, 7); i.style.flex = '0 0 180px'; i.onchange = function () { if (/^\d{4}-\d{2}$/.test(i.value)) { V.month = i.value; V.picked = {}; draw(); } }; return i; }
 
   function draw() {
@@ -47,9 +47,9 @@
       tr.appendChild(el('td', '', w.code)); var nm = el('td', '', w.name); nm.appendChild(el('small', '', ' ' + (CAT[w.category] || ''))); nm.lastChild.style.color = '#8592AD'; tr.appendChild(nm);
       [c.present, c.half, c.absent, c.leave, c.extra, c.late, c.week_off, c.holiday].forEach(function (v) { var x = el('td', '', v || '–'); x.style.textAlign = 'center'; tr.appendChild(x); });
       var pay = el('td', '', c.paid); pay.style.cssText = 'text-align:center;font-weight:700'; tr.appendChild(pay);
-      var st = el('td'), s = STATE[w.state], tag = el('span', '', s[0]); tag.style.cssText = 'display:inline-block;border-radius:999px;padding:4px 11px;font-size:13px;font-weight:600;color:' + s[1] + ';background:' + s[2]; st.appendChild(tag);
+      var st = el('td'), s = STATE[w.state], tag = el('span', '', s[0]); tag.style.cssText = 'display:inline-block;border-radius:999px;padding:4px 11px;font-size:14px;font-weight:600;color:' + s[1] + ';background:' + s[2]; st.appendChild(tag);
       var sub = w.returned ? 'Sent back by ' + w.returned.by + ': ' + w.returned.reason : w.blocked ? w.blocked : w.verified ? w.verified.by + ', ' + when(w.verified.at) : '';
-      if (sub) { var sm = el('div', '', sub); sm.style.cssText = 'font-size:12.5px;margin-top:3px;color:' + (w.blocked && w.state !== 'verified' ? '#B42318' : '#8592AD'); st.appendChild(sm); }
+      if (sub) { var sm = el('div', '', sub); sm.style.cssText = 'font-size:13.5px;margin-top:3px;color:' + (w.blocked && w.state !== 'verified' ? '#B42318' : '#8592AD'); st.appendChild(sm); }
       tr.appendChild(st); t.body.appendChild(tr);
     });
     if (!r.rows.length) t.box.appendChild(el('p', 'none', 'No employee on this site in ' + mName(r.month) + '.'));
