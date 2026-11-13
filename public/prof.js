@@ -37,26 +37,38 @@
   }
 
   /* ───────────── one employee's full profile ───────────── */
-  function profile(id, done) {
-    var d = el('div', 'dlg'), s = el('div', 'sheet wide pf'); s.setAttribute('role', 'dialog'); s.setAttribute('aria-modal', 'true'); d.appendChild(s); document.body.appendChild(d);
-    var close = function () { document.removeEventListener('keydown', key); if (d.parentNode) d.parentNode.removeChild(d); if (done) done(); }, key = function (ev) { if (ev.key === 'Escape') close(); };
-    document.addEventListener('keydown', key); s.appendChild(el('p', 'none', 'Opening… · उघडत आहे…'));
+  /* (13-11-2026, "ekach screen madhe sagle") `into` = the employee's own page takes the profile: { tabs, body, show(on), data(r), tab } –
+   * its tabs are drawn there after "Overview", no window is opened; without `into` it is the window of before. */
+  function profile(id, done, into) {
+    var d = null, s, close = function () {};
+    if (into) { s = into.body; s.textContent = ''; into.tabs.textContent = ''; P.tab = into.tab || 'overview'; into.show(P.tab === 'overview'); }
+    else {
+      d = el('div', 'dlg'); s = el('div', 'sheet wide pf'); s.setAttribute('role', 'dialog'); s.setAttribute('aria-modal', 'true'); d.appendChild(s); document.body.appendChild(d);
+      var key = function (ev) { if (ev.key === 'Escape') close(); }; close = function () { document.removeEventListener('keydown', key); if (d.parentNode) d.parentNode.removeChild(d); if (done) done(); };
+      document.addEventListener('keydown', key); s.appendChild(el('p', 'none', 'Opening… · उघडत आहे…'));
+    }
     var draw = function (r) {
       P.data = r; s.textContent = ''; var e = r.employee, L = r.lists;
+      if (into && into.live && !into.live()) return;      // he opened another person meanwhile
+      if (into) into.data(r); else {
       var hd = el('div', 'ep-head'), fc = el('span', 'dz-av ep-face', e.name.trim().split(/\s+/).map(function (w) { return w.charAt(0); }).slice(0, 2).join('').toUpperCase()), tt = el('div'); tt.appendChild(el('h2', '', e.name)); tt.appendChild(el('p', 'sub', e.code + ' · full profile')); hd.appendChild(fc); hd.appendChild(tt);
-      var rg = el('div', 'pf-pct'); rg.appendChild(ring(r.complete.pct)); rg.appendChild(el('small', '', r.complete.filled + ' of ' + r.complete.of + ' details')); hd.appendChild(rg); s.appendChild(hd);
-      if (r.complete.missing.length) s.appendChild(el('p', 'warn', 'Compulsory, still missing: ' + r.complete.missing.join(', ') + '.'));
-      var tabs = el('div', 'pf-tabs'), body = el('div'), er = el('p', 'err'); er.hidden = true; er.setAttribute('role', 'alert');
+        var rg = el('div', 'pf-pct'); rg.appendChild(ring(r.complete.pct)); rg.appendChild(el('small', '', r.complete.filled + ' of ' + r.complete.of + ' details')); hd.appendChild(rg); s.appendChild(hd);
+        if (r.complete.missing.length) s.appendChild(el('p', 'warn', 'Compulsory, still missing: ' + r.complete.missing.join(', ') + '.'));
+      }
+      var tabs = into ? into.tabs : el('div', 'pf-tabs'), body = el('div'), er = el('p', 'err'); er.hidden = true; er.setAttribute('role', 'alert'); if (into) tabs.textContent = '';
       var err = function (x) { er.textContent = x ? (x.message || String(x)) : ''; er.hidden = !x; };
       var all = r.defs.groups.map(function (g) { return { key: g.key, name: g.name, group: g }; }).concat(r.defs.rows.map(function (w) { return { key: w.key, name: w.name + (r.rows[w.key].length ? ' · ' + r.rows[w.key].length : ''), rows: w }; }));
+      if (into) all.unshift({ key: 'overview', name: 'Overview' });
       if (!all.some(function (t) { return t.key === P.tab; })) P.tab = all[0].key;
-      all.forEach(function (t) { tabs.appendChild(btn('tab' + (P.tab === t.key ? ' on' : ''), t.name, function () { P.tab = t.key; draw(P.data); })); });
-      s.appendChild(tabs); s.appendChild(body); s.appendChild(er);
+      // how many compulsory details of a tab are still missing (the names the server gave)
+      var miss = r.complete.missing || [], left0 = function (t) { return t.group ? t.group.fields.filter(function (f) { return miss.indexOf(f.label) > -1; }).length : t.rows ? (miss.some(function (m) { return m.indexOf(t.rows.name) === 0; }) ? 1 : 0) : 0; };
+      all.forEach(function (t) { var b = btn((into ? '' : 'tab') + (P.tab === t.key ? ' on' : ''), t.name, function () { P.tab = t.key; draw(P.data); }); if (into) { var n = left0(t); if (n) { var m = el('em', '', n); m.title = n + ' compulsory still missing'; b.appendChild(m); } b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', P.tab === t.key ? 'true' : 'false'); } tabs.appendChild(b); });
+      if (into) { into.show(P.tab === 'overview'); s.appendChild(body); s.appendChild(er); if (P.tab === 'overview') return; } else { s.appendChild(tabs); s.appendChild(body); s.appendChild(er); }
       var cur = all.filter(function (t) { return t.key === P.tab; })[0], left = e.status === 'left';
       if (cur.group) {
         var vals = cur.key === 'secret' || cur.group.in === 'secret' ? r.secret : r.data, f = form(cur.group.fields, vals, L); body.appendChild(f.grid);
         if (cur.key === 'secret') body.appendChild(el('p', 'muted', r.masked ? 'The numbers are shown masked to you. A box you leave as it is keeps its number.' : 'These numbers are never in a list or an export.'));
-        var a = el('div', 'acts'); if (!left) a.appendChild(btn('pri', 'Save ' + cur.name, function () { api('profSave', { id: e.id, group: cur.key, data: f.get() }).then(function (n) { toast('Saved.'); draw(n); }, err); })); a.appendChild(btn('sec', 'Close', close)); body.appendChild(a);
+        var a = el('div', 'acts'); if (!left) a.appendChild(btn('pri', 'Save ' + cur.name, function () { api('profSave', { id: e.id, group: cur.key, data: f.get() }).then(function (n) { toast('Saved.'); draw(n); }, err); })); if (!into) a.appendChild(btn('sec', 'Close', close)); body.appendChild(a);
       } else {
         var w = cur.rows, list = el('div', 'pf-rows'), edit = el('div');
         var open = function (row) {
@@ -75,10 +87,11 @@
         });
         if (!r.rows[w.key].length) list.appendChild(el('p', 'none', 'Nothing here yet.'));
         body.appendChild(list); body.appendChild(edit);
-        var a3 = el('div', 'acts'); if (!left) a3.appendChild(btn('pri', '+ Add ' + w.one, function () { open(null); })); a3.appendChild(btn('sec', 'Close', close)); body.appendChild(a3);
+        var a3 = el('div', 'acts'); if (!left) a3.appendChild(btn('pri', '+ Add ' + w.one, function () { open(null); })); if (!into) a3.appendChild(btn('sec', 'Close', close)); body.appendChild(a3);
       }
     };
-    api('profGet', { id: id }).then(draw, function (x) { s.textContent = ''; s.appendChild(el('p', 'err', x.message)); var a = el('div', 'acts'); a.appendChild(btn('sec', 'Close', close)); s.appendChild(a); });
+    api('profGet', { id: id }).then(draw, function (x) { if (into) { if (into.fail) into.fail(x); return; } s.textContent = ''; s.appendChild(el('p', 'err', x.message)); var a = el('div', 'acts'); a.appendChild(btn('sec', 'Close', close)); s.appendChild(a); });
+    return { open: function (tab) { if (P.data && (!into || !into.live || into.live())) { P.tab = tab; draw(P.data); } } };
   }
 
   /* ───────────── the Lists page ───────────── */
@@ -106,6 +119,6 @@
     pages: [['lists', 'Lists']],
     has: function (page) { return page === 'lists'; },
     open: function (page, me) { P.me = me; lists(); },
-    profile: profile, _show: show
+    profile: profile, ring: ring, _show: show
   };
 })();

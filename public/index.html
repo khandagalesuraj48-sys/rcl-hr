@@ -184,6 +184,23 @@ body.in .dz-hero{grid-template-columns:minmax(210px,1fr) minmax(0,470px);min-hei
 .dz-need{border-radius:12px}.dz-go{background:#1E63E9;border-radius:9px}.dz-bar i{height:9px}
 @media(max-width:1280px){.dk{grid-template-columns:repeat(3,minmax(0,1fr))!important}.dk-r.a,.dk-r.b{grid-template-columns:1fr 1fr}.dk-r.a>:first-child,.dk-r.b>:first-child{grid-column:1/-1}}
 @media(max-width:760px){.dk{grid-template-columns:1fr 1fr!important}.dk-r.a,.dk-r.b{grid-template-columns:1fr}.dk-ring{flex-direction:column;align-items:stretch}.dk-ring svg{margin:0 auto}.fd-open kbd{display:none}}
+/* (13-11-2026) an employee as ONE FULL PAGE (and his form): it fills the place of the page beside the menu – only the look and the frame */
+body.in .dlg.pg{display:block;background:#F3F6FC;padding:0;overflow:auto;place-items:normal}body.in .dlg.pg[hidden]{display:none}
+body.in .dlg.pg>.sheet{max-width:none;max-height:none;min-height:100%;border-radius:0;box-shadow:none;background:transparent;padding:14px 22px 34px;overflow:visible}
+@media(min-width:1001px){html:not(.embed) .dlg.pg{left:236px}}
+.ep-crumb{margin:0 0 8px;font-size:13px;color:#6B7690;display:flex;align-items:center;gap:8px}.ep-back{border:1px solid #E4EAF5;background:#fff;border-radius:10px;padding:6px 12px;font-weight:600;cursor:pointer;color:#0F1F3D}.ep-back:hover{background:#F6F8FD}.ep-crumb span{font-weight:600;color:#0F1F3D}
+.dlg.pg .ep-head{margin:0;border-radius:16px;padding:16px 20px;flex-wrap:wrap;background:linear-gradient(120deg,#0B1B3F,#1E3F78)}.ep-who{min-width:0;margin-right:auto}.ep-tags{margin:8px 0 0;display:flex;gap:6px;flex-wrap:wrap}.dlg.pg .ep-st{margin:0;font-size:12px;padding:4px 10px}
+.dlg.pg .ep-face{width:64px;height:64px;border-radius:20px;font-size:22px}.dlg.pg .pf-pct{margin:0 6px 0 0}
+.ep-do{display:flex;flex-wrap:wrap;gap:8px;align-items:center}body.in .ep-do .sec{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.28);color:#fff;height:40px;padding:0 14px;font-size:13.5px}body.in .ep-do .sec:hover{background:rgba(255,255,255,.2)}
+body.in .ep-do .sec:first-child{background:#fff;color:#0F1F3D}body.in .ep-do .danger{background:transparent;border-color:rgba(255,160,150,.6);color:#FFC9C2;height:40px;padding:0 14px;font-size:13.5px}body.in .ep-do .danger:hover{background:rgba(217,45,32,.25)}
+.ep-tabs{display:flex;gap:2px;border-bottom:1px solid #E4EAF5;margin:12px 0 14px;overflow-x:auto}.ep-tabs button{border:0;background:transparent;padding:10px 13px;font-weight:600;font-size:13.5px;color:#55607c;border-bottom:2.5px solid transparent;margin-bottom:-1px;white-space:nowrap;cursor:pointer}
+.ep-tabs button:hover{color:#0F1F3D}.ep-tabs button.on{color:#1E63E9;border-color:#1E63E9}.ep-tabs em{font-style:normal;background:#FFF1D6;color:#A86400;border-radius:99px;font-size:11px;padding:1px 6px;margin-left:6px}.ep-tabs button:focus-visible{outline:2px solid #1E63E9;outline-offset:-2px}
+.ep-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(280px,360px);gap:12px;align-items:start}.ep-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.dlg.pg .ep-card{background:#fff;border:1px solid #E4EAF5;border-radius:16px;padding:14px 16px}.dlg.pg .ep-card h4{font-size:15px;font-weight:700;margin:0 0 10px}.dlg.pg .ep-card .hist li{background:#F6F8FC}.ep-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.ep-row button{height:40px;font-size:13.5px}
+.dlg.pg .ep-card .warn{margin:0 0 4px;font-size:13px}#d_todo .pf-ring{width:72px;height:72px}.td-top{display:flex;gap:12px;align-items:center;margin-bottom:8px}.td-top b{display:block;font-size:20px}.td-top small{color:#6B7690}.td-ring circle:first-child{stroke:#EEF2FA}.td-ring text{fill:#0F1F3D}
+#d_pbody{background:#fff;border:1px solid #E4EAF5;border-radius:16px;padding:18px 20px}#d_pbody .acts{justify-content:flex-start}
+#dlg_form.pg form{max-width:none}#dlg_form.pg .grid.g3{background:#fff;border:1px solid #E4EAF5;border-radius:16px;padding:18px 20px}#dlg_form.pg .acts{position:sticky;bottom:0;background:#F3F6FC;padding:12px 0;margin-top:8px;border-top:1px solid #E4EAF5}
+@media(max-width:1180px){.ep-cols{grid-template-columns:1fr 1fr}.ep-cols>.ep-col:last-child{grid-column:1/-1}}@media(max-width:760px){.ep-cols{grid-template-columns:1fr}.dlg.pg>.sheet{padding:12px}}
 /* Ctrl K */
 .dlg.fd{place-items:start center;padding-top:10vh}.fd-box{width:100%;max-width:640px;background:#fff;border-radius:18px;box-shadow:0 30px 70px rgba(10,27,68,.35);overflow:hidden;text-align:left}
 .fd-in{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #EEF1F7;color:#6B7690}.fd-in input{flex:1;border:0;outline:0;font-size:16.5px;background:transparent;min-width:0;color:#0F1F3D}
@@ -242,20 +259,27 @@ body.in .dz-hero{grid-template-columns:minmax(210px,1fr) minmax(0,470px);min-hei
   <p class="fd-foot"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Ctrl K</kbd> from any page</span></p>
 </div></div>
 
-<div class="dlg" id="dlg_emp" hidden><div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="d_title">
-  <div class="ep-head"><span class="dz-av ep-face" id="d_face" aria-hidden="true"></span><div><h2 id="d_title"></h2><p class="sub" id="d_code"></p></div><span class="st ep-st" id="d_st"></span></div>
-  <p class="warn" id="d_miss" hidden></p><p class="warn" id="d_docs_miss" hidden></p>
-  <div class="ep-grid">
-    <div class="ep-card"><h4>Work · काम</h4><dl id="d_list"></dl></div>
-    <div class="ep-card"><h4>Contact · संपर्क</h4><dl id="d_list2"></dl></div>
-    <div class="ep-card full" id="d_att_lab" hidden><h4>Attendance · हजेरी</h4><dl id="d_att" hidden></dl></div>
-    <div class="ep-card full"><h4>History · इतिहास</h4><ul class="hist" id="d_hist"></ul></div>
+<!-- (13-11-2026, the pictures he approved: "ekach screen madhe sagle … half screen nkot full screen") ONE FULL PAGE of an employee:
+     his head with the buttons, then Overview and the tabs of his full profile – no window on a window -->
+<div class="dlg pg" id="dlg_emp" hidden><div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="d_title">
+  <p class="ep-crumb"><button class="ep-back" type="button" data-close="dlg_emp">‹ Employees</button><span id="d_crumb"></span></p>
+  <div class="ep-head"><span class="dz-av ep-face" id="d_face" aria-hidden="true"></span><div class="ep-who"><h2 id="d_title"></h2><p class="sub" id="d_code"></p><p class="ep-tags"><span class="st ep-st" id="d_st"></span><span class="st" id="d_sg" hidden></span></p></div>
+    <div class="pf-pct" id="d_pct" hidden></div>
+    <div class="ep-do"><button class="sec" id="d_edit" type="button">Change</button><button class="sec" id="d_tr" type="button">Transfer…</button><button class="sec" id="d_login" type="button" hidden>Sign-in for the app…</button><button class="sec" id="d_salary" type="button" hidden>Salary…</button><button class="sec" id="d_facebtn" type="button">Face…</button><button class="danger" id="d_exit" type="button">Relieve…</button><button class="danger" id="d_del" type="button">Delete…</button></div></div>
+  <div class="ep-tabs" id="d_tabs"></div>
+  <div id="d_over">
+    <p class="warn" id="d_miss" hidden></p>
+    <div class="ep-cols">
+      <div class="ep-col"><div class="ep-card"><h4>Work · काम</h4><dl id="d_list"></dl></div><div class="ep-card"><h4>Contact · संपर्क</h4><dl id="d_list2"></dl></div><div class="ep-card"><h4>History · इतिहास</h4><ul class="hist" id="d_hist"></ul></div></div>
+      <div class="ep-col"><div class="ep-card" id="d_att_lab" hidden><h4>Attendance · हजेरी</h4><dl id="d_att" hidden></dl></div>
+        <div class="ep-card"><h4>Documents &amp; KYC · कागदपत्रे</h4><p class="warn" id="d_docs_miss" hidden></p><div class="ep-row"><button class="sec" id="d_kyc" type="button">Personal details &amp; KYC</button><button class="sec" id="d_docs" type="button">Documents</button></div></div></div>
+      <div class="ep-col"><div class="ep-card" id="d_todo"><h4>Still to do · बाकी</h4><div id="d_todo_body"><p class="muted">Reading…</p></div><div class="ep-row"><button class="pri" id="d_prof" type="button">Fill the profile</button></div></div></div>
+    </div>
   </div>
-  <div class="acts ep-acts"><button class="pri" id="d_prof" type="button">Full profile</button><button class="sec" id="d_kyc" type="button">Personal details &amp; KYC</button><button class="sec" id="d_docs" type="button">Documents</button><button class="sec" id="d_login" type="button" hidden>Sign-in for the app…</button><button class="sec" id="d_facebtn" type="button">Face…</button><button class="sec" id="d_salary" type="button" hidden>Salary…</button><span style="flex:1"></span>
-    <button class="danger" id="d_del" type="button">Delete…</button><button class="danger" id="d_exit" type="button">Relieve…</button><button class="sec" id="d_tr" type="button">Transfer…</button><button class="sec" id="d_edit" type="button">Change</button><button class="pri" type="button" data-close="dlg_emp">Close</button></div>
+  <div id="d_pbody" hidden></div>
 </div></div>
 
-<div class="dlg" id="dlg_form" hidden><form class="sheet wide" id="f_form" role="dialog" aria-modal="true" aria-labelledby="f_title" novalidate>
+<div class="dlg pg" id="dlg_form" hidden><form class="sheet wide" id="f_form" role="dialog" aria-modal="true" aria-labelledby="f_title" novalidate>
   <h2 id="f_title"></h2><p class="sub">Date of birth, e-mail and mobile are compulsory – without them the employee is kept as Incomplete.</p><input type="hidden" id="f_id">
   <div class="grid g3">
     <p class="fs">Who · ओळख</p>

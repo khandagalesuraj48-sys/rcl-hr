@@ -251,6 +251,14 @@ designation's category beside the settings (`hr_settings`, site `*`).
   * **Employees: the column "Sign-in"** (Given / Not given / Switched off) – asked from the PORTAL (`api/hrlogin` with `check`,
     read only; the HR Admin of the site and the Super Admin). With an older Portal or for an HR User the column stays away;
   * **Shifts & rules:** the HR Admin's powers as switches (the same checkbox, the same action).
+* **An employee is ONE full page (13-11-2026, "ekach screen madhe sagle … half screen nkot full screen"):** a press on a person
+  opens his page beside the menu – his head (photo, code, status, how far the profile is filled, the buttons Change · Transfer ·
+  Sign-in · Salary · Face · Relieve · Delete), then **Overview** (work, contact, history, attendance, documents & KYC, "Still
+  to do") and the tabs of his **full profile** (Profile, Job, Statutory & bank, Pay details, Family, Education, Experience,
+  Skills – a tab shows how many compulsory details it still misses). "+ Add employee" and "Change" are a full page too. A
+  window closed without saving goes back to his page; another page of the menu leaves it. The same actions of the server.
+  Still small windows over his page: the sign-in, Personal details & KYC, Documents, Salary, Face, Transfer, Relieve, Delete.
+  Not built from the picture: the month's strip of days, the "Pay" card, "Sign-in given / Phone tied" in the history.
 * **Only the web.** Nothing of the phone app and nothing of the database is changed; of the server only `attDash` (reading).
 
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
