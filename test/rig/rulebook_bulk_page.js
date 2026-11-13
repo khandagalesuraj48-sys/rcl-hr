@@ -1,5 +1,5 @@
 // RIG ONLY – the bulk attendance correction in a browser against the local viewer on :3062 (never the live site).
-const { chromium } = require('playwright'); const fs = require('fs');
+const { chromium } = require('playwright'); const fs = require('fs'); require('./_back')('DEMOBKTX2');      // the rig is put back when this test ends
 (async () => { const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1440, height: 950 }, acceptDownloads: true }); const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); let n = 0, bad = 0; const ok = (c, t) => { n++; if (!c) { bad++; console.log('FAIL', t); } };
   await p.route('**/vendor/xlsx-0.18.5.full.min.js', r => r.fulfill({ contentType: 'application/javascript', body: fs.readFileSync('/home/claude/rclerp/public/vendor/xlsx-0.18.5.full.min.js') }));      // on live the ERP's own address serves it
   const tag = 'BP' + Date.now().toString().slice(-6), month = '2026-11';

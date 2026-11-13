@@ -2,6 +2,7 @@
 // A bulk correction: only in the person's favour, the punches untouched, every changed day a new entry; with an attendance policy that names approvers it waits.
 process.env.SUPABASE_URL = 'http://127.0.0.1:3140'; process.env.SUPABASE_SECRET_KEY = 'sb_secret_rigkey'; delete process.env.VERCEL_ENV;
 const IM = require('../../lib/act_import'), M = require('../../lib/act_muster'), BK = require('../../lib/act_rulebook'), AS = require('../../lib/act_asks'), { db } = require('../../lib/db');
+require('./_back')('DEMOBKTX2');      // the rig is put back when this test ends
 (async () => {
   let n = 0, bad = 0; const ok = (c, t) => { n++; if (!c) { bad++; console.log('FAIL', t); } }, no = async (p, t) => { try { await p; ok(false, t + ' (was allowed)'); } catch (e) { ok(e.status >= 400 && e.status < 500, t + ' → ' + e.message); } };
   const site = 'DEMOBKTX2', month = '2026-11', tag = 'I' + Date.now(), sup = { role: 'super', site, email: 'rig.super@rig.test' }, adm = { role: 'admin', site, email: 'rig.admin@rig.test' }, usr = { role: 'user', site, email: 'rig.user@rig.test' };

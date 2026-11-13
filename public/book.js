@@ -189,14 +189,15 @@
     if (r.kind === 'overtime') return (Math.round(b.minutes / 6) / 10) + ' h extra → ' + (b.result === 'leave' ? b.days + ' day(s) in the Comp-off balance' : b.result === 'pay' ? 'pay (' + b.rate + ' × the hourly rate)' : 'nothing');
     if (r.kind === 'compoff') return 'worked ' + b.hours + ' h on a day off → ' + (b.result === 'leave' ? b.days + ' day in the Comp-off balance' : 'pay for an extra day');
     if (r.kind === 'att_import') return (b.changes || []).length + ' day(s) of ' + b.month + ' to set right – ' + (b.reason || '');
+    if (r.kind === 'leave_credit' && b.opening) return 'Opening balance of ' + b.people + (b.people === 1 ? ' person' : ' people') + ' · Paid leave ' + b.paid + ' · Comp-off ' + b.comp + (b.file ? ' · ' + b.file : '') + ' – ' + (b.reason || '');
     if (r.kind === 'leave_credit') return (b.days > 0 ? '+' : '') + b.days + ' day(s) · ' + (b.bucket === 'comp' ? 'Comp-off' : 'Paid leave') + (b.source === 'opening' ? ' · opening balance' : '') + ' – ' + (b.reason || '');
     return '';
   }
   function approvals() {
     var root = $('p_book'); root.textContent = '';
     if (window.HRHEAD && !root.hidden) window.HRHEAD.set('Approvals · मंजुरी', 'Overtime, comp-off and extra leave count only after they are verified and approved – by whom each policy says.', []);
-    var tabs = el('div', 'rb-tabs'); [['asks', 'Requests'], ['extras', 'Overtime & comp-off of the month'], ['bulk', 'Bulk attendance correction']].forEach(function (x) { tabs.appendChild(btn(A.view === x[0] ? 'on' : '', x[1], function () { A.view = x[0]; approvals(); })); }); root.appendChild(tabs);
-    var body = el('div'); root.appendChild(body); if (A.view === 'extras') extras(body); else if (A.view === 'bulk') bulk(body); else asks(body);
+    var tabs = el('div', 'rb-tabs'); [['asks', 'Requests'], ['extras', 'Overtime & comp-off of the month'], ['bulk', 'Bulk attendance correction'], ['opening', 'Opening leave balance']].forEach(function (x) { tabs.appendChild(btn(A.view === x[0] ? 'on' : '', x[1], function () { A.view = x[0]; approvals(); })); }); root.appendChild(tabs);
+    var body = el('div'); root.appendChild(body); if (A.view === 'extras') extras(body); else if (A.view === 'bulk') bulk(body); else if (A.view === 'opening') opening(body); else asks(body);
   }
   function asks(root) {
     var tools = el('div', 'tools'); [['pending', 'Waiting'], ['approved', 'Approved'], ['refused', 'Refused']].forEach(function (k) { tools.appendChild(btn(A.status === k[0] ? 'sm' : 'sm ghost', k[1], function () { A.status = k[0]; approvals(); })); }); root.appendChild(tools);
@@ -266,6 +267,48 @@
   /* ───────── BULK ATTENDANCE CORRECTION: the month as an Excel sheet out, the corrected sheet back in ─────────
    * (his words: "attendance export karel jith a aahe tith p kare nantr import karel") Only what is in the person's favour is
    * taken; the file is first LOOKED AT (nothing saved) and shown line by line, then set right with one reason. */
+  /* ───────── THE OPENING LEAVE BALANCE OF MANY PEOPLE (his answer: "HR fills by Excel → approval → credited") ───────── */
+  function opening(root) {
+    var st = A.open || (A.open = { day: today(), look: null, rows: null, file: '' });
+    var card = el('div', 'rb-site'), t = el('div'); t.appendChild(el('small', '', 'How it works')); t.appendChild(el('b', '', '1 Download the sheet · 2 fill Paid leave and Comp-off in Excel · 3 import the file'));
+    t.appendChild(el('span', '', 'The file is looked at first. Then ONE request goes for approval – the balances get their days only when it is approved. A person gets an opening balance once: a second one is refused.')); card.appendChild(t); root.appendChild(card);
+    var tools = el('div', 'tools'), d = el('input'); d.type = 'date'; d.value = st.day; d.max = today(); d.setAttribute('aria-label', 'The balance is as of this day'); d.onchange = function () { st.day = d.value || today(); }; var lb = el('label', 'rb-hint', 'As of'); lb.style.cssText = 'margin:0;align-self:center'; tools.appendChild(lb); tools.appendChild(d);
+    var exp = btn('sec', 'Download the sheet (Excel)', function () {
+      exp.disabled = true; Promise.all([api('rbPeople', { kind: 'leave' }), xlsx()]).then(function (x) {
+        exp.disabled = false; var r = x[0]; if (!r.ready) { toast(r.note, true); return; } if (!x[1]) { toast('The Excel part could not be loaded – try again.', true); return; }
+        var rows = [['Code', 'Name', 'Category', 'Paid leave', 'Comp-off']].concat(r.rows.map(function (w) { return [w.code, w.name, CATN[w.category] || w.category, '', '']; }));
+        var ws = window.XLSX.utils.aoa_to_sheet(rows), wb = window.XLSX.utils.book_new(); ws['!cols'] = [{ wch: 10 }, { wch: 28 }, { wch: 10 }, { wch: 12 }, { wch: 12 }]; window.XLSX.utils.book_append_sheet(wb, ws, 'Opening balance');
+        var help = window.XLSX.utils.aoa_to_sheet([['RCL HR – opening leave balance'], [''], ['Write the days each person has today: in "Paid leave" and, if he has any, in "Comp-off". Whole or half days (5, 2.5).'], ['Leave both empty for a person who has nothing – his row is skipped.'], ['Do not change Code. A person who has an opening balance already is refused.']]); help['!cols'] = [{ wch: 110 }]; window.XLSX.utils.book_append_sheet(wb, help, 'How to');
+        var a = el('a'); a.href = URL.createObjectURL(new Blob([window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); a.download = 'Opening_leave_balance.xlsx'; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500); done('Downloaded', 'The sheet of ' + r.rows.length + ' people');
+      }, function (e) { exp.disabled = false; fail(e); });
+    });
+    var pick = el('input'); pick.type = 'file'; pick.accept = '.xlsx,.xls,.csv'; pick.hidden = true;
+    pick.onchange = function () {
+      var f = pick.files && pick.files[0]; if (!f) return; xlsx().then(function (ok) {
+        if (!ok) { toast('The Excel part could not be loaded – try again.', true); return; }
+        var rd = new FileReader(); rd.onload = function () {
+          var rows = []; try {
+            var wb = window.XLSX.read(new Uint8Array(rd.result), { type: 'array' }), tbl = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' }), h = (tbl[0] || []).map(function (x) { return String(x).trim().toLowerCase(); });
+            var ci = h.indexOf('code'), pi = h.indexOf('paid leave'), mi = h.indexOf('comp-off'); if (ci < 0 || (pi < 0 && mi < 0)) throw new Error('The sheet needs the columns "Code", "Paid leave" and "Comp-off" – use the downloaded sheet.');
+            tbl.slice(1).forEach(function (row) { var code = String(row[ci] || '').trim(); if (code) rows.push({ code: code, paid: pi > -1 ? String(row[pi]).trim() : '', comp: mi > -1 ? String(row[mi]).trim() : '' }); });
+          } catch (e) { toast(e.message || 'This file could not be read.', true); return; }
+          if (!rows.length) { toast('The file has no person in it.', true); return; }
+          st.rows = rows; st.file = f.name; api('leaveOpening', { rows: rows, day: st.day, dry: true }).then(function (r) { st.look = r; approvals(); }, fail);
+        }; rd.readAsArrayBuffer(f);
+      }); pick.value = '';
+    };
+    tools.appendChild(exp); tools.appendChild(btn('pri', 'Import the filled sheet…', function () { pick.click(); })); tools.appendChild(pick); root.appendChild(tools);
+    var r = st.look; if (!r) return;
+    var sum = el('div', 'rb-site'), tt = el('div'); tt.appendChild(el('small', '', st.file + ' · as of ' + dmy(r.day))); tt.appendChild(el('b', '', r.people + (r.people === 1 ? ' person' : ' people') + ' · Paid leave ' + r.paid + ' · Comp-off ' + r.comp + ' · ' + r.refusedCount + ' refused · ' + r.skipped + ' left empty')); sum.appendChild(tt);
+    if (r.people) { var why = el('input'); why.type = 'text'; why.maxLength = 200; why.placeholder = 'Reason for the whole file *'; why.setAttribute('aria-label', 'Reason for the whole file'); why.style.cssText = 'height:42px;border:1px solid #ECECEE;border-radius:10px;padding:0 12px;min-width:280px;font:inherit';
+      var go = btn('st-btn red', 'Send for approval', function () { go.disabled = true; api('leaveOpening', { rows: st.rows, day: st.day, reason: why.value, file_name: st.file }).then(function (x) { st.look = null; st.rows = null; done('Sent for approval', 'The opening balance of ' + x.people + (x.people === 1 ? ' person waits' : ' people waits') + ' in Approvals'); A.view = 'asks'; A.status = 'pending'; approvals(); }, function (e) { go.disabled = false; fail(e); }); });
+      sum.appendChild(why); sum.appendChild(go); }
+    root.appendChild(sum);
+    var box = el('div', 'box'), tb0 = el('table'), th = el('thead'), hr = el('tr'); ['Employee', 'Paid leave', 'Comp-off', ''].forEach(function (x) { hr.appendChild(el('th', '', x)); }); th.appendChild(hr); tb0.appendChild(th); var tb = el('tbody'); tb0.appendChild(tb); box.appendChild(tb0);
+    r.take.forEach(function (c) { var tr = el('tr'); tr.style.cursor = 'default'; var nm = el('td', 'nm pwho'), bx = el('div'); bx.appendChild(el('b', '', c.name)); bx.appendChild(el('small', '', c.code)); nm.appendChild(bx); tr.appendChild(nm); tr.appendChild(el('td', '', c.paid || '–')); tr.appendChild(el('td', '', c.comp || '–')); var ok = el('td'); ok.appendChild(el('span', 'st s-active', 'Will be added')); tr.appendChild(ok); tb.appendChild(tr); });
+    r.refused.forEach(function (c) { var tr = el('tr'); tr.style.cursor = 'default'; var nm = el('td', 'nm pwho'), bx = el('div'); bx.appendChild(el('b', '', c.name || c.code)); bx.appendChild(el('small', '', c.code)); nm.appendChild(bx); tr.appendChild(nm); tr.appendChild(el('td', '', '')); tr.appendChild(el('td', '', '')); var w = el('td'); w.style.whiteSpace = 'normal'; w.appendChild(el('span', 'st s-left', 'Refused')); w.appendChild(el('small', 'rb-hint', c.why)); tr.appendChild(w); tb.appendChild(tr); });
+    root.appendChild(box);
+  }
   function xlsx() { return new Promise(function (ok) { if (window.XLSX) return ok(true); var s = document.createElement('script'); s.src = '/vendor/xlsx-0.18.5.full.min.js'; s.onload = function () { ok(!!window.XLSX); }; s.onerror = function () { ok(false); }; document.head.appendChild(s); }); }
   function bulk(root) {
     var st = A.bulk || (A.bulk = { month: today().slice(0, 7), look: null, cells: null, file: '' });
