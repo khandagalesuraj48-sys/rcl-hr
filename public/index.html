@@ -229,13 +229,30 @@ body.in .ep-do button:disabled{opacity:1;color:rgba(255,255,255,.72)}body.in .ep
    pages pn yach colour shade madhe") THE RCL LOOK: white, the logo's red for what matters (the page of the menu, the main button,
    the day's panel), grey lines – red in balance, never a red page. The menu is white with the company's logo; the three lines open
    and close it, and a page picked in it closes it. Only the look and the frame. ───────── */
+/* (14-11-2026, asked: "2 finger ni swipe kel ki browser back page la nete … he block kraych aahe back button dable trch back hoil")
+   two fingers slid sideways on a laptop's pad no longer take the browser a page back or forward – only its Back button does */
+html,body{overscroll-behavior-x:none}
 body.in{background:#F6F7F9;color:#0E1116}
 @media(min-width:1001px){
 html:not(.embed) body.in #app{grid-template-columns:244px minmax(0,1fr);transition:grid-template-columns .36s cubic-bezier(.22,.8,.2,1)}
-html:not(.embed) body.in.nav-off #app{grid-template-columns:0px minmax(0,1fr)}
+html:not(.embed) body.in.nav-off #app{grid-template-columns:64px minmax(0,1fr)}
 html:not(.embed) .sd{width:244px;background:#fff radial-gradient(130% 120px at 20% 100%,rgba(210,0,26,.09),rgba(210,0,26,0) 70%) no-repeat bottom;color:#1A202B;border-right:1px solid #ECEEF2;transition:transform .36s cubic-bezier(.22,.8,.2,1),opacity .26s ease}
-html:not(.embed) body.nav-off .sd{transform:translateX(-102%);opacity:0;pointer-events:none}
-html:not(.embed) .dlg.pg{left:244px;transition:left .36s cubic-bezier(.22,.8,.2,1)}html:not(.embed) body.nav-off .dlg.pg{left:0}
+/* (14-11-2026, asked: "ha menu ata apla close hoto but new thikani jaych asel tr prt 3 line la click krayla lagte tr as nko … best
+   solution") THE CLOSED MENU IS A NARROW RAIL OF ICONS on a wide screen – never gone: one press on an icon goes to that page; the
+   pointer over the rail (or the keyboard in it) opens the whole menu OVER the page, without moving the page, and it goes back
+   to the rail by itself. The three lines still open it for good and close it. A narrow screen: the drawer, as before. */
+html:not(.embed) body.nav-off .sd{width:64px;overflow:hidden;position:relative;z-index:60;padding-left:8px;padding-right:8px;transition:width .26s cubic-bezier(.22,.8,.2,1) .08s,box-shadow .2s,padding .26s}
+html:not(.embed) body.nav-off .sd:hover,html:not(.embed) body.nav-off .sd:focus-within{width:244px;overflow-y:auto;box-shadow:16px 0 40px rgba(27,33,48,.16);padding-left:12px;padding-right:12px}
+html:not(.embed) body.in.nav-off .sd:not(:hover):not(:focus-within) #tabs .tab{font-size:0;gap:0;justify-content:center;padding:11px 0;position:relative}
+html:not(.embed) body.in.nav-off .sd:not(:hover):not(:focus-within) #tabs .tab svg{width:21px;height:21px;margin:0}
+html:not(.embed) body.in.nav-off .sd:not(:hover):not(:focus-within) #tabs .tab:hover{transform:none}
+html:not(.embed) body.nav-off .sd:not(:hover):not(:focus-within) .sd-grp{font-size:0;padding:5px 0;margin:4px 12px;border-top:1px solid #ECEEF2}
+html:not(.embed) body.nav-off .sd:not(:hover):not(:focus-within) .sd-grp:first-child{border-top:0}
+html:not(.embed) body.nav-off .sd:not(:hover):not(:focus-within) .sd-n{position:absolute;top:4px;right:6px;font-size:0;min-width:9px;width:9px;height:9px;padding:0;border-radius:50%;background:#D2001A}
+html:not(.embed) body.nav-off .sd:not(:hover):not(:focus-within) .sd-sub,html:not(.embed) body.nav-off .sd:not(:hover):not(:focus-within) .sd-foot{display:none}
+html:not(.embed) body.nav-off .sd:not(:hover):not(:focus-within) .sd-lg{height:46px}html:not(.embed) body.nav-off .sd:not(:hover):not(:focus-within) .sd-lg .sd-logo{width:28px;transform:scale(1.7)}
+html:not(.embed) body.nav-off .sd:not(:hover):not(:focus-within) .sd-brand{padding:2px 0 8px}
+html:not(.embed) .dlg.pg{left:244px;transition:left .36s cubic-bezier(.22,.8,.2,1)}html:not(.embed) body.nav-off .dlg.pg{left:64px}
 }
 @media(max-width:1000px){
 html:not(.embed) .sd{position:fixed;left:0;top:0;bottom:0;width:264px;max-width:86vw;z-index:70;background:#fff;color:#1A202B;padding:16px 12px 14px;overflow-y:auto;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(27,33,48,.28);transition:transform .34s cubic-bezier(.22,.8,.2,1)}
@@ -696,6 +713,7 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
    * nahi") opened by itself (not inside Mechanical's screen, which has its own): "‹ Portal" goes back to the Portal – the sign-in
    * stays; "Log out" ends the sign-in here AND on the Portal, then shows the Portal's sign-in page. */
   /* (13-11-2026, asked: "tree line war click kel ki menu open … je haw tya war click kel ki te open ani menu band ekdam smooth")
+   * (14-11-2026) on a wide screen "closed" is a narrow rail of icons – one press goes to a page, the pointer over it opens the menu.
    * THE THREE LINES open and close the menu; a page picked in it closes it (the page gets the whole width); Esc and a touch
    * beside it close it too. On a wide screen it starts open, on a narrow one closed. The logo: the company's own picture – when
    * it cannot be loaded, the mark kept here. */

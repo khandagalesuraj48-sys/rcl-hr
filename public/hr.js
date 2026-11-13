@@ -43,7 +43,8 @@
     var t = $('tabs'), last = '', bd = window.HRBADGE || {}, n = 0; t.textContent = '';
     pages().forEach(function (p) {
       if (p[2] !== last) { last = p[2]; var g = el('span', 'sd-grp', p[2]); g.style.setProperty('--i', n++); t.appendChild(g); }
-      var b = el('button', 'tab' + (S.page === p[0] ? ' on' : '')); b.type = 'button'; b.dataset.page = p[0]; b.style.setProperty('--i', n++); b.appendChild(sign(p[0])); b.appendChild(document.createTextNode(p[1])); if (S.page === p[0]) b.setAttribute('aria-current', 'page');
+      var b = el('button', 'tab' + (S.page === p[0] ? ' on' : '')); b.type = 'button'; b.dataset.page = p[0]; b.style.setProperty('--i', n++); b.title = p[1]; b.setAttribute('aria-label', p[1]); b.appendChild(sign(p[0])); b.appendChild(document.createTextNode(p[1])); if (S.page === p[0]) b.setAttribute('aria-current', 'page');      // (14-11-2026) its name also when only the icon shows (the rail)
+     
       b.onclick = function () { go(p[0]); if (window.HRNAV) window.HRNAV.picked(); };
       if (bd[p[0]] > 0) { var m = el('em', 'sd-n', bd[p[0]]); m.title = bd[p[0]] + ' waiting'; b.appendChild(m); } t.appendChild(b);
     });
