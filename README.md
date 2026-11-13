@@ -259,6 +259,10 @@ designation's category beside the settings (`hr_settings`, site `*`).
   window closed without saving goes back to his page; another page of the menu leaves it. The same actions of the server.
   Still small windows over his page: the sign-in, Personal details & KYC, Documents, Salary, Face, Transfer, Relieve, Delete.
   Not built from the picture: the month's strip of days, the "Pay" card, "Sign-in given / Phone tied" in the history.
+* **A save is seen at once (13-11-2026, "save mhanle ki ek pop up yewa confirmation cha ani lagech save pn hoyla pahije"):** the
+  button says "Saving…" the moment it is pressed; when the server has saved, a window in the middle says "Saved" (it goes by
+  itself, or OK / Enter / Esc); an error stays on the page and nothing is said saved. A profile tab is answered from what was
+  just read and saved (`profSave` does not read the whole profile a second time).
 * **Only the web.** Nothing of the phone app and nothing of the database is changed; of the server only `attDash` (reading).
 
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)

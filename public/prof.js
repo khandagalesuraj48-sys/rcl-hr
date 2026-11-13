@@ -36,6 +36,20 @@
     var t = sv('text', { x: 32, y: 37, 'text-anchor': 'middle', fill: '#fff', 'font-size': 15, 'font-weight': 800 }); t.textContent = pct + '%'; s.appendChild(t); return s;
   }
 
+  /* (13-11-2026, asked: "save mhanle ki ek pop up yewa confirmation cha ani lagech save pn hoyla pahije") A SAVE IS SEEN AT ONCE:
+   * the button says "Saving…" the moment it is pressed (and cannot be pressed twice); when the server has saved, a window in the
+   * middle says so – it goes by itself, or with OK / Esc / Enter. An error stays on the page as before, nothing is said saved. */
+  function saved(title, sub) {
+    var old = document.getElementById('pf_saved'); if (old && old.parentNode) old.parentNode.removeChild(old);
+    var d = el('div', 'dlg sv-dlg'), s = el('div', 'sheet sv-box'), ok = btn('pri', 'OK', function () { close(); }); d.id = 'pf_saved'; s.setAttribute('role', 'alertdialog'); s.setAttribute('aria-modal', 'true'); s.setAttribute('aria-label', title);
+    var t = setTimeout(function () { close(); }, 1800), key = function (ev) { if (ev.key === 'Escape' || ev.key === 'Enter') { ev.preventDefault(); ev.stopImmediatePropagation(); close(); } };
+    function close() { clearTimeout(t); document.removeEventListener('keydown', key, true); if (d.parentNode) d.parentNode.removeChild(d); }
+    var m = el('div', 'sv-ok', '✓'); m.setAttribute('aria-hidden', 'true'); s.appendChild(m); s.appendChild(el('h2', '', title)); if (sub) s.appendChild(el('p', 'sub', sub)); s.appendChild(ok); d.appendChild(s); d.onclick = function (ev) { if (ev.target === d) close(); };
+    document.addEventListener('keydown', key, true); document.body.appendChild(d); ok.focus();
+  }
+  // a button that saves: "Saving…" at once, itself again when the answer is there
+  function saving(b, run) { var was = b.textContent; b.disabled = true; b.textContent = 'Saving…'; var back = function () { b.disabled = false; b.textContent = was; }; run(back); }
+
   /* ───────────── one employee's full profile ───────────── */
   /* (13-11-2026, "ekach screen madhe sagle") `into` = the employee's own page takes the profile: { tabs, body, show(on), data(r), tab } –
    * its tabs are drawn there after "Overview", no window is opened; without `into` it is the window of before. */
@@ -68,12 +82,12 @@
       if (cur.group) {
         var vals = cur.key === 'secret' || cur.group.in === 'secret' ? r.secret : r.data, f = form(cur.group.fields, vals, L); body.appendChild(f.grid);
         if (cur.key === 'secret') body.appendChild(el('p', 'muted', r.masked ? 'The numbers are shown masked to you. A box you leave as it is keeps its number.' : 'These numbers are never in a list or an export.'));
-        var a = el('div', 'acts'); if (!left) a.appendChild(btn('pri', 'Save ' + cur.name, function () { api('profSave', { id: e.id, group: cur.key, data: f.get() }).then(function (n) { toast('Saved.'); draw(n); }, err); })); if (!into) a.appendChild(btn('sec', 'Close', close)); body.appendChild(a);
+        var a = el('div', 'acts'); if (!left) { var sb = btn('pri', 'Save ' + cur.name, function () { err(null); saving(sb, function (back) { api('profSave', { id: e.id, group: cur.key, data: f.get() }).then(function (n) { draw(n); saved('Saved', cur.name + ' of ' + e.name + ' (' + e.code + ')'); }, function (x) { back(); err(x); }); }); }); a.appendChild(sb); } if (!into) a.appendChild(btn('sec', 'Close', close)); body.appendChild(a);
       } else {
         var w = cur.rows, list = el('div', 'pf-rows'), edit = el('div');
         var open = function (row) {
           edit.textContent = ''; var f2 = form(w.fields, row ? row.data : {}, L), a2 = el('div', 'acts'); edit.appendChild(el('label', '', row ? 'Change this ' + w.one : 'Add a ' + w.one)); edit.appendChild(f2.grid);
-          a2.appendChild(btn('pri', 'Save', function () { api('profRowSave', { id: e.id, kind: w.key, row: row ? row.id : '', data: f2.get() }).then(function (n) { toast('Saved.'); draw(n); }, err); })); a2.appendChild(btn('sec', 'Cancel', function () { edit.textContent = ''; err(null); })); edit.appendChild(a2);
+          var rb = btn('pri', 'Save', function () { err(null); saving(rb, function (back) { api('profRowSave', { id: e.id, kind: w.key, row: row ? row.id : '', data: f2.get() }).then(function (n) { draw(n); saved('Saved', w.name + ' of ' + e.name + ' (' + e.code + ')'); }, function (x) { back(); err(x); }); }); }); a2.appendChild(rb); a2.appendChild(btn('sec', 'Cancel', function () { edit.textContent = ''; err(null); })); edit.appendChild(a2);
         };
         r.rows[w.key].forEach(function (row) {
           var c = el('div', 'pf-row'), t = el('div'), main = w.fields[0], rest = w.fields.slice(1).map(function (dd) { var v = show(dd, row.data[dd.key], L); return v ? dd.label + ': ' + v : ''; }).filter(Boolean);
@@ -119,6 +133,6 @@
     pages: [['lists', 'Lists']],
     has: function (page) { return page === 'lists'; },
     open: function (page, me) { P.me = me; lists(); },
-    profile: profile, ring: ring, _show: show
+    profile: profile, ring: ring, saved: saved, saving: saving, _show: show
   };
 })();
