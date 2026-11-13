@@ -19,7 +19,7 @@
   function fail(e) { toast(e && e.message ? e.message : 'HR did not answer – try again.', true); }
   function btn(cls, text, fn) { var b = el('button', cls, text); b.type = 'button'; b.onclick = fn; return b; }
   function table(heads) { var box = el('div', 'box'), t = el('table'), h = el('thead'), r = el('tr'); heads.forEach(function (x) { var th = el('th', '', x); r.appendChild(th); }); h.appendChild(r); t.appendChild(h); var b = el('tbody'); t.appendChild(b); box.appendChild(t); return { box: box, body: b, table: t }; }
-  function note(text, kind) { var p = el('p', '', text); p.style.cssText = 'margin:0 0 12px;padding:11px 14px;border-radius:14px;font-size:14.5px;' + (kind === 'ok' ? 'background:#DDF5E6;color:#0B6B3A' : kind === 'warn' ? 'background:#FFF1CC;color:#6B4700' : 'background:#E9F2FF;color:#0B3A6B'); return p; }
+  function note(text, kind) { var p = el('p', '', text); p.style.cssText = 'margin:0 0 12px;padding:11px 14px;border-radius:14px;font-size:15.5px;' + (kind === 'ok' ? 'background:#DDF5E6;color:#0B6B3A' : kind === 'warn' ? 'background:#FFF1CC;color:#6B4700' : 'background:#E9F2FF;color:#0B3A6B'); return p; }
   function field(parent, label, input, full) { var d = el('div', full ? 'full' : ''), l = el('label', '', label); d.appendChild(l); d.appendChild(input); parent.appendChild(d); return input; }
   function input(ph, val) { var i = el('input'); i.type = 'text'; i.inputMode = 'decimal'; if (ph) i.placeholder = ph; if (val !== undefined && val !== null && val !== '') i.value = val; return i; }
   function num(td, v, bold) { var c = el('td', '', v ? rs(v) : '–'); c.style.textAlign = 'right'; if (bold) c.style.fontWeight = '700'; td.appendChild(c); return c; }
@@ -51,7 +51,7 @@
     var t = table(['Code', 'Name', 'Salary', 'Pay days', 'Extra', 'Earned', 'Extra pay', 'Other +', 'Gross', 'PF', 'ESIC', 'PT', 'Advance', 'Other −', 'Net pay', '']);
     r.rows.forEach(function (w) {
       var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', w.code)); var nm = el('td', '', w.name);
-      if (w.problem) { var p = el('div', '', w.problem); p.style.cssText = 'font-size:12.5px;color:#B42318'; nm.appendChild(p); } tr.appendChild(nm);
+      if (w.problem) { var p = el('div', '', w.problem); p.style.cssText = 'font-size:13.5px;color:#B42318'; nm.appendChild(p); } tr.appendChild(nm);
       tr.appendChild(el('td', '', w.rate ? rs(w.rate) + (w.pay_type === 'daily' ? ' a day' : ' a month') : '–'));
       [w.pay_days, w.extra_days].forEach(function (v) { var c = el('td', '', v || '–'); c.style.textAlign = 'center'; tr.appendChild(c); });
       num(tr, w.earned); num(tr, w.extra); num(tr, w.other_earn); num(tr, w.gross, true); num(tr, w.pf); num(tr, w.esic); num(tr, w.pt); num(tr, w.advance); num(tr, w.other_ded); num(tr, w.net, true);
@@ -68,7 +68,7 @@
   function person(r, w) {
     var d = dialog(w.name + ' (' + w.code + ') – ' + mName(r.month), 'The ticks stay for the months to come; the additions are for this month only.');
     var row = el('div'); row.style.cssText = 'display:flex;gap:18px;margin:4px 0 14px'; var ck = {};
-    [['pf', 'PF'], ['esic', 'ESIC'], ['pt', 'Profession Tax']].forEach(function (k) { var l = el('label', 'ck'), c = el('input'); c.type = 'checkbox'; c.checked = !!w.flags[k[0]]; c.style.cssText = 'width:18px;height:18px;margin-right:6px'; l.style.cssText = 'display:flex;align-items:center;font-size:15px'; l.appendChild(c); l.appendChild(document.createTextNode(k[1])); row.appendChild(l); ck[k[0]] = c; });
+    [['pf', 'PF'], ['esic', 'ESIC'], ['pt', 'Profession Tax']].forEach(function (k) { var l = el('label', 'ck'), c = el('input'); c.type = 'checkbox'; c.checked = !!w.flags[k[0]]; c.style.cssText = 'width:18px;height:18px;margin-right:6px'; l.style.cssText = 'display:flex;align-items:center;font-size:16px'; l.appendChild(c); l.appendChild(document.createTextNode(k[1])); row.appendChild(l); ck[k[0]] = c; });
     d.body.appendChild(el('label', '', 'Deducted for him')); d.body.appendChild(row);
     var g = el('div', 'grid'), e = input('0', w.adjust.other_earn || ''), en = el('input'), dd = input('0', w.adjust.other_ded || ''), dn = el('input'); en.value = w.adjust.earn_note || ''; dn.value = w.adjust.ded_note || ''; en.maxLength = dn.maxLength = 120;
     field(g, 'Another earning (₹)', e); field(g, 'What for', en); field(g, 'Another deduction (₹)', dd); field(g, 'What for', dn);
@@ -85,7 +85,7 @@
       var w = window.open('', '_blank'); if (!w) return toast('The browser stopped the new window – allow pop-ups for this page.', true);
       var d = w.document, s = r.slip, e = r.employee, add = function (parent, tag, text, css) { var x = d.createElement(tag); if (text !== undefined) x.textContent = String(text); if (css) x.style.cssText = css; parent.appendChild(x); return x; };
       d.title = 'Payslip ' + e.code + ' ' + mName(month);
-      var st = d.createElement('style'); st.textContent = 'body{font:14px/1.45 Arial,Helvetica,sans-serif;color:#111;margin:28px;max-width:760px}h1{font-size:20px;margin:0}h2{font-size:15px;margin:2px 0 14px;font-weight:normal;color:#444}table{width:100%;border-collapse:collapse;margin:10px 0}td,th{border:1px solid #bbb;padding:6px 9px;text-align:left}td.n,th.n{text-align:right}th{background:#f1f1f1}.two{display:flex;gap:16px}.two>div{flex:1}.net{font-size:17px;font-weight:bold}small{color:#555}@media print{button{display:none}body{margin:10mm}}'; d.head.appendChild(st);
+      var st = d.createElement('style'); st.textContent = 'body{font:14px/1.45 Arial,Helvetica,sans-serif;color:#111;margin:28px;max-width:760px}h1{font-size:20px;margin:0}h2{font-size:16px;margin:2px 0 14px;font-weight:normal;color:#444}table{width:100%;border-collapse:collapse;margin:10px 0}td,th{border:1px solid #bbb;padding:6px 9px;text-align:left}td.n,th.n{text-align:right}th{background:#f1f1f1}.two{display:flex;gap:16px}.two>div{flex:1}.net{font-size:17px;font-weight:bold}small{color:#555}@media print{button{display:none}body{margin:10mm}}'; d.head.appendChild(st);
       var b = d.body; add(b, 'h1', r.site_name); add(b, 'h2', 'Payslip – ' + mName(month));
       var info = add(b, 'table'); [['Employee', e.name + ' (' + e.code + ')'], ['Designation / Department', [e.designation, e.department].filter(Boolean).join(' / ') || '–'], ['Salary', rs(s.rate) + (s.pay_type === 'daily' ? ' a day' : ' a month')], ['Days', s.pay_days + ' paid of ' + s.month_days + (s.extra_days ? ' · ' + s.extra_days + ' extra' : '')]].forEach(function (x) { var tr = add(info, 'tr'); add(tr, 'th', x[0], 'width:34%'); add(tr, 'td', x[1]); });
       var c = s.counts || {}; add(b, 'small', 'Present ' + (c.present || 0) + ' · Half day ' + (c.half || 0) + ' · Absent ' + (c.absent || 0) + ' · Leave ' + (c.leave || 0) + ' · Weekly off ' + (c.week_off || 0) + ' · Holiday ' + (c.holiday || 0) + ' · Extra ' + (c.extra || 0));
@@ -95,7 +95,7 @@
         var f = add(t, 'tr'); add(f, 'th', g[2]); add(f, 'th', rs(g[3])).className = 'n'; });
       add(b, 'p', 'Net pay: ₹ ' + rs(s.net)).className = 'net';
       add(b, 'small', 'Made from the attendance approved by the HO HR and locked by ' + r.locked.by + ' on ' + when(r.locked.at) + '. This is a computer-made payslip.');
-      var pb = add(b, 'p'); var bt = add(pb, 'button', 'Print / Save as PDF', 'padding:9px 16px;font-size:14px;margin-top:14px'); bt.onclick = function () { w.print(); };
+      var pb = add(b, 'p'); var bt = add(pb, 'button', 'Print / Save as PDF', 'padding:9px 16px;font-size:15px;margin-top:14px'); bt.onclick = function () { w.print(); };
     }, fail);
   }
   function xlsxLib() { return new Promise(function (ok) { if (window.XLSX) return ok(true); var s = document.createElement('script'); s.src = '/vendor/xlsx-0.18.5.full.min.js'; s.onload = function () { ok(!!window.XLSX); }; s.onerror = function () { ok(false); }; document.head.appendChild(s); }); }
