@@ -195,20 +195,24 @@
     ev.preventDefault(); var e = S.open.employee, b = $('del_save'); busy(b, true);
     api('empDelete', { id: e.id, reason: $('del_reason').value }).then(function () { busy(b, false); hide('dlg_del'); toast(e.code + ' deleted.'); list(); }, function (x) { busy(b, false); $('del_err').textContent = x.message; $('del_err').hidden = false; });
   }
-  // the list as an Excel file: the people the list shows now (all of them); the column names are the ones the import reads
+  // (13-11-2026) the list as an Excel file in THE EMPLOYEE SHEET's format – the same columns the import reads (the company's own
+  // sheet first, then mobile, e-mail, Aadhaar, bank …). template: the same file without rows.
+  function sheetFile(r, name, done) {
+    var rows = [r.heads].concat(r.rows);
+    var save = function (blob, ext) { var a = el('a'); a.href = URL.createObjectURL(blob); a.download = name + ext; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500); done(); };
+    xlsxLib().then(function (ok) {
+      if (ok) { try { var ws = window.XLSX.utils.aoa_to_sheet(rows), wb = window.XLSX.utils.book_new(); ws['!cols'] = r.heads.map(function (h) { return { wch: Math.max(12, Math.min(30, h.length + 4)) }; }); window.XLSX.utils.book_append_sheet(wb, ws, 'Employees'); return save(new Blob([window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), '.xlsx'); } catch (e) { /* the plain file below */ } }
+      var q = function (v) { v = String(v === undefined || v === null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      save(new Blob(['﻿' + rows.map(function (x) { return x.map(q).join(','); }).join('\r\n')], { type: 'text/csv' }), '.csv');      // Excel opens it too
+    });
+  }
   function exportList() {
     var b = $('b_exp'); busy(b, true);
-    api('empExport', { q: S.q, status: S.status, category: S.category }).then(function (r) {
-      var head = ['Code', 'Name', 'Category', 'Designation', 'Department', 'Mobile', 'E-mail', 'Date of birth', 'Gender', 'Joining date', 'Relieving date', 'Reason', 'Status'];
-      var rows = [head].concat(r.rows.map(function (e) { return [e.code, e.name, CAT[e.category] || e.category, e.designation, e.department, e.mobile, e.email, dmy(e.dob), e.gender, dmy(e.joined_on), dmy(e.left_on), e.left_reason, STATUS[e.status] || e.status]; })), name = 'Employees_' + r.site + '_' + new Date(Date.now() + 19800000).toISOString().slice(0, 10);
-      var save = function (blob, ext) { var a = el('a'); a.href = URL.createObjectURL(blob); a.download = name + ext; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500); busy(b, false); toast(r.rows.length + ' employees in the file.'); };
-      xlsxLib().then(function (ok) {
-        if (ok) { try { var ws = window.XLSX.utils.aoa_to_sheet(rows), wb = window.XLSX.utils.book_new(); ws['!cols'] = head.map(function (h, i) { return { wch: i === 1 || i === 6 ? 28 : 16 }; }); window.XLSX.utils.book_append_sheet(wb, ws, 'Employees'); return save(new Blob([window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), '.xlsx'); } catch (e) { /* the plain file below */ } }
-        var q = function (v) { v = String(v === undefined || v === null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-        save(new Blob(['\ufeff' + rows.map(function (x) { return x.map(q).join(','); }).join('\r\n')], { type: 'text/csv' }), '.csv');      // Excel opens it too
-      });
+    api('sheetExport', { q: S.q, status: S.status, category: S.category }).then(function (r) {
+      sheetFile(r, 'Employees_' + r.site + '_' + new Date(Date.now() + 19800000).toISOString().slice(0, 10), function () { busy(b, false); toast(r.rows.length + ' employees in the file.' + (r.full ? '' : ' Pay and the secret numbers are written only for the HR Admin.')); });
     }, function (e) { busy(b, false); fail(e); });
   }
+  function formatFile() { var b = $('i_fmt'); busy(b, true); api('sheetExport', { template: 1 }).then(function (r) { sheetFile(r, 'Employee_sheet_format', function () { busy(b, false); toast('The format is in the file – fill it and choose it here.'); }); }, function (e) { busy(b, false); fail(e); }); }
 
   // ---------- his own details (Aadhaar, PAN, numbers, addresses) ----------
   function kyc() {
@@ -254,41 +258,75 @@
   }
   function docRemove(d) { var why = window.prompt('Why is this document removed? (It stays in the record.)'); if (why === null) return; api('docRemove', { doc: d.id, reason: why }).then(function () { toast('Removed – kept in the record.'); docs(); }, fail); }
 
-  // ---------- import from Excel ----------
-  var HEAD = { name: /^(employee\s*)?name$|^नाव$/i, category: /^(employee\s*)?(category|type)$/i, mobile: /^(mobile|phone|contact)(\s*(no|number))?\.?$/i, email: /^e-?mail(\s*(id|address))?$/i, dob: /^(dob|date\s*of\s*birth|birth\s*date)$/i,
-    joined_on: /^(doj|date\s*of\s*joining|joining(\s*date)?|joined(\s*on)?)$/i, gender: /^(gender|sex)$/i, department: /^(department|dept)\.?$/i, designation: /^(designation|post)$/i };
-  function mapRows(table) {
-    if (!table.length) return { rows: [], cols: [] };
-    var head = table[0].map(function (h) { return String(h === null || h === undefined ? '' : h).trim(); }), map = {}, cols = [];
-    Object.keys(HEAD).forEach(function (k) { for (var i = 0; i < head.length; i++) if (HEAD[k].test(head[i])) { map[k] = i; cols.push(head[i] + ' → ' + k); break; } });
-    var rows = table.slice(1).filter(function (r) { return r.some(function (c) { return c !== null && c !== undefined && String(c).trim() !== ''; }); }).map(function (r) { var o = {}; Object.keys(map).forEach(function (k) { o[k] = r[map[k]] === undefined ? '' : r[map[k]]; }); return o; });
-    return { rows: rows, cols: cols, hasName: 'name' in map, hasCat: 'category' in map };
+  // ---------- import from Excel: THE EMPLOYEE SHEET (13-11-2026) ----------
+  // the headings are matched with the sheet's columns (letters and digits only, any case). "Name of Company" and "Branch Name" stand
+  // once for a group of rows in the company's sheet – they are carried down. A row without a code and a name (a total) is left out.
+  var normH = function (v) { return String(v === undefined || v === null ? '' : v).toLowerCase().replace(/[^a-z0-9ऀ-ॿ]/g, ''); };
+  function mapRows(table, cols) {
+    if (!table.length) return { rows: [], cols: [], unknown: [] };
+    var head = table[0].map(function (h) { return String(h === null || h === undefined ? '' : h).trim(); }), map = {}, read = [], unknown = [];
+    head.forEach(function (h, i) { var n = normH(h); if (!n) return; var c = cols.filter(function (x) { return x.names.indexOf(n) > -1; })[0]; if (c && !(c.key in map)) { map[c.key] = i; read.push(h); } else if (!c) unknown.push(h); });
+    var keys = Object.keys(map), last = {}, rows = [];
+    table.slice(1).forEach(function (r, i) {
+      var o = { _line: i + 2 }, any = false;
+      keys.forEach(function (k) { var v = r[map[k]]; v = v === undefined || v === null ? '' : v; var c = cols.filter(function (x) { return x.key === k; })[0]; if (c.fill) { if (String(v).trim() !== '') last[k] = v; else v = last[k] === undefined ? '' : last[k]; } o[k] = v; });
+      ['code', 'name'].forEach(function (k) { if (o[k] !== undefined && String(o[k]).trim() !== '') any = true; });
+      if (any) rows.push(o);
+    });
+    return { rows: rows, cols: read, unknown: unknown, hasName: 'name' in map, hasProject: 'project' in map };
   }
   function csv(text) { var out = [], row = [], cur = '', q = false; for (var i = 0; i < text.length; i++) { var c = text[i]; if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; } else if (c === '"') q = true; else if (c === ',') { row.push(cur); cur = ''; } else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); out.push(row); row = []; cur = ''; } else cur += c; } if (cur !== '' || row.length) { row.push(cur); out.push(row); } return out; }
   function xlsxLib() { return new Promise(function (ok) { if (window.XLSX) return ok(true); var s = document.createElement('script'); s.src = '/vendor/xlsx-0.18.5.full.min.js'; s.onload = function () { ok(!!window.XLSX); }; s.onerror = function () { ok(false); }; document.head.appendChild(s); }); }
   function importFile(file) {
     if (!file) return; $('i_err').hidden = true; $('i_res').hidden = true; $('i_save').hidden = true; S.imp = null;
+    var bad = function (t) { $('i_err').textContent = t; $('i_err').hidden = false; };
     var done = function (table) {
-      var m = mapRows(table);
-      if (!m.hasName || !m.hasCat) { $('i_err').textContent = 'The first row of the file must have the column names. Needed: Name and Category (Staff / Operator / Driver / Labour). Also read: Mobile, Email, DOB, Joining Date, Gender, Department, Designation.'; $('i_err').hidden = false; return; }
-      if (m.rows.length > 1000) { $('i_err').textContent = 'The file has ' + m.rows.length + ' rows – at most 1000 in one file. Split it.'; $('i_err').hidden = false; return; }
-      S.imp = m.rows; api('empImport', { rows: m.rows, check: 1 }).then(function (r) { importShow(r, m.cols); }, function (e) { $('i_err').textContent = e.message; $('i_err').hidden = false; });
+      api('sheetCols').then(function (c) {
+        var m = mapRows(table, c.cols);
+        if (!m.hasName) return bad('The first row of the file must have the column names, and one of them "Employee Name". Press "Download the format" to get the file with every column.');
+        if (!m.rows.length) return bad('The file has no employee rows.');
+        // the company's sheet holds the people of several projects: which of them belong to THIS site is chosen here – the others wait
+        var by = {}; if (m.hasProject) m.rows.forEach(function (r) { var k = String(r.project).trim(); by[k] = (by[k] || 0) + 1; });
+        var names = Object.keys(by);
+        if (names.length > 1) return projects(m, names, by);
+        check(m, m.rows);
+      }, function (e) { bad(e.message); });
     };
     if (/\.csv$/i.test(file.name)) { file.text().then(function (t) { done(csv(t.replace(/^﻿/, ''))); }); return; }
     xlsxLib().then(function (ok) {
-      if (!ok) { $('i_err').textContent = 'An Excel file can be read only when HR is opened inside the ERP (oneclicksolution.online). Or save the sheet as CSV and choose that.'; $('i_err').hidden = false; return; }
-      file.arrayBuffer().then(function (buf) { var wb = window.XLSX.read(buf, { type: 'array' }), sh = wb.Sheets[wb.SheetNames[0]]; done(window.XLSX.utils.sheet_to_json(sh, { header: 1, raw: true, defval: '' })); }, function () { $('i_err').textContent = 'The file could not be read.'; $('i_err').hidden = false; });
+      if (!ok) return bad('An Excel file can be read only when HR is opened inside the ERP (oneclicksolution.online). Or save the sheet as CSV and choose that.');
+      file.arrayBuffer().then(function (buf) { var wb = window.XLSX.read(buf, { type: 'array' }), sh = wb.Sheets[wb.SheetNames[0]]; done(window.XLSX.utils.sheet_to_json(sh, { header: 1, raw: true, defval: '' })); }, function () { bad('The file could not be read.'); });
     });
   }
-  function importShow(r, cols) {
+  function projects(m, names, by) {
     var box = $('i_res'); box.textContent = '';
-    box.appendChild(el('p', 'sum', r.checked ? r.rows + ' rows read · ' + r.toSave + ' can be saved (' + r.incomplete + ' of them incomplete – DOB / e-mail / mobile missing) · ' + r.faults + ' with a fault (not saved).' : r.saved + ' employees saved · ' + r.incomplete + ' incomplete · ' + r.faults + ' not saved.'));
-    if (cols && cols.length) box.appendChild(el('p', 'muted', 'Columns read: ' + cols.join(', ')));
-    if (r.made && r.made.length) box.appendChild(el('p', 'muted', 'Added to the lists: ' + r.made.join(', ')));
-    if (r.lines.length) { var ul = el('ul', 'faults'); r.lines.slice(0, 200).forEach(function (l) { var li = el('li'); li.appendChild(el('b', '', 'Line ' + l.line + (l.name ? ' – ' + l.name : '') + ': ')); li.appendChild(el('span', '', l.why)); ul.appendChild(li); }); box.appendChild(ul); if (r.lines.length > 200) box.appendChild(el('p', 'muted', '… and ' + (r.lines.length - 200) + ' more lines with a fault.')); }
-    box.hidden = false; $('i_save').hidden = !(r.checked && r.toSave > 0); $('i_save').textContent = 'Save ' + r.toSave + ' employees';
+    box.appendChild(el('p', 'sum', 'This file has the people of ' + names.length + ' projects. Tick the project(s) whose people belong to THIS site (' + S.init.site + ') – the others are not imported here.'));
+    var ul = el('ul', 'faults'), ticks = [];
+    names.sort(function (a, b) { return by[b] - by[a]; }).forEach(function (n) { var li = el('li'), lb = el('label'), cb = el('input'); cb.type = 'checkbox'; cb.value = n; ticks.push(cb); lb.appendChild(cb); lb.appendChild(el('span', '', ' ' + (n || '(no project)') + ' – ' + by[n] + ' people')); li.appendChild(lb); ul.appendChild(li); });
+    box.appendChild(ul);
+    var go = el('button', 'pri', 'Check these people'); go.type = 'button'; go.id = 'i_proj';
+    go.onclick = function () { var pick = ticks.filter(function (t) { return t.checked; }).map(function (t) { return t.value; }); if (!pick.length) { $('i_err').textContent = 'Tick at least one project.'; $('i_err').hidden = false; return; } $('i_err').hidden = true; check(m, m.rows.filter(function (r) { return pick.indexOf(String(r.project).trim()) > -1; }), m.rows.length); };
+    box.appendChild(go); box.hidden = false;
   }
-  function importSave() { var b = $('i_save'); if (!S.imp) return; busy(b, true); api('empImport', { rows: S.imp }).then(function (r) { busy(b, false); S.imp = null; $('i_file').value = ''; importShow(r, null); toast(r.saved + ' employees saved.'); api('init').then(function (i) { S.init = i; list(); }); }, function (e) { busy(b, false); $('i_err').textContent = e.message; $('i_err').hidden = false; }); }
+  function check(m, rows, of) {
+    if (rows.length > 1000) { $('i_err').textContent = 'The file has ' + rows.length + ' rows – at most 1000 in one file. Split it.'; $('i_err').hidden = false; return; }
+    S.imp = rows; var held = of ? of - rows.length : 0;
+    api('sheetImport', { rows: rows, check: 1 }).then(function (r) { importShow(r, m, held); }, function (e) { $('i_err').textContent = e.message; $('i_err').hidden = false; });
+  }
+  function importShow(r, m, held) {
+    var box = $('i_res'); box.textContent = '';
+    box.appendChild(el('p', 'sum', r.checked ? r.rows + ' rows read · ' + r.toAdd + ' new employees' + (r.incomplete ? ' (' + r.incomplete + ' of them incomplete – date of birth / e-mail / mobile missing)' : '') + ' · ' + r.toChange + ' employees of today are changed · ' + r.faults + ' with a fault (not saved).'
+      : r.added + ' employees added · ' + r.changed + ' changed · ' + r.faults + ' not saved' + (r.salaries ? ' · ' + r.salaries + ' salaries set' : '') + '.'));
+    if (held) box.appendChild(el('p', 'muted', held + ' people of the other projects are not imported here.'));
+    if (m && m.cols.length) box.appendChild(el('p', 'muted', 'Columns read (' + m.cols.length + '): ' + m.cols.join(', ')));
+    if (m && m.unknown.length) box.appendChild(el('p', 'muted', 'Columns NOT read (not of the sheet): ' + m.unknown.join(', ')));
+    (r.notes || []).forEach(function (n) { box.appendChild(el('p', 'muted', n)); });
+    if (r.checked && r.willMake && r.willMake.length) box.appendChild(el('p', 'muted', 'Will be added to the lists: ' + r.willMake.join(', ')));
+    if (r.made && r.made.length) box.appendChild(el('p', 'muted', 'Added to the lists: ' + r.made.join(', ')));
+    if (r.lines.length) { var ul = el('ul', 'faults'); r.lines.slice(0, 200).forEach(function (l) { var li = el('li'); li.appendChild(el('b', '', 'Line ' + l.line + (l.code ? ' – ' + l.code : '') + (l.name ? ' – ' + l.name : '') + ': ')); li.appendChild(el('span', '', l.why)); ul.appendChild(li); }); box.appendChild(ul); if (r.lines.length > 200) box.appendChild(el('p', 'muted', '… and ' + (r.lines.length - 200) + ' more lines with a fault.')); }
+    var n = r.toAdd + r.toChange; box.hidden = false; $('i_save').hidden = !(r.checked && n > 0); $('i_save').textContent = 'Save ' + n + ' employees';
+  }
+  function importSave() { var b = $('i_save'); if (!S.imp) return; busy(b, true); api('sheetImport', { rows: S.imp }).then(function (r) { busy(b, false); S.imp = null; $('i_file').value = ''; importShow(r, null, 0); toast(r.added + ' added, ' + r.changed + ' changed.'); api('init').then(function (i) { S.init = i; list(); }); }, function (e) { busy(b, false); $('i_err').textContent = e.message; $('i_err').hidden = false; }); }
 
   // ---------- Departments / Designations ----------
   function masters() {
@@ -296,7 +334,9 @@
     var ul = $('m_rows'); ul.textContent = '';
     listOf.forEach(function (x) {
       var li = el('li', x.active ? '' : 'off'), inp = el('input'); inp.value = x.name; inp.maxLength = 60; inp.setAttribute('aria-label', 'Name'); li.appendChild(inp);
-      var sv = el('button', 'sm', 'Save'); sv.type = 'button'; sv.onclick = function () { mSave(kind, { id: x.id, name: inp.value }, sv); }; li.appendChild(sv);
+      // (13-11-2026) a designation says which category its people are (Staff / Operator / Driver / Labour) – the sheet has no Category column
+      var cat = null; if (kind === 'designation') { cat = el('select'); cat.setAttribute('aria-label', 'Category'); Object.keys(CAT).forEach(function (k) { var o = el('option', '', CAT[k]); o.value = k; cat.appendChild(o); }); cat.value = x.category || 'staff'; cat.disabled = !isAdmin(); li.appendChild(cat); }
+      var sv = el('button', 'sm', 'Save'); sv.type = 'button'; sv.onclick = function () { mSave(kind, cat ? { id: x.id, name: inp.value, category: cat.value } : { id: x.id, name: inp.value }, sv); }; li.appendChild(sv);
       var tg = el('button', 'sm ghost', x.active ? 'Switch off' : 'Switch on'); tg.type = 'button'; tg.onclick = function () { mSave(kind, { id: x.id, name: x.name, active: !x.active }, tg); }; li.appendChild(tg);
       if (!x.active) li.appendChild(el('span', 'muted', 'off – not offered for a new employee'));
       ul.appendChild(li);
@@ -322,7 +362,7 @@
         $('d_kyc').onclick = kyc; $('d_docs').onclick = docs; $('k_form').onsubmit = kycSave; $('o_add').onclick = docAdd;
         $('f_form').onsubmit = save; $('t_form').onsubmit = transferSave; $('x_form').onsubmit = exitSave;
         var bt; $('f_boss').oninput = function () { clearTimeout(bt); bt = setTimeout(pickBoss, 250); };
-        $('i_file').onchange = function () { importFile($('i_file').files[0]); }; $('i_save').onclick = importSave;
+        $('i_file').onchange = function () { importFile($('i_file').files[0]); }; $('i_save').onclick = importSave; $('i_fmt').onclick = formatFile;
         Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (b) { b.onclick = function () { hide(b.dataset.close); if (b.dataset.close === 'dlg_login') { $('lg_pw').textContent = ''; $('lg_done').hidden = true; } }; });      // (the one-time password leaves the page with its box)
         document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') ['dlg_form', 'dlg_tr', 'dlg_exit', 'dlg_del', 'dlg_login', 'dlg_imp', 'dlg_kyc', 'dlg_docs', 'dlg_emp'].some(function (d) { if (!$(d).hidden) { hide(d); return true; } return false; }); });
         go(page || (window.HRDASH ? 'dashboard' : 'employees'));

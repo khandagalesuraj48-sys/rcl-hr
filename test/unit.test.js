@@ -163,9 +163,11 @@ test('the employee\'s details: four categories; mobile and e-mail made tidy; DOB
 
 test('the pages\' script: the Excel / CSV columns are found by their usual names; a person\'s text is never put in as HTML', () => {
   const src = fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8'), win = {}; new Function('window', 'document', src)(win, { getElementById: () => null });
-  const m = win.HR._mapRows([['Sr', 'Employee Name', 'Category', 'Mobile No', 'E-mail ID', 'Date of Birth', 'DOJ', 'Dept', 'Designation'], [1, 'A One', 'Staff', '9876543210', 'a@b.co', '01-01-1990', 45000, 'Accounts', 'Clerk'], ['', '', '', '', '', '', '', '', '']]);
-  assert.deepStrictEqual(m.rows, [{ name: 'A One', category: 'Staff', mobile: '9876543210', email: 'a@b.co', dob: '01-01-1990', joined_on: 45000, department: 'Accounts', designation: 'Clerk' }]);
-  assert.ok(m.hasName && m.hasCat); assert.ok(!win.HR._mapRows([['Naam', 'Kind'], ['x', 'y']]).hasName);
+  // (13-11-2026) the headings are matched with the columns of the employee sheet (lib/act_sheet.js) – also the names of a file of before
+  const cols = require('../lib/act_sheet').colsOut();
+  const m = win.HR._mapRows([['Sr', 'Employee Name', 'Category', 'Mobile No', 'E-mail ID', 'Date of Birth', 'DOJ', 'Dept', 'Designation'], [1, 'A One', 'Staff', '9876543210', 'a@b.co', '01-01-1990', 45000, 'Accounts', 'Clerk'], ['', '', '', '', '', '', '', '', '']], cols);
+  assert.deepStrictEqual(m.rows, [{ _line: 2, name: 'A One', category: 'Staff', mobile: '9876543210', email: 'a@b.co', dob: '01-01-1990', joined_on: 45000, department: 'Accounts', designation: 'Clerk' }]);
+  assert.deepStrictEqual(m.unknown, ['Sr']); assert.ok(m.hasName); assert.ok(!win.HR._mapRows([['Naam', 'Kind'], ['x', 'y']], cols).hasName);
   assert.deepStrictEqual(win.HR._csv('Name,Category\r\n"One, A","Staff"\n"Say ""hi""",Driver\n'), [['Name', 'Category'], ['One, A', 'Staff'], ['Say "hi"', 'Driver']]);
   assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(src), 'only textContent');
   const page = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), ids = [...new Set([...src.matchAll(/\$\('([a-z_0-9]+)'\)/g)].map(x => x[1]))];
@@ -176,7 +178,7 @@ test('the actions: every one asks the sign-in first; the Admin\'s ones are refus
   const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
   assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'empDelete', 'empExport', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'empPhotos', 'docRemove', 'empImport',
     'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'placeMap', 'placePeople', 'placePerson', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'selfieUrl', 'punch',
-    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave', 'monthList', 'monthVerify', 'monthReturn', 'monthApprove', 'monthReopen', 'monthSites', 'hoList', 'hoSet', 'salaryGet', 'salaryAsk', 'salaryWaiting', 'salaryDecide', 'payList', 'payFlags', 'payAdjust', 'payLock', 'paySettings', 'paySettingsSave', 'advList', 'advGive', 'advClose', 'mySlips', 'hrComing', 'paySlipOf', 'payBank', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
+    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave', 'monthList', 'monthVerify', 'monthReturn', 'monthApprove', 'monthReopen', 'monthSites', 'hoList', 'hoSet', 'salaryGet', 'salaryAsk', 'salaryWaiting', 'salaryDecide', 'payList', 'payFlags', 'payAdjust', 'payLock', 'paySettings', 'paySettingsSave', 'advList', 'advGive', 'advClose', 'mySlips', 'hrComing', 'paySlipOf', 'payBank', 'sheetCols', 'sheetImport', 'sheetExport', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
   assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n[^\n]+\n  if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'empDelete', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   // (12-11-2026) ONE action deletes: empDelete – an employee added by mistake, after the check that nothing hangs on him, with the reason, written in the audit
@@ -381,7 +383,7 @@ test('the full profile (step 6): the checks of every kind of detail; nothing fix
   assert.deepStrictEqual([c.filled, c.of, c.missing], [5, P.ITEMS.length, ['E-mail', 'Education (at least one)']]); assert.strictEqual(P.mask('000123456789'), 'XXXX6789');
   for (const a of ['profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll']) assert.match(String(ACT[a]), /needOffice\(s\)/, a); for (const a of ['listSave', 'profRequiredSave']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   for (const a of Object.keys(P.ACT)) assert.ok(SELF.indexOf(a) < 0, a + ' is not for "My HR"');
-  const act = fs.readFileSync(path.join(root, 'lib', 'act_profile.js'), 'utf8'); assert.ok(!/db\('DELETE'/.test(act), 'nothing of the profile is deleted'); assert.match(act, /diff\[k\] = g === 'secret' \? 'changed'/, 'the audit never holds a number');
+  const act = fs.readFileSync(path.join(root, 'lib', 'act_profile.js'), 'utf8'); assert.ok(!/db\('DELETE'/.test(act), 'nothing of the profile is deleted'); assert.match(act, /diff\[k\] = col === 'secret' \? 'changed'/, 'the audit never holds a number');
   const q = fs.readFileSync(path.join(root, 'sql', 'hr_step6_profile.sql'), 'utf8').split('\n').filter(l => !/^\s*--/.test(l)).join('\n');
   assert.ok(!/\b(drop|truncate|delete\s+from|alter\s+table\s+public\.\w+\s+(drop|rename))\b/i.test(q), 'step 6 only adds'); assert.ok(!/update\s+public\./i.test(q));
   assert.match(q, /foreach t in array array\['hr_lists', 'hr_employee_profile', 'hr_employee_rows', 'hr_settings'\] loop\s+execute format\('alter table public\.%I enable row level security', t\);\s+execute format\('revoke all on public\.%I from public, anon, authenticated', t\);\s+execute format\('grant select, insert, update on public\.%I to service_role', t\);/);
@@ -604,4 +606,29 @@ test('(what comes up) a paper\'s date within 30 days or run out; a birthday and 
   const s = M.slipView('2026-10', 1260, { pay_type: 'monthly', rate: 31000, month_days: 31, pay_days: 2, extra_days: 0, earned: 2000, extra: 0, other_earn: 100, adjust: { earn_note: 'arrear' }, gross: 2100, pf: 240, esic: 0, pt: 200, advance: 400, other_ded: 0, deductions: 840 });
   assert.deepStrictEqual([s.net, s.earnings.map(l => l.label + ' ' + l.amount), s.deductions.map(l => l.label + ' ' + l.amount), s.total_deductions], [1260, ['Earned pay 2000', 'arrear 100'], ['PF 240', 'Profession Tax 200', 'Advance 400'], 840]);
   for (const f of ['payroll.js', 'dash.js']) assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(fs.readFileSync(path.join(root, 'public', f), 'utf8')), f + ': a person\'s text only as text');
+});
+
+test('(13-11-2026) the employee sheet: the company\'s 29 columns as they are, then ours; no Category column; headings found whatever their case; a company\'s sheet read as it is', () => {
+  const SH = require('../lib/act_sheet'), P = require('../lib/act_profile'), heads = SH.COLS.map(c => c.head);
+  assert.deepStrictEqual(heads.slice(0, 29), ['Name of Company', 'Branch Name', 'Current Project Name', 'UAN No.', 'Employee Name', 'Employee Code', 'Auto Monthly CTC', 'Date of Joining', 'Employee Status', 'Employee Retained', 'Sign In', 'Sign Out', 'PAN', 'Deduct PF',
+    'Probation Period In Days', 'ESIC Contribution Rate', 'Deduct ESIC', 'ESIC Type', 'ESIC Deduction Rate', 'Deduct PT', 'TDS Type', 'Attach', 'Basic', 'Check Time', 'Annual Bonus', 'Deduct Income Tax', 'Annual Medical Reimbursement', 'Annual LTA', 'Totals']);
+  for (const h of ['Mobile', 'E-mail', 'Date of Birth', 'Designation', 'Department', 'Aadhaar', 'Bank', 'Bank IFSC Code', 'Bank Account Number', 'Name as on Bank', 'PF Number', 'ESIC Number', 'Family Mobile', 'Current Address']) assert.ok(heads.indexOf(h) > 28, h);
+  assert.ok(heads.indexOf('Category') === -1, 'no Category column in the sheet'); assert.strictEqual(new Set(heads).size, heads.length, 'no heading twice');
+  const out = SH.colsOut(), names = [].concat(...out.map(c => c.names)); assert.strictEqual(new Set(names).size, names.length, 'a heading belongs to one column');
+  assert.ok(out.find(c => c.key === 'category').old, 'a file of before with a Category column is still read');
+  assert.deepStrictEqual(out.filter(c => c.fill).map(c => c.key), ['company', 'branch'], 'the company and the branch stand once for a group of rows – carried down');
+  // every detail of the profile, the statutory & bank and the pay details has its column
+  for (const g of Object.keys(P.GROUPS)) for (const d of P.GROUPS[g].fields) assert.ok(SH.COLS.some(c => c.kind === 'prof' && c.group === g && c.field === d.key), g + '.' + d.key);
+  assert.deepStrictEqual([SH.yn('Yes'), SH.yn('no'), SH.yn('Y'), SH.yn(true), SH.yn('0'), SH.yn('maybe')], [true, false, true, true, false, null]);
+  // the page: the company's sheet – merged cells (company / branch once), text numbers, a total's row
+  const src = fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8'), win = {}; new Function('window', 'document', src)(win, { getElementById: () => null });
+  const m = win.HR._mapRows([['Name of Company', 'Branch Name', 'Current Project Name', 'UAN No.', 'Employee Name', 'Employee Code', 'Auto Monthly CTC', 'Date of Joining', 'Deduct PF', 'Totals'],
+    ['Test Company Limited', 'Branch One', 'Site A', '', 'Person One', 'RCL101', '25000', '2024-04-01 00:00:00', 'Yes', '1'], ['', '', 'Site A', '', 'Person Two', 'M007', '0', '2025-01-15 00:00:00', 'No', '1'],
+    ['', 'Branch Two', 'Site B', '', 'Person Three', '123', '18000', '2026-02-01 00:00:00', '', '1'], ['', '', '', '', '', '', '', '', '', '3']], out);
+  assert.deepStrictEqual(m.rows.map(r => [r._line, r.company, r.branch, r.project, r.code, r.ctc, r.pf]), [[2, 'Test Company Limited', 'Branch One', 'Site A', 'RCL101', '25000', 'Yes'], [3, 'Test Company Limited', 'Branch One', 'Site A', 'M007', '0', 'No'], [4, 'Test Company Limited', 'Branch Two', 'Site B', '123', '18000', '']]);
+  assert.ok(m.hasProject && !m.unknown.length);
+  // the pay details: the Admin's only; the new kinds of detail are checked
+  assert.ok(P.GROUPS.pay.adminOnly && P.GROUPS.pay.secret); assert.ok(P.ADMIN_KEYS.indexOf('ctc_monthly') > -1 && P.ADMIN_KEYS.indexOf('uan') === -1);
+  const c = P.clean(P.GROUPS.pay.fields.concat(P.GROUPS.job.fields), { ctc_monthly: '25,000.50', basic: '-5', deduct_income_tax: false, sign_in: '9:05:00', sign_out: '25:00', probation_days: '180' }, {}, {});
+  assert.deepStrictEqual(c.row, { ctc_monthly: 25000.5, deduct_income_tax: false, sign_in: '09:05', probation_days: 180 }); assert.match(c.errors.join(' '), /Basic: a number, 0 or more.*Sign out \(time\): a time as HH:MM\./);
 });

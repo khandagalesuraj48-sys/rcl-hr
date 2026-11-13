@@ -194,6 +194,33 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
   (a change in the Portal – asked for separately), the Payroll-only details (bank account, PF…), the finer roles and powers,
   the phone app's screens.
 
+## The employee sheet – one Excel format in and out (13-11-2026)
+Asked with the company's own sheet ("Employee Detail All"): "je excel madhe column aahet te same column sagle … apli excel pn same
+asel import export sathi … excel madhle code as it is … categery colum remove kruya ani designation he theu … email mobile nasel tr
+import nahi honar … adhar pan … bank details … ifsc … sagle kahi import export excel madhe asel … yes no … tas".
+**No SQL step** – the new details are kept in the profile's own columns (`hr_employee_profile.data` / `.secret`, step 6) and a
+designation's category beside the settings (`hr_settings`, site `*`).
+* `lib/act_sheet.js` – `sheetCols`, `sheetImport`, `sheetExport` (the page's Import / Export buttons use them; `empImport` /
+  `empExport` stay as they were).
+  * **Columns:** the company's 29, heading for heading in its order (Name of Company … Totals), then Mobile, E-mail, Date of
+    Birth, Gender, Designation, Department, Aadhaar, the family number, the addresses, the profile, PF / ESIC / bank. No
+    "Category": a **designation carries its category** (Designations page; none set / no designation = Staff). A file of before
+    with a Category column is still read.
+  * **Import = add or change.** A row whose Employee Code is an employee of this site changes him – only the filled cells. A
+    new code (kept as it is) or none (made by itself) adds him; **a new employee needs a mobile or an e-mail**. A faulty row
+    comes back with its line and why; the good rows are saved; a check first that saves nothing. The company's sheet is read
+    as it is: company / branch standing once for a group are carried down, a total's row is left out; with several projects in
+    the file the page asks which of them belong to this site – the others are not imported here.
+  * **Pay:** CTC, Basic and the other pay details (`GROUPS.pay` in `lib/act_profile.js` – seen and changed only by the HR Admin /
+    Super Admin) and Deduct PF / ESIC / PT (`hr_pay_emp`) are read only from the HR Admin / Super Admin. The monthly CTC
+    becomes the **approved salary** (`hr_salaries`) only when the HO HR / Super Admin imports, and only when it is not his
+    salary already.
+  * **Export** = the same columns (the format = the same file without rows). Pay and the secret numbers (Aadhaar, UAN, PF,
+    ESIC, bank account) are written only for the HR Admin / Super Admin. Import and export are in the audit – never a number.
+* Not in this piece (his decisions of 13-11-2026, to be built next): sign-in by **mobile number + password** beside the e-mail
+  (a change of the Portal and its database), the first password `Name@1234` and the temporary one from HR, the phone app's
+  screens for the new details, and the removal of the demo employees (an SQL he runs himself).
+
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
 | Name | What |
 |---|---|

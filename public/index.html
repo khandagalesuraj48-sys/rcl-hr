@@ -266,7 +266,8 @@ body.in .sheet{overflow-x:hidden}
 
 <div class="dlg" id="dlg_imp" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="i_title">
   <h2 id="i_title">Import employees from Excel</h2>
-  <p class="sub">The first row = the column names. Needed: <b>Name</b>, <b>Category</b> (Staff / Operator / Driver / Labour). Also read: Mobile, Email, DOB, Joining Date, Gender, Department, Designation. The file is checked first – nothing is saved until you press Save.</p>
+  <p class="sub">One format to bring employees in and to take them out: the company's employee sheet (its columns as they are), then Mobile, E-mail, Date of Birth, Designation, Aadhaar, bank … A row whose <b>Employee Code</b> is an employee of this site <b>changes</b> him (only the filled cells); a new code <b>adds</b> him – a new employee needs a <b>Mobile or an E-mail</b>. The file is checked first – nothing is saved until you press Save.</p>
+  <p><button class="sec" id="i_fmt" type="button">Download the format (empty Excel)</button></p>
   <input id="i_file" type="file" accept=".xlsx,.xls,.csv" aria-label="File">
   <p class="err" id="i_err" role="alert" hidden></p><div id="i_res" hidden style="margin-top:12px"></div>
   <div class="acts"><button class="sec" type="button" data-close="dlg_imp">Close</button><button class="pri" id="i_save" type="button" hidden></button></div>
