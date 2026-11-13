@@ -887,3 +887,14 @@ test('the Rule Book in the pay: approved overtime and comp-off "for pay" – and
   assert.ok(!('overtime' in P.totals([a, b]))); assert.strictEqual(P.totals([a, o]).overtime, 250); assert.strictEqual(P.totals([a, o]).gross, 64250);
   const src = fs.readFileSync(path.join(root, 'lib', 'act_payroll.js'), 'utf8'); assert.match(src, /status=eq\.approved&kind=in\.\(overtime,compoff\)/, 'only approved requests count'); assert.match(src, /\(q\.body \|\| \{\}\)\.result === 'pay'/, 'only the ones "for pay"');
 });
+
+test('the Rule Book in the pay: unused leave paid on relieving; nothing is earned after the last day', () => {
+  const P = require('../lib/pay'), L = require('../lib/leave'), c = { present: 10, paid: 12, extra: 0 }, base = { salary: { pay_type: 'monthly', amount: 30000 }, counts: c, month_days: 30, flags: { pf: true }, settings: { pf_pct: 12 }, adjust: {} };
+  const a = P.slip(base), b = P.slip(Object.assign({}, base, { leave_days: 4.5 })); assert.ok(!('leave_pay' in a)); assert.deepStrictEqual([b.leave_pay_days, b.leave_pay, b.gross - a.gross, b.pf], [4.5, 4500, 4500, a.pf]);
+  assert.deepStrictEqual(P.slip(Object.assign({}, base, { leave_days: 0 })), a, 'no days left: the very same slip'); assert.strictEqual(P.totals([a, b]).leave_pay, 4500); assert.ok(!('leave_pay' in P.totals([a])));
+  // the balance as of the last day: the months after it add nothing
+  const days = []; for (let m = 9; m <= 11; m++) for (let d = 1; d <= 28; d++) days.push({ day: '2026-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'), code: 'P' });
+  const pol = () => ({ earn: 'month', per_month: 2, carry: true, strict: true });
+  assert.strictEqual(L.walk2(days, { polOn: pol }).paid, 6); assert.strictEqual(L.walk2(days, { polOn: pol, last: '2026-10-10' }).paid, 4, 'relieved on 10 October: September and October only'); assert.strictEqual(L.walk2(days, { polOn: pol, last: '' }).paid, 6);
+  const src = fs.readFileSync(path.join(root, 'lib', 'act_payroll.js'), 'utf8'); assert.match(src, /e\.left_on\.slice\(0, 7\) !== month\) continue/, 'only in the month of his last day'); assert.match(src, /lp\.body\.exit !== 'pay'\) continue/, 'only when his policy says so');
+});

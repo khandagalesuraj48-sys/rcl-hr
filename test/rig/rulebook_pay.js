@@ -7,7 +7,7 @@ const sql = q => execSync('timeout 20 su postgres -c "psql -d rig_hr -tA -q"', {
   let n = 0, bad = 0; const ok = (c, t) => { n++; if (!c) { bad++; console.log('FAIL', t); } };
   const site = 'DEMOBKTX2', month = '2026-10', tag = 'Y' + Date.now(), sup = { role: 'super', site, email: 'rig.super@rig.test' };
   const before = await PR.ACT.payList(sup, { month }); if (!before.ready || before.locked) { console.log('(October is not open for pay on this rig – nothing to test with)'); return; }
-  const two = before.rows.slice(0, 2), a = two[0], b = two[1]; let salIds = '0', askIds = '0', pol = null;
+  const two = before.rows.slice(0, 2), a = two[0], b = two[1]; let salIds = '0', askIds = '0', pol = null, lv = null, back = '';
   try {
     salIds = (await db('POST', 'hr_salaries', two.map(r => ({ employee_id: r.id, site, pay_type: 'monthly', amount: 31000, valid_from: '2026-10-01', note: 'rig ' + tag, status: 'approved', asked_by: 'rig@rig.test', decided_by: 'rig@rig.test', decided_at: new Date().toISOString() })), 'return=representation')).map(x => x.id).join(',');
     const m0 = await PR.ACT.payList(sup, { month }), a0 = m0.rows.find(r => r.id === a.id), b0 = m0.rows.find(r => r.id === b.id);
@@ -24,7 +24,18 @@ const sql = q => execSync('timeout 20 su postgres -c "psql -d rig_hr -tA -q"', {
     ok(a1.gross === Math.round((a1.earned + 1000 + 250 + a1.other_earn) * 100) / 100 && a1.earned === a0.earned, 'the gross = earned + extra + overtime; the earned pay is as it was');
     ok(JSON.stringify(b1) === JSON.stringify(b0), 'the other person – no policy – is paid exactly as before'); ok(m1.totals.overtime === 250, 'the month\'s totals carry the overtime');
     ok(JSON.stringify(m1.rows.filter(r => r.id !== a.id)) === JSON.stringify(m0.rows.filter(r => r.id !== a.id)), 'nobody else\'s line changed');
+    // relieved on 31 October with a leave policy "unused leave is paid, at most 3 days": his days left are paid in October – once
+    const left0 = (await db('GET', 'hr_employees?select=left_on&id=eq.' + b.id))[0].left_on;
+    lv = await BK.ACT.rbSave(sup, { kind: 'leave', name: 'Exit ' + tag, valid_from: '2026-08-01', body: { earn: 'month', per_month: 2, carry: true, exit: 'pay', exit_max: 3 }, auth: { approve: [{ role: 'super' }] } });
+    await BK.ACT.rbAssign(sup, { kind: 'leave', policy_id: lv.id, valid_from: '2026-08-01', employees: [b.id], reason: 'rig' });
+    const m2 = await PR.ACT.payList(sup, { month }); ok(m2.rows.find(r => r.id === b.id).leave_pay === undefined, 'not relieved: no leave is paid');
+    sql("update hr_employees set left_on = '2026-10-31' where id = '" + b.id + "'"); back = "update hr_employees set left_on = " + (left0 ? "'" + left0 + "'" : 'null') + " where id = '" + b.id + "'";
+    const m3 = await PR.ACT.payList(sup, { month }), b3 = m3.rows.find(r => r.id === b.id);
+    ok(b3.leave_pay_days > 0 && b3.leave_pay_days <= 3 && b3.leave_pay === Math.round(1000 * b3.leave_pay_days * 100) / 100, 'relieved in October: ' + b3.leave_pay_days + ' days left are paid (at most 3) = ' + b3.leave_pay);
+    ok(b3.gross === Math.round((b0.gross + b3.leave_pay) * 100) / 100 && m3.totals.leave_pay === b3.leave_pay, 'his gross grew by exactly that; the totals carry it');
+    sql("update hr_employees set left_on = '2026-09-30' where id = '" + b.id + "'"); ok((await PR.ACT.payList(sup, { month })).rows.find(r => r.id === b.id).leave_pay === undefined, 'relieved in another month: nothing in October');
   } finally {
+    if (back) sql(back); if (lv) await BK.ACT.rbAssign(sup, { kind: 'leave', policy_id: null, valid_from: '2026-08-01', employees: [b.id], reason: 'rig back' });
     if (pol) await BK.ACT.rbAssign(sup, { kind: 'compoff', policy_id: null, valid_from: '2026-10-01', employees: [a.id], reason: 'rig back' });
     sql('delete from hr_asks where id in (' + askIds + '); delete from hr_salaries where id in (' + salIds + ');');
   }
