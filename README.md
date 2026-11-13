@@ -230,6 +230,22 @@ designation's category beside the settings (`hr_settings`, site `*`).
   HR's server keeps and sees nothing of the passwords. No SQL step in HR.
 * Still to come: the phone app's sign-in box and its screens for the new details.
 
+## The new look of the web pages and Ctrl K (13-11-2026 – the pictures he approved: "all approved aahe … ctrl k thew … pr de")
+* **The frame:** the pages are a menu down the left side (People · Attendance · Leave & pay), the search and the site on top. In
+  Mechanical's screen (`?embed=1`) and on a narrow screen the menu is the row of buttons as before. The same pages for the same
+  people – a page a person may not open is not in his menu.
+* **Ctrl K** (`public/find.js`, also the search box on top): one box finds a page, an employee of the site (name, code, mobile,
+  e-mail – the server's own `empList`), a department, a designation or an action (Add employee, Import, Export, Give sign-in to
+  all – only when that button is on his screen). Arrows, Enter, Esc.
+* **The dashboard** as in the picture: six counts, the day's sky, today's ring, "Needs you"; then who is in, the places, what
+  comes up, the week and the quick actions. It asks nothing new (`attDash`, `hrComing`); Requests / Phones / Attendance show the
+  number waiting beside their name in the menu.
+* **The other pages:** the new cards, tables and buttons (the look only – every button and rule as before).
+* **Not in this step** (the pictures show them; they need new numbers from the server or a new arrangement of a page): the
+  counts on top of Attendance, Phones, Leave and Payroll; "Absent today" and "On leave" on the dashboard (today: "Off today" and
+  "Absent yesterday"); the list beside the map on Work places; "Sign-in" as a column of Employees; the switches for the HR Admin's powers.
+* **Only the web.** Nothing of the phone app, the server's actions or the database is changed.
+
 ## Settings (Vercel → Project → Settings → Environment Variables – never in a file)
 | Name | What |
 |---|---|
