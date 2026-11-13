@@ -24,7 +24,7 @@
     var w = el('div'), l = el('label', '', d.label + (d.need ? ' *' : '')), i;
     if (d.type === 'list') { i = el('select'); var o = el('option', '', '– choose –'); o.value = ''; i.appendChild(o); (lists[d.list] || []).forEach(function (x) { if (!x.active && x.id !== v) return; var p = el('option', '', x.name + (x.active ? '' : ' (switched off)')); p.value = x.id; i.appendChild(p); }); i.value = v || ''; }
     else if (d.type === 'yesno') { i = el('select'); [['', '–'], ['yes', 'Yes'], ['no', 'No']].forEach(function (k) { var p = el('option', '', k[1]); p.value = k[0]; i.appendChild(p); }); i.value = v === true ? 'yes' : v === false ? 'no' : ''; }
-    else { i = el('input'); i.type = d.type === 'date' ? 'date' : d.type === 'int' ? 'number' : d.type === 'email' ? 'email' : 'text'; if (d.max && d.type !== 'int') i.maxLength = d.type === 'digits' ? d.max + 4 : d.max; if (d.type === 'int') { i.min = d.min; i.max = d.max; } if (d.type === 'digits' || d.type === 'mobile') i.inputMode = 'numeric'; if (d.type === 'ifsc') i.style.textTransform = 'uppercase'; i.autocomplete = 'off'; i.value = v === undefined || v === null ? '' : v; }
+    else { i = el('input'); i.type = d.type === 'date' ? 'date' : d.type === 'int' || d.type === 'num' ? 'number' : d.type === 'time' ? 'time' : d.type === 'email' ? 'email' : 'text'; if (d.type === 'num') { i.min = 0; i.step = '0.01'; } if (d.max && d.type !== 'int') i.maxLength = d.type === 'digits' ? d.max + 4 : d.max; if (d.type === 'int') { i.min = d.min; i.max = d.max; } if (d.type === 'digits' || d.type === 'mobile') i.inputMode = 'numeric'; if (d.type === 'ifsc') i.style.textTransform = 'uppercase'; i.autocomplete = 'off'; i.value = v === undefined || v === null ? '' : v; }
     var id = 'pf_' + d.key + '_' + Math.random().toString(36).slice(2, 7); i.id = id; l.htmlFor = id; w.appendChild(l); w.appendChild(i);
     return { box: w, get: function () { return i.value; } };
   }
@@ -54,7 +54,7 @@
       s.appendChild(tabs); s.appendChild(body); s.appendChild(er);
       var cur = all.filter(function (t) { return t.key === P.tab; })[0], left = e.status === 'left';
       if (cur.group) {
-        var vals = cur.key === 'secret' ? r.secret : r.data, f = form(cur.group.fields, vals, L); body.appendChild(f.grid);
+        var vals = cur.key === 'secret' || cur.group.in === 'secret' ? r.secret : r.data, f = form(cur.group.fields, vals, L); body.appendChild(f.grid);
         if (cur.key === 'secret') body.appendChild(el('p', 'muted', r.masked ? 'The numbers are shown masked to you. A box you leave as it is keeps its number.' : 'These numbers are never in a list or an export.'));
         var a = el('div', 'acts'); if (!left) a.appendChild(btn('pri', 'Save ' + cur.name, function () { api('profSave', { id: e.id, group: cur.key, data: f.get() }).then(function (n) { toast('Saved.'); draw(n); }, err); })); a.appendChild(btn('sec', 'Close', close)); body.appendChild(a);
       } else {

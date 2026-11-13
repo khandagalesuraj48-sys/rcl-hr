@@ -749,3 +749,89 @@ test('(what comes up) the office\'s list: papers running out within 30 days or r
   const me = await ACT.myHr({ site: SC, email: mail('com1'), name: 'x', role: 'self', info: {} });
   assert.deepStrictEqual([me.coming.papers.map(p => p.left), me.coming.birthday, me.coming.work_years], [[-2, 10], false, 5]);
 });
+
+test('(13-11-2026) the employee sheet: the company\'s sheet adds people with ITS codes; a new one needs a mobile or an e-mail; the same code again CHANGES only the filled cells; pay only from the Admin, a salary only from the HO HR; the same columns come out', async () => {
+  const SH = require('../lib/act_sheet'), c1 = 'RCL' + (((await db('GET', 'hr_numbers?select=next_no&kind=eq.emp')) || [{ next_no: 1 }])[0].next_no + 500 + Math.floor(Math.random() * 400)), c2 = 'M' + tag.slice(-4), c3 = '7' + String(Date.now()).slice(-5), m1 = mob(), m2 = mob(), m3 = mob(), des = 'Sheet Driver ' + tag;
+  const pn = String(1000 + (Date.now() % 9000)), pan = k => 'ABCP' + k + pn + 'Z', uan = '1' + String(Date.now()).slice(-11), uan2 = '2' + String(Date.now()).slice(-11);
+  // a designation says its category (the sheet has no Category column) – the HR Admin sets it; an HR User cannot
+  let m = await ACT.masterSave(admin, { kind: 'designation', name: des, category: 'Driver' }); const d = m.designations.find(x => x.name === des); assert.strictEqual(d.category, 'driver');
+  assert.strictEqual(m.designations.find(x => x.name === 'Desig ' + tag).category, 'staff', 'none set = Staff');
+  await no(ACT.masterSave(admin, { kind: 'designation', id: d.id, name: des, category: 'boss' }), /Category: Staff, Operator, Driver or Labour/);
+  const rows = [
+    { _line: 2, company: 'Test Company Limited', branch: 'Branch ' + tag, project: 'Site A', uan: uan, name: 'Sheet One', code: c1.toLowerCase(), ctc: '25000', joined_on: '2024-04-01 00:00:00', employment_type: 'Permanent ' + tag, retained: '', sign_in: '00:00:00', sign_out: '00:00:00',
+      pan: pan('A'), pf: 'Yes', probation_days: '0', esic_contribution_rate: '0', esic: 'No', esic_type: '', esic_deduction_rate: '0', pt: 'Yes', tds_type: 'NTDS', attach: '0', basic: '12000', pay_period: 'Monthly', annual_bonus: '0', deduct_income_tax: 'No', annual_medical: '0', annual_lta: '0', totals: '1',
+      mobile: m1, email: '', designation: des, bank_name: 'Rig Bank', bank_ifsc: 'RIGB0001234', bank_account: '123456789012', bank_holder: 'Sheet One' },
+    { _line: 3, company: 'Test Company Limited', branch: 'Branch ' + tag, project: 'Site A', name: 'Sheet Two', code: c2, ctc: '0', joined_on: '2025-01-15 00:00:00', pan: pan('B'), pf: 'No', esic: 'No', pt: 'No', email: mail('sheet2'), totals: '1' },
+    { _line: 4, name: 'Sheet Nobody', code: c3, ctc: '18000', joined_on: '2026-02-01', pan: pan('C') },      // neither a mobile nor an e-mail
+    { _line: 5, name: 'Sheet Bad', code: 'x', mobile: m1, pan: 'WRONG', pf: 'maybe', bank_ifsc: 'ABC', sign_in: '99:00' },
+    { _line: 6, name: 'Sheet Twice', code: c2, mobile: m3 },
+  ];
+  // only looked at: nothing is saved
+  let r = await ACT.sheetImport(sup, { rows: rows, check: 1 });
+  assert.deepStrictEqual([r.checked, r.saved, r.rows, r.toAdd, r.toChange, r.faults], [true, 0, 5, 2, 0, 3]);
+  const why = l => r.lines.find(x => x.line === l).why;
+  assert.match(why(4), /Mobile or E-mail: a new employee needs one of them/);
+  assert.match(why(5), /Employee Code: 2 to 20.*PAN: 10 letters.*Sign In: a time as HH:MM.*Bank IFSC Code: 11 letters.*Deduct PF: Yes or No.*Mobile is twice in the file \(line 2\)/);
+  assert.match(why(6), /Employee Code is twice in the file \(line 3\)/);
+  assert.ok(r.willMake.some(x => x === 'branch: Branch ' + tag) && r.willMake.some(x => x === 'employment_type: Permanent ' + tag)); assert.match(r.notes.join(' '), /monthly CTC of 1 employees becomes their approved salary/);
+  assert.strictEqual(((await db('GET', 'hr_employees?select=id&code=in.("' + c1 + '","' + c2 + '")')) || []).length, 0);
+  // saved by the Super Admin (he is the HO HR too): the codes of the sheet, the category of the designation, everything in its place
+  r = await ACT.sheetImport(sup, { rows: rows });
+  assert.deepStrictEqual([r.checked, r.added, r.changed, r.faults, r.salaries], [false, 2, 0, 3, 1]);
+  const got = async code => ((await db('GET', 'hr_employees?select=*&code=eq.' + code)) || [])[0], e1 = await got(c1), e2 = await got(c2);
+  assert.deepStrictEqual([e1.site, e1.name, e1.category, e1.mobile, e1.joined_on, e1.designation_id, e1.status], [SITE, 'Sheet One', 'driver', m1, '2024-04-01', d.id, 'incomplete']);
+  assert.deepStrictEqual([e2.category, e2.email, e2.mobile, e2.joined_on], ['staff', mail('sheet2'), '', '2025-01-15']);
+  const pr = ((await db('GET', 'hr_employee_profile?select=data,secret&employee_id=eq.' + e1.id)) || [])[0], lists = (await ACT.listAll(admin)).lists;
+  assert.deepStrictEqual([pr.data.company, pr.data.project, pr.data.sign_in, pr.data.probation_days, lists.branch.find(v => v.id === pr.data.branch).name, lists.employment_type.find(v => v.id === pr.data.employment_type).name], ['Test Company Limited', 'Site A', '00:00', 0, 'Branch ' + tag, 'Permanent ' + tag]);
+  assert.deepStrictEqual([pr.secret.uan, pr.secret.bank_ifsc, pr.secret.bank_account, pr.secret.ctc_monthly, pr.secret.basic, pr.secret.tds_type, pr.secret.deduct_income_tax, pr.secret.pay_period], [uan, 'RIGB0001234', '123456789012', 25000, 12000, 'NTDS', false, 'Monthly']);
+  assert.strictEqual(((await db('GET', 'hr_employee_private?select=pan&employee_id=eq.' + e1.id)) || [])[0].pan, pan('A'));
+  assert.deepStrictEqual(((await db('GET', 'hr_pay_emp?select=pf,esic,pt&employee_id=eq.' + e1.id)) || [])[0], { pf: true, esic: false, pt: true });
+  const sal = (await db('GET', 'hr_salaries?select=pay_type,amount,valid_from,status,decided_by&employee_id=eq.' + e1.id)) || [];
+  assert.deepStrictEqual(sal.map(v => [v.pay_type, +v.amount, v.valid_from, v.status, v.decided_by]), [['monthly', 25000, '2024-04-01', 'approved', sup.email]], 'the month\'s CTC is his approved salary');
+  assert.strictEqual(((await db('GET', 'hr_salaries?select=id&employee_id=eq.' + e2.id)) || []).length, 0, 'a CTC of 0 is no salary');
+  // the counter of the codes made by themselves went past the sheet's RCL… code
+  const next = await ACT.empSave(admin, { name: 'After Sheet', category: 'staff', mobile: mob() }); assert.ok(+/^RCL(\d+)$/.exec(next.code)[1] > +/^RCL(\d+)$/.exec(c1)[1], next.code);
+  // the same code again CHANGES him: only the filled cells; an empty cell changes nothing; nothing is added a second time
+  r = await ACT.sheetImport(sup, { rows: [{ _line: 2, code: c1, name: '', email: mail('sheet1'), dob: '05-03-1990', bank_holder: 'S One', ctc: '25000', pf: '' }, { _line: 3, code: c2, name: 'Sheet Two B', mobile: m2, uan: uan2 }] });
+  assert.deepStrictEqual([r.added, r.changed, r.faults, r.salaries], [0, 2, 0, 0], 'the same salary is not set twice');
+  const e1b = await got(c1), e2b = await got(c2), prb = ((await db('GET', 'hr_employee_profile?select=data,secret&employee_id=eq.' + e1.id)) || [])[0];
+  assert.deepStrictEqual([e1b.id, e1b.name, e1b.mobile, e1b.email, e1b.dob, e1b.status, e1b.category, e1b.designation_id], [e1.id, 'Sheet One', m1, mail('sheet1'), '1990-03-05', 'pending', 'driver', d.id]);
+  assert.deepStrictEqual([e2b.name, e2b.mobile, e2b.email], ['Sheet Two B', m2, mail('sheet2')]);
+  assert.deepStrictEqual([prb.secret.bank_holder, prb.secret.bank_account, prb.secret.uan, prb.data.company], ['S One', '123456789012', uan, 'Test Company Limited']);
+  assert.deepStrictEqual(((await db('GET', 'hr_pay_emp?select=pf,esic,pt&employee_id=eq.' + e1.id)) || [])[0], { pf: true, esic: false, pt: true }, 'an empty Deduct PF keeps the tick');
+  // a mobile / PAN of another employee, an employee of another site, a person who left: refused with the line
+  r = await ACT.sheetImport(sup, { rows: [{ _line: 2, code: c2, mobile: m1 }, { _line: 3, name: 'Sheet New', code: '', mobile: mob(), pan: pan('A') }], check: 1 });
+  assert.match(r.lines.find(x => x.line === 2).why, new RegExp('Mobile already belongs to employee ' + c1)); assert.match(r.lines.find(x => x.line === 3).why, /PAN already belongs to another employee/);
+  r = await ACT.sheetImport(ses('super', SITE2), { rows: [{ _line: 2, code: c1, name: 'Elsewhere' }], check: 1 }); assert.match(r.lines[0].why, new RegExp('is an employee of the site ' + SITE));
+  // an HR User: the people yes, the pay columns no – and he is told; the HR Admin (not the HO HR): pay details kept, no salary
+  const c4 = 'U' + tag.slice(-4), c5 = 'A' + tag.slice(-4);
+  r = await ACT.sheetImport(user, { rows: [{ _line: 2, name: 'Sheet User', code: c4, mobile: mob(), ctc: '30000', pf: 'Yes', basic: '15000', uan: '3' + String(Date.now()).slice(-11) }] });
+  assert.strictEqual(r.added, 1); assert.match(r.notes.join(' '), /pay columns .* were not read: only the HR Admin or the Super Admin/);
+  const e4 = await got(c4), p4 = ((await db('GET', 'hr_employee_profile?select=secret&employee_id=eq.' + e4.id)) || [])[0];
+  assert.ok(p4.secret.uan && p4.secret.ctc_monthly === undefined && p4.secret.basic === undefined); assert.strictEqual(((await db('GET', 'hr_pay_emp?select=pf&employee_id=eq.' + e4.id)) || []).length, 0);
+  r = await ACT.sheetImport(admin, { rows: [{ _line: 2, name: 'Sheet Admin', code: c5, mobile: mob(), ctc: '30000', pf: 'Yes' }] });
+  assert.deepStrictEqual([r.added, r.salaries], [1, 0]); assert.match(r.notes.join(' '), /kept as a detail only/);
+  const e5 = await got(c5); assert.strictEqual(((await db('GET', 'hr_employee_profile?select=secret&employee_id=eq.' + e5.id)) || [])[0].secret.ctc_monthly, 30000); assert.strictEqual(((await db('GET', 'hr_salaries?select=id&employee_id=eq.' + e5.id)) || []).length, 0);
+  // the pay details on his page: the Admin sees and saves them, an HR User is not told that they exist
+  const pa = await ACT.profGet(admin, { id: e1.id }), pu = await ACT.profGet(user, { id: e1.id });
+  assert.ok(pa.defs.groups.some(g => g.key === 'pay') && pa.secret.ctc_monthly === 25000); assert.ok(!pu.defs.groups.some(g => g.key === 'pay') && pu.secret.ctc_monthly === undefined && /^XXXX/.test(pu.secret.uan));
+  await no(ACT.profSave(user, { id: e1.id, group: 'pay', data: { basic: 1 } }), /Only the HR Admin/, 403);
+  assert.strictEqual((await ACT.profSave(admin, { id: e1.id, group: 'pay', data: Object.assign({}, pa.secret, { basic: '13000', deduct_income_tax: 'yes' }) })).secret.basic, 13000);
+  assert.strictEqual(((await db('GET', 'hr_employee_profile?select=secret&employee_id=eq.' + e1.id)) || [])[0].secret.bank_account, '123456789012', 'the bank details stay beside the pay details');
+  // OUT: the same columns; Yes / No as words; the salary that counts; for an HR User no pay and no secret number
+  const out = await ACT.sheetExport(sup, { q: 'Sheet One' }), H = out.heads, cell = (row, h) => row[H.indexOf(h)], o1 = out.rows.find(x => cell(x, 'Employee Code') === c1);
+  assert.deepStrictEqual(H, SH.COLS.map(c => c.head));
+  assert.deepStrictEqual(['Name of Company', 'Branch Name', 'Current Project Name', 'UAN No.', 'Employee Name', 'Auto Monthly CTC', 'Date of Joining', 'Employee Status', 'Sign In', 'PAN', 'Deduct PF', 'Deduct ESIC', 'Deduct PT', 'TDS Type', 'Basic', 'Deduct Income Tax', 'Totals', 'Mobile', 'E-mail', 'Date of Birth', 'Designation', 'Bank IFSC Code', 'Bank Account Number'].map(h => cell(o1, h)),
+    ['Test Company Limited', 'Branch ' + tag, 'Site A', uan, 'Sheet One', 25000, '01-04-2024', 'Permanent ' + tag, '00:00', pan('A'), 'Yes', 'No', 'Yes', 'NTDS', 13000, 'Yes', 1, m1, mail('sheet1'), '05-03-1990', des, 'RIGB0001234', '123456789012']);
+  const ou = await ACT.sheetExport(user, { q: 'Sheet One' }), u1 = ou.rows[0];
+  assert.deepStrictEqual(['Employee Name', 'Auto Monthly CTC', 'Basic', 'Deduct PF', 'UAN No.', 'Bank Account Number', 'Bank IFSC Code', 'PAN'].map(h => cell(u1, h)), ['Sheet One', '', '', '', '', '', 'RIGB0001234', pan('A')]); assert.strictEqual(ou.full, false);
+  // what came out goes in again without a fault and changes nothing
+  const keys = SH.COLS.map(c => c.key), back = out.rows.map((row, i) => { const o = { _line: i + 2 }; keys.forEach((k, j) => { o[k] = row[j]; }); return o; });
+  r = await ACT.sheetImport(sup, { rows: back, check: 1 }); assert.deepStrictEqual([r.faults, r.toAdd, r.toChange], [0, 0, back.length], JSON.stringify(r.lines));
+  r = await ACT.sheetImport(sup, { rows: back }); assert.deepStrictEqual([r.added, r.changed, r.salaries], [0, back.length, 0]); assert.deepStrictEqual((await got(c1)).updated_at, e1b.updated_at, 'nothing changed: he is not written again');
+  // the format: the headings, no row; the audit holds no number
+  const f = await ACT.sheetExport(user, { template: 1 }); assert.deepStrictEqual([f.heads.length, f.rows.length], [SH.COLS.length, 0]);
+  const au = JSON.stringify((await db('GET', 'hr_audit?select=action,detail&site=eq.' + SITE + '&action=like.Employee sheet*')) || []);
+  assert.ok(au.includes('Employee sheet imported') && au.includes('Employee sheet exported')); for (const n of [uan, pan('A'), '123456789012', '25000', m1]) assert.ok(!au.includes(n), 'not in the audit: ' + n);
+  await no(ACT.sheetImport(ses('self'), { rows: back }), /HR office only/, 403);
+});

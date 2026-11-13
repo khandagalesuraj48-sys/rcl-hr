@@ -21,6 +21,7 @@ const PAY = require('../lib/act_pay');      // (step 11) an employee's salary: p
 const ROLL = require('../lib/act_payroll');      // (step 12) payroll: the month's pay, the settings, advances, a person's payslips
 const MORE = require('../lib/act_more');      // what comes up (papers, birthdays), a payslip to print, the bank list
 const PROF = require('../lib/act_profile');      // (step 6) the full profile, the lists, what is compulsory
+const SHEET = require('../lib/act_sheet');      // (13-11-2026) the employee sheet: one Excel format to import and export
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const id = v => { v = String(v || '').toLowerCase(); return UUID.test(v) ? v : ''; };
@@ -56,9 +57,10 @@ async function newCodes(count) {
 }
 const sitesOf = s => { const l = (s.info && Array.isArray(s.info.sites) ? s.info.sites : []).map(x => String(x.code)); if (l.indexOf(s.site) < 0) l.push(s.site); return l; };
 
+// (13-11-2026: "designation … yatun categery samjun yete") a designation carries its category – Staff when none is set
 async function masters() {
-  const [d, g] = await Promise.all([db('GET', 'hr_departments?select=id,name,active&order=name'), db('GET', 'hr_designations?select=id,name,active&order=name')]);
-  return { departments: d || [], designations: g || [] };
+  const [d, g, cat] = await Promise.all([db('GET', 'hr_departments?select=id,name,active&order=name'), db('GET', 'hr_designations?select=id,name,active&order=name'), SHEET.desCats()]);
+  return { departments: d || [], designations: (g || []).map(x => Object.assign(x, { category: cat[x.id] || 'staff' })) };
 }
 // a master's row by its name (made when it is not there – the import); '' = no name
 async function masterId(kind, name, who, made) {
@@ -93,11 +95,13 @@ const ACT = {
     const name = R.str(x.name, 60); if (name.length < 2) throw fail(400, 'Name: at least 2 letters.', 'name');
     const mid = id(x.id), same = ((await db('GET', t + '?select=id,name&name=ilike.' + enc(name.replace(/[%_*,()\\]/g, ' ')))) || []).find(r => r.name.toLowerCase() === name.toLowerCase() && r.id !== mid);
     if (same) throw fail(409, 'This name is already in the list.', 'name');
+    const cat = x.kind === 'designation' && x.category !== undefined ? R.category(x.category) : undefined; if (cat === null) throw fail(400, 'Category: Staff, Operator, Driver or Labour.', 'category');
+    if (mid && cat) { const had = (await SHEET.desCats())[mid] || 'staff'; if (had !== cat) { await SHEET.desCatSave(mid, cat, s.email); await audit(s.site, s.email, 'Designation\'s category changed', name, { old: had, new: cat }); } }
     if (mid) {
       const was = ((await db('GET', t + '?select=id,name,active&id=eq.' + mid)) || [])[0]; if (!was) throw fail(404, 'Not found.');
       const now = { name: name, active: x.active === undefined ? was.active : !!x.active, updated_at: new Date().toISOString() };
       await db('PATCH', t + '?id=eq.' + mid, now, 'return=minimal'); await audit(s.site, s.email, 'Master changed', x.kind + ' ' + name, { old: { name: was.name, active: was.active }, new: { name: now.name, active: now.active } });
-    } else { await db('POST', t, [{ name: name, created_by: s.email }], 'return=minimal'); await audit(s.site, s.email, 'Master added', x.kind + ' ' + name, null); }
+    } else { const made = await db('POST', t, [{ name: name, created_by: s.email }], 'return=representation'); if (cat && cat !== 'staff' && made && made[0]) await SHEET.desCatSave(made[0].id, cat, s.email); await audit(s.site, s.email, 'Master added', x.kind + ' ' + name, cat ? { category: cat } : null); }
     return masters();
   },
 
@@ -328,7 +332,8 @@ const ACT = {
   },
 };
 
-[ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT, LEAVE.ACT, MONTH.ACT, PAY.ACT, ROLL.ACT, MORE.ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
+const SHEET_ACT = SHEET({ masters: masters, masterId: masterId, taken: taken, newCodes: newCodes, codeTyped: codeTyped, CODE_OK: CODE_OK, needOffice: ATT.needOffice }).ACT;
+[ATT.ACT, MUS.ACT, DASH.ACT, PROF.ACT, LEAVE.ACT, MONTH.ACT, PAY.ACT, ROLL.ACT, MORE.ACT, SHEET_ACT].forEach(part => Object.keys(part).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = part[k]; }));
 // (12-11-2026) the app's "Me": a person's own record and papers – the office's own paper actions, for the employee the sign-in is
 const MINE = require('../lib/act_self')(ACT);
 Object.keys(MINE.ACT).forEach(k => { if (ACT[k]) throw new Error('action twice: ' + k); ACT[k] = MINE.ACT[k]; });
