@@ -181,10 +181,92 @@
     }); d.acts.appendChild(ok); name.focus();
   }
 
+  /* ───────── APPROVALS: what waits for "verify" and "approve" – overtime, comp-off, extra leave ───────── */
+  var A = { status: 'pending', view: 'asks', month: '', found: null, picked: {} };
+  var KIND = { overtime: 'Overtime', compoff: 'Comp-off', leave_credit: 'Leave days', att_import: 'Attendance correction' }, CATN = { staff: 'Staff', operator: 'Operator', driver: 'Driver', labour: 'Labour' };
+  function what(r) {
+    var b = r.body || {};
+    if (r.kind === 'overtime') return (Math.round(b.minutes / 6) / 10) + ' h extra → ' + (b.result === 'leave' ? b.days + ' day(s) in the Comp-off balance' : b.result === 'pay' ? 'pay (' + b.rate + ' × the hourly rate)' : 'nothing');
+    if (r.kind === 'compoff') return 'worked ' + b.hours + ' h on a day off → ' + (b.result === 'leave' ? b.days + ' day in the Comp-off balance' : 'pay for an extra day');
+    if (r.kind === 'leave_credit') return (b.days > 0 ? '+' : '') + b.days + ' day(s) · ' + (b.bucket === 'comp' ? 'Comp-off' : 'Paid leave') + (b.source === 'opening' ? ' · opening balance' : '') + ' – ' + (b.reason || '');
+    return '';
+  }
+  function approvals() {
+    var root = $('p_book'); root.textContent = '';
+    if (window.HRHEAD && !root.hidden) window.HRHEAD.set('Approvals · मंजुरी', 'Overtime, comp-off and extra leave count only after they are verified and approved – by whom each policy says.', []);
+    var tabs = el('div', 'rb-tabs'); [['asks', 'Requests'], ['extras', 'Overtime & comp-off of the month']].forEach(function (x) { tabs.appendChild(btn(A.view === x[0] ? 'on' : '', x[1], function () { A.view = x[0]; approvals(); })); }); root.appendChild(tabs);
+    var body = el('div'); root.appendChild(body); if (A.view === 'extras') extras(body); else asks(body);
+  }
+  function asks(root) {
+    var tools = el('div', 'tools'); [['pending', 'Waiting'], ['approved', 'Approved'], ['refused', 'Refused']].forEach(function (k) { tools.appendChild(btn(A.status === k[0] ? 'sm' : 'sm ghost', k[1], function () { A.status = k[0]; approvals(); })); }); root.appendChild(tools);
+    api('askList', { status: A.status }).then(function (r) {
+      if (!r.ready) { root.appendChild(el('p', 'none', r.note)); return; }
+      var box = el('div', 'box'), t = el('table'), th = el('thead'), hr = el('tr'); ['Employee', 'What', 'Day', 'It is', 'Where it stands', ''].forEach(function (x) { hr.appendChild(el('th', '', x)); }); th.appendChild(hr); t.appendChild(th); var tb = el('tbody'); t.appendChild(tb); box.appendChild(t);
+      r.rows.forEach(function (q) {
+        var tr = el('tr'); tr.style.cursor = 'default'; var nm = el('td', 'nm pwho'), bx = el('div'); bx.appendChild(el('b', '', q.name || '–')); bx.appendChild(el('small', '', q.code + (q.category ? ' · ' + CATN[q.category] : ''))); nm.appendChild(bx); tr.appendChild(nm);
+        tr.appendChild(el('td', '', KIND[q.kind] || q.kind)); tr.appendChild(el('td', '', dmy(q.day))); var w = el('td', '', what(q)); w.style.whiteSpace = 'normal'; tr.appendChild(w);
+        var last = (q.steps || [])[q.steps.length - 1], st = el('td'); st.style.whiteSpace = 'normal';
+        st.appendChild(el('span', 'st ' + (q.status === 'approved' ? 's-active' : q.status === 'refused' ? 's-left' : 's-incomplete'), q.status === 'pending' ? (q.stage === 'verify' ? 'Waits for verify' : 'Waits for approval') : q.status === 'approved' ? 'Approved' : 'Refused'));
+        st.appendChild(el('small', 'rb-hint', q.status === 'pending' ? who((q.auth || {})[q.stage]) : (last ? 'by ' + last.by + (last.note ? ' – ' + last.note : '') : ''))); tr.appendChild(st);
+        var a = el('td');
+        if (q.can) {
+          var note = el('input'); note.type = 'text'; note.maxLength = 200; note.placeholder = 'Why it is refused'; note.setAttribute('aria-label', 'Why it is refused'); note.hidden = true; note.style.cssText = 'height:38px;border:1px solid #ECECEE;border-radius:10px;padding:0 10px;margin-right:6px';
+          var send = function (ok) { api('askDecide', { id: q.id, ok: ok, note: note.value }).then(function (x) { done(ok ? (x.status === 'approved' ? 'Approved' : 'Verified') : 'Refused', (q.name || '') + ' · ' + (KIND[q.kind] || '')); approvals(); }, fail); };
+          a.appendChild(note); a.appendChild(btn('mz-ok', q.stage === 'verify' ? 'Verify' : 'Approve', function () { send(true); })); a.appendChild(btn('mz-no', 'Refuse', function () { if (note.hidden) { note.hidden = false; note.focus(); } else send(false); }));
+        }
+        tr.appendChild(a); tb.appendChild(tr);
+      });
+      root.appendChild(box); if (!r.rows.length) root.appendChild(el('p', 'none', A.status === 'pending' ? 'Nothing waits. · काही बाकी नाही.' : 'Nothing here.'));
+    }, fail);
+  }
+  function extras(root) {
+    var tools = el('div', 'tools'), m = el('input'); m.type = 'month'; m.value = A.month || today().slice(0, 7); m.setAttribute('aria-label', 'Month'); m.onchange = function () { A.month = m.value; A.picked = {}; approvals(); }; tools.appendChild(m);
+    var send = btn('pri', 'Send the ticked for approval', function () { var rows = Object.keys(A.picked).filter(function (k) { return A.picked[k]; }).map(function (k) { var p = k.split('|'); return { employee_id: p[0], kind: p[1], day: p[2] }; }); if (!rows.length) { toast('Tick at least one.', true); return; } send.disabled = true; api('extraAsk', { month: m.value, rows: rows }).then(function (x) { done('Sent for approval', x.sent + (x.sent === 1 ? ' day' : ' days')); A.picked = {}; A.view = 'asks'; A.status = 'pending'; approvals(); }, function (e) { send.disabled = false; fail(e); }); });
+    tools.appendChild(send); root.appendChild(tools);
+    api('extraFind', { month: m.value }).then(function (r) {
+      if (!r.ready) { root.appendChild(el('p', 'none', r.note)); return; }
+      var box = el('div', 'box'), t = el('table'), th = el('thead'), hr = el('tr'), all = el('input'); all.type = 'checkbox'; all.setAttribute('aria-label', 'Tick all that can be sent'); var h0 = el('th'); h0.appendChild(all); hr.appendChild(h0);
+      ['Employee', 'Day', 'What', 'It is', 'Where it stands'].forEach(function (x) { hr.appendChild(el('th', '', x)); }); th.appendChild(hr); t.appendChild(th); var tb = el('tbody'); t.appendChild(tb); box.appendChild(t);
+      var free = r.rows.filter(function (q) { return q.status !== 'pending' && q.status !== 'approved'; });
+      r.rows.forEach(function (q) {
+        var k = q.employee_id + '|' + q.kind + '|' + q.day, can = q.status !== 'pending' && q.status !== 'approved', tr = el('tr'), c = el('td'); tr.style.cursor = 'default';
+        if (can) { var ck = el('input'); ck.type = 'checkbox'; ck.checked = !!A.picked[k]; ck.setAttribute('aria-label', 'Tick ' + q.name + ' ' + dmy(q.day)); ck.onchange = function () { A.picked[k] = ck.checked; }; c.appendChild(ck); } tr.appendChild(c);
+        var nm = el('td', 'nm pwho'), bx = el('div'); bx.appendChild(el('b', '', q.name)); bx.appendChild(el('small', '', q.code + ' · ' + (CATN[q.category] || ''))); nm.appendChild(bx); tr.appendChild(nm);
+        tr.appendChild(el('td', '', dmy(q.day))); tr.appendChild(el('td', '', KIND[q.kind])); var w = el('td', '', what(q)); w.style.whiteSpace = 'normal'; tr.appendChild(w);
+        var st = el('td'); st.appendChild(el('span', 'st ' + (q.status === 'approved' ? 's-active' : q.status === 'pending' ? 's-incomplete' : 's-left'), q.status === 'approved' ? 'Approved' : q.status === 'pending' ? (q.stage === 'verify' ? 'Waits for verify' : 'Waits for approval') : q.status === 'refused' ? 'Refused – can be sent again' : 'Not sent yet')); tr.appendChild(st); tb.appendChild(tr);
+      });
+      all.onchange = function () { free.forEach(function (q) { A.picked[q.employee_id + '|' + q.kind + '|' + q.day] = all.checked; }); approvals(); };
+      root.appendChild(box); if (!r.rows.length) root.appendChild(el('p', 'none', 'No overtime and no work on a day off in this month – or no policy of the Rule Book gives anything for it.'));
+    }, fail);
+  }
+
+  /* ───────── a person's LEAVE on his page: the two balances, the ledger (where every day came from), "add / take days" ───────── */
+  var SRC = { month: 'Leave of the month', sunday: 'Sunday worked', opening: 'Opening balance', hr: 'HR office', overtime: 'Overtime', compoff: 'Work on a day off', leave: 'Leave taken', absent: 'Absent', lapse: 'Lapsed' };
+  function ledger(id, card, box, live, canAsk) {
+    card.hidden = true; box.textContent = '';
+    api('leaveLedger', { id: id }).then(function (r) {
+      if (!live() || !r.book) return;      // no leave policy of the Rule Book for him: his page stays as it was
+      card.hidden = false; var top = el('div', 'lg-top');
+      [['Paid leave', r.paid, 'k-p'], ['Comp-off', r.comp, 'k-v'], ['Booked ahead', r.booked, 'k-o'], ['Asked, not decided', r.pending, 'k-l']].forEach(function (x) { var d = el('div', x[2]); d.appendChild(el('b', '', x[1])); d.appendChild(el('span', '', x[0])); top.appendChild(d); }); box.appendChild(top);
+      var list = el('div', 'lg-list'); r.ledger.slice(0, 14).forEach(function (x) { var row = el('div'); row.appendChild(el('b', x.days > 0 ? 'plus' : 'minus', (x.days > 0 ? '+' : '') + x.days)); var t = el('span'); t.appendChild(el('i', '', (SRC[x.source] || x.source) + (x.bucket === 'comp' ? ' · Comp-off' : ''))); t.appendChild(el('small', '', dmy(x.day) + (x.text && x.text !== SRC[x.source] ? ' – ' + x.text : ''))); row.appendChild(t); list.appendChild(row); });
+      if (!r.ledger.length) list.appendChild(el('p', 'muted', 'Nothing in his ledger yet.')); box.appendChild(list); if (r.ledger.length > 14) box.appendChild(el('p', 'muted', '+ ' + (r.ledger.length - 14) + ' earlier lines'));
+      var ab = Object.keys(r.absent || {}); if (ab.length) { var n = { none: 0, refused: 0, nobalance: 0 }; ab.forEach(function (k) { n[r.absent[k]]++; }); box.appendChild(el('p', 'warn', 'Absent: ' + [n.none ? n.none + ' with no request' : '', n.refused ? n.refused + ' although the leave was refused' : '', n.nobalance ? n.nobalance + ' – the balance had no more' : ''].filter(Boolean).join(' · ') + '.')); }
+      if (canAsk) { var a = el('div', 'ep-row'); a.appendChild(btn('sec', 'Add or take days…', function () { askDays(id, function () { ledger(id, card, box, live, canAsk); }); })); box.appendChild(a); }
+    }, function () { /* not set up, or not his to see: the card stays away */ });
+  }
+  function askDays(id, after) {
+    var d = sheet('Add or take leave days', 'It is ASKED here and added to his balance when it is approved – by whom his leave policy says (the HO HR when he has none).');
+    var g = el('div', 'grid g3'), bucket = pickIn([['paid', 'Paid leave'], ['comp', 'Comp-off']], 'paid'), days = el('input'); days.type = 'number'; days.step = '0.5'; days.placeholder = '2 or -1 or 0.5'; var day = el('input'); day.type = 'date'; day.value = today();
+    var why = el('input'); why.maxLength = 200; var open = pickIn([['no', 'No'], ['yes', 'Yes – his opening balance']], 'no');
+    field(g, 'Balance', bucket); field(g, 'Days *', days, 'a minus takes days away'); field(g, 'On which day', day); d.body.appendChild(g); var g2 = el('div', 'grid'); field(g2, 'Reason *', why); field(g2, 'Is this his opening balance?', open); d.body.appendChild(g2);
+    d.acts.appendChild(btn('sec', 'Cancel', d.close)); var ok = btn('pri', 'Send for approval', function () { ok.disabled = true; api('leaveCreditAsk', { id: id, bucket: bucket.value, days: +days.value, day: day.value, reason: why.value, opening: open.value === 'yes' }).then(function (x) { d.close(); done('Sent for approval', x.stage === 'verify' ? 'It waits for "verify" first' : 'It waits for approval'); if (after) after(); }, function (e) { ok.disabled = false; d.err(e.message); }); }); d.acts.appendChild(ok); days.focus();
+  }
+
   window.HRBOOK = {
-    pages: [['rulebook', 'Rule Book']],
-    has: function (page) { return page === 'rulebook'; },
-    open: function (page, me) { V.me = me; var root = $('p_book'); if (window.HRHEAD) window.HRHEAD.set('Rule Book · नियम पुस्तक', 'Every policy of attendance, leave, weekly off, comp-off and overtime.', []); if (!V.data) { root.textContent = ''; root.appendChild(el('p', 'none', 'Opening… · उघडत आहे…')); } else draw(); load(); },
+    ledger: ledger,
+    pages: [['rulebook', 'Rule Book'], ['approvals', 'Approvals']],
+    has: function (page) { return page === 'rulebook' || page === 'approvals'; },
+    open: function (page, me) { V.me = me; var root = $('p_book'); if (page === 'approvals') { root.textContent = ''; root.appendChild(el('p', 'none', 'Opening… · उघडत आहे…')); if (!V.data) api('rbList').then(function (r) { V.data = r; approvals(); }, function () { V.data = { roles: [], policies: [] }; approvals(); }); else approvals(); return; } if (window.HRHEAD) window.HRHEAD.set('Rule Book · नियम पुस्तक', 'Every policy of attendance, leave, weekly off, comp-off and overtime.', []); if (!V.data) { root.textContent = ''; root.appendChild(el('p', 'none', 'Opening… · उघडत आहे…')); } else draw(); load(); },
     _lines: lines
   };
 })();
