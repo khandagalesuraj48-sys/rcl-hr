@@ -8,7 +8,8 @@
   var api = function (action, body) { return window.HRAPI('api/hr', Object.assign({ action: action }, body || {})); };
   // a date as DD-MM-YYYY; a moment (…T…Z) is shown as its day in India
   var dmy = function (d) { if (!d) return ''; d = String(d); if (d.indexOf('T') > 0) { var t = Date.parse(d); if (!isNaN(t)) d = new Date(t + 19800000).toISOString(); } return d.slice(0, 10).split('-').reverse().join('-'); };
-  var STATUS = { incomplete: 'Incomplete', pending: 'Waiting for OTP', active: 'Active', left: 'Relieved' };
+  // (13-11-2026: "waiting for otp nko yeyla") a person signs in with his e-mail or his mobile number – a record with all it needs is "Complete"
+  var STATUS = { incomplete: 'Incomplete', pending: 'Complete', active: 'Active', left: 'Relieved' };
   var CAT = { staff: 'Staff', operator: 'Operator', driver: 'Driver', labour: 'Labour' };
   var isAdmin = function () { return S.me && (S.me.user.role === 'admin' || S.me.user.role === 'super'); };
   var nameOf = function (list, id) { var r = (list || []).filter(function (x) { return x.id === id; })[0]; return r ? r.name : ''; };
@@ -61,7 +62,7 @@
   function list() {
     api('empList', { q: S.q, status: S.status, category: S.category }).then(function (r) {
       S.rows = r.rows; var c = r.counts, chips = $('chips'); chips.textContent = '';
-      [['', 'On the rolls', c.incomplete + c.pending + c.active], ['incomplete', 'Incomplete', c.incomplete], ['pending', 'Waiting for OTP', c.pending], ['active', 'Active', c.active], ['left', 'Relieved', c.left]].forEach(function (k) {
+      [['', 'On the rolls', c.incomplete + c.pending + c.active], ['incomplete', 'Incomplete', c.incomplete], ['pending', 'Complete', c.pending], ['active', 'Active', c.active], ['left', 'Relieved', c.left]].forEach(function (k) {
         var b = el('button', 'chip' + (S.status === k[0] ? ' on' : '') + (k[0] ? ' s-' + k[0] : '')); b.type = 'button'; b.appendChild(el('b', '', k[2])); b.appendChild(el('span', '', k[1])); b.onclick = function () { S.status = k[0]; list(); }; chips.appendChild(b);
       });
       var tb = $('emp_rows'); tb.textContent = '';
