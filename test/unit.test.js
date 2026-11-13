@@ -136,7 +136,8 @@ test('the menu, the page and the hosting: one page, nothing of an employee, neve
   const page = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   for (const m of page.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)) new Function(m[1]);
   assert.match(page, /<meta name="robots" content="noindex, nofollow">/);
-  assert.match(page, /history\.replaceState\(null, '', location\.pathname \+ location\.search\)/, 'the ticket leaves the address bar');
+  assert.match(page, /history\.replaceState\(null, '', location\.pathname \+ location\.search \+ pg\)/, 'the ticket leaves the address bar');
+  assert.match(page, /var pg = hashArg\('page'\); pg = \/\^\[a-z0-9_-\]\{1,40\}\$\/i\.test\(pg\) \? '#page=' \+ pg : '';/, '(step 13) only the plain name of the page stays – never the ticket');
   assert.match(page, /fetch\(BASE \+ path,/, 'relative: also under <main>/hr/'); assert.match(page, /\/api\/go\?module=hr&site=/);
   assert.deepStrictEqual(v.regions, ['bom1']);
   const all = v.headers.find(h => h.source === '/(.*)').headers, get = k => (all.find(h => h.key === k) || {}).value;
