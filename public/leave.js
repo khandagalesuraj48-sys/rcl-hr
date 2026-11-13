@@ -32,12 +32,12 @@
         var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', q.code)); tr.appendChild(face(el('td', 'nm', q.name), q.code));
         tr.appendChild(el('td', '', dmy(q.from) + (q.to !== q.from ? ' – ' + dmy(q.to) : '') + PART[q.part])); tr.appendChild(el('td', '', q.days)); var why = el('td', '', q.reason); why.style.whiteSpace = 'normal'; tr.appendChild(why);
         tr.appendChild(el('td', '', dmy(String(q.asked_at).slice(0, 10))));
-        tr.appendChild(el('td', '', q.status === 'pending' ? (q.level === 1 ? 'With the reporting person' : 'With the HR office') : q.status === 'refused' ? 'Refused: ' + q.note : q.status === 'approved' ? 'Approved' : 'Taken back'));
+        tr.appendChild(el('td', '', q.status === 'pending' ? (q.stage ? (q.stage === 'verify' ? 'Waits for verify' : 'Waits for approval') : q.level === 1 ? 'With the reporting person' : 'With the HR office') : q.status === 'refused' ? 'Refused: ' + q.note : q.status === 'approved' ? 'Approved' : 'Taken back'));
         var a = el('td');
-        if (q.status === 'pending' && r.can && (q.level === 2 || (V.me && V.me.user.role === 'super'))) {
+        if (q.status === 'pending' && (q.can !== undefined ? q.can : (r.can && (q.level === 2 || (V.me && V.me.user.role === 'super'))))) {      // (step 13) q.can: his leave policy of the Rule Book says who does this step
           var note = el('input'); note.type = 'text'; note.maxLength = 200; note.placeholder = 'Why it is refused'; note.setAttribute('aria-label', 'Why it is refused'); note.hidden = true; note.style.cssText = 'height:38px;border:1px solid #D7E0EF;border-radius:10px;padding:0 10px;margin-right:6px';
           var send = function (dec) { api('leaveDecide', { id: q.id, decision: dec, note: note.value }).then(function () { toast(dec === 'approved' ? 'Approved.' : 'Refused.'); draw(); }, fail); };
-          a.appendChild(note); a.appendChild(btn('mz-ok', 'Approve', function () { send('approved'); })); a.appendChild(btn('mz-no', 'Refuse', function () { if (note.hidden) { note.hidden = false; note.focus(); } else send('refused'); }));
+          a.appendChild(note); a.appendChild(btn('mz-ok', q.stage === 'verify' ? 'Verify' : 'Approve', function () { send('approved'); })); a.appendChild(btn('mz-no', 'Refuse', function () { if (note.hidden) { note.hidden = false; note.focus(); } else send('refused'); }));
         }
         tr.appendChild(a); t.body.appendChild(tr);
       });
