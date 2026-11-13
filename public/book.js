@@ -188,14 +188,15 @@
     var b = r.body || {};
     if (r.kind === 'overtime') return (Math.round(b.minutes / 6) / 10) + ' h extra → ' + (b.result === 'leave' ? b.days + ' day(s) in the Comp-off balance' : b.result === 'pay' ? 'pay (' + b.rate + ' × the hourly rate)' : 'nothing');
     if (r.kind === 'compoff') return 'worked ' + b.hours + ' h on a day off → ' + (b.result === 'leave' ? b.days + ' day in the Comp-off balance' : 'pay for an extra day');
+    if (r.kind === 'att_import') return (b.changes || []).length + ' day(s) of ' + b.month + ' to set right – ' + (b.reason || '');
     if (r.kind === 'leave_credit') return (b.days > 0 ? '+' : '') + b.days + ' day(s) · ' + (b.bucket === 'comp' ? 'Comp-off' : 'Paid leave') + (b.source === 'opening' ? ' · opening balance' : '') + ' – ' + (b.reason || '');
     return '';
   }
   function approvals() {
     var root = $('p_book'); root.textContent = '';
     if (window.HRHEAD && !root.hidden) window.HRHEAD.set('Approvals · मंजुरी', 'Overtime, comp-off and extra leave count only after they are verified and approved – by whom each policy says.', []);
-    var tabs = el('div', 'rb-tabs'); [['asks', 'Requests'], ['extras', 'Overtime & comp-off of the month']].forEach(function (x) { tabs.appendChild(btn(A.view === x[0] ? 'on' : '', x[1], function () { A.view = x[0]; approvals(); })); }); root.appendChild(tabs);
-    var body = el('div'); root.appendChild(body); if (A.view === 'extras') extras(body); else asks(body);
+    var tabs = el('div', 'rb-tabs'); [['asks', 'Requests'], ['extras', 'Overtime & comp-off of the month'], ['bulk', 'Bulk attendance correction']].forEach(function (x) { tabs.appendChild(btn(A.view === x[0] ? 'on' : '', x[1], function () { A.view = x[0]; approvals(); })); }); root.appendChild(tabs);
+    var body = el('div'); root.appendChild(body); if (A.view === 'extras') extras(body); else if (A.view === 'bulk') bulk(body); else asks(body);
   }
   function asks(root) {
     var tools = el('div', 'tools'); [['pending', 'Waiting'], ['approved', 'Approved'], ['refused', 'Refused']].forEach(function (k) { tools.appendChild(btn(A.status === k[0] ? 'sm' : 'sm ghost', k[1], function () { A.status = k[0]; approvals(); })); }); root.appendChild(tools);
@@ -260,6 +261,61 @@
     var why = el('input'); why.maxLength = 200; var open = pickIn([['no', 'No'], ['yes', 'Yes – his opening balance']], 'no');
     field(g, 'Balance', bucket); field(g, 'Days *', days, 'a minus takes days away'); field(g, 'On which day', day); d.body.appendChild(g); var g2 = el('div', 'grid'); field(g2, 'Reason *', why); field(g2, 'Is this his opening balance?', open); d.body.appendChild(g2);
     d.acts.appendChild(btn('sec', 'Cancel', d.close)); var ok = btn('pri', 'Send for approval', function () { ok.disabled = true; api('leaveCreditAsk', { id: id, bucket: bucket.value, days: +days.value, day: day.value, reason: why.value, opening: open.value === 'yes' }).then(function (x) { d.close(); done('Sent for approval', x.stage === 'verify' ? 'It waits for "verify" first' : 'It waits for approval'); if (after) after(); }, function (e) { ok.disabled = false; d.err(e.message); }); }); d.acts.appendChild(ok); days.focus();
+  }
+
+  /* ───────── BULK ATTENDANCE CORRECTION: the month as an Excel sheet out, the corrected sheet back in ─────────
+   * (his words: "attendance export karel jith a aahe tith p kare nantr import karel") Only what is in the person's favour is
+   * taken; the file is first LOOKED AT (nothing saved) and shown line by line, then set right with one reason. */
+  function xlsx() { return new Promise(function (ok) { if (window.XLSX) return ok(true); var s = document.createElement('script'); s.src = '/vendor/xlsx-0.18.5.full.min.js'; s.onload = function () { ok(!!window.XLSX); }; s.onerror = function () { ok(false); }; document.head.appendChild(s); }); }
+  function bulk(root) {
+    var st = A.bulk || (A.bulk = { month: today().slice(0, 7), look: null, cells: null, file: '' });
+    var card = el('div', 'rb-site'), t = el('div'); t.appendChild(el('small', '', 'How it works')); t.appendChild(el('b', '', '1 Export the month · 2 change A to P, HD or L in Excel · 3 import the file'));
+    t.appendChild(el('span', '', 'Only what is in the person\'s favour is taken (absent → P / HD / L, half day → P). The punches stay as they came – every changed day is a new entry with the reason. A month the HO HR approved is closed.')); card.appendChild(t); root.appendChild(card);
+    var tools = el('div', 'tools'), m = el('input'); m.type = 'month'; m.value = st.month; m.setAttribute('aria-label', 'Month'); m.onchange = function () { st.month = m.value; st.look = null; st.cells = null; approvals(); }; tools.appendChild(m);
+    var exp = btn('sec', 'Export the month (Excel)', function () {
+      exp.disabled = true; Promise.all([api('muster', { month: st.month }), xlsx()]).then(function (x) {
+        exp.disabled = false; var r = x[0]; if (!x[1]) { toast('The Excel part could not be loaded – try again.', true); return; }
+        var heads = ['Code', 'Name', 'Category'].concat(r.days.map(function (d) { return +String(d).slice(8, 10); })).concat(['Reason (for the days changed in this row)']);
+        var rows = [heads].concat(r.rows.map(function (w) { return [w.code, w.name, CATN[w.category] || w.category].concat(w.codes).concat(['']); }));
+        var ws = window.XLSX.utils.aoa_to_sheet(rows), wb = window.XLSX.utils.book_new(); ws['!cols'] = [{ wch: 10 }, { wch: 26 }, { wch: 10 }].concat(r.days.map(function () { return { wch: 5 }; })).concat([{ wch: 44 }]); window.XLSX.utils.book_append_sheet(wb, ws, st.month);
+        var help = window.XLSX.utils.aoa_to_sheet([['RCL HR – attendance of ' + st.month + ' for correction'], [''], ['Change only the cells of the days: write P (present), HD (half day) or L (leave) where it says A.'], ['Only a change in the person\'s favour is taken: A → P / HD / L, HD → P. Everything else is refused and told.'], ['Do not change Code. Rows and cells you leave as they are, are simply skipped.'], ['P present · HD half day · A absent · L leave · WO weekly off · H holiday · WOP / HP worked on a day off · MIS IN without OUT']]); help['!cols'] = [{ wch: 110 }]; window.XLSX.utils.book_append_sheet(wb, help, 'How to');
+        var a = el('a'); a.href = URL.createObjectURL(new Blob([window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); a.download = 'Attendance_' + st.month + '_for_correction.xlsx'; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500); done('Exported', 'Attendance of ' + st.month);
+      }, function (e) { exp.disabled = false; fail(e); });
+    });
+    var pick = el('input'); pick.type = 'file'; pick.accept = '.xlsx,.xls,.csv'; pick.hidden = true;
+    pick.onchange = function () {
+      var f = pick.files && pick.files[0]; if (!f) return; xlsx().then(function (ok) {
+        if (!ok) { toast('The Excel part could not be loaded – try again.', true); return; }
+        var rd = new FileReader(); rd.onload = function () {
+          var cells = []; try {
+            var wb = window.XLSX.read(new Uint8Array(rd.result), { type: 'array' }), tbl = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' }), h = (tbl[0] || []).map(function (x) { return String(x).trim(); });
+            var ci = h.indexOf('Code'), ri = h.map(function (x) { return x.toLowerCase().indexOf('reason') === 0; }).indexOf(true); if (ci < 0) throw new Error('The sheet has no "Code" column – use the exported file.');
+            tbl.slice(1).forEach(function (row) { var code = String(row[ci] || '').trim(); if (!code) return; h.forEach(function (col, i) { var dn = +col; if (!(dn >= 1 && dn <= 31) || String(col) !== String(dn)) return; var v = String(row[i] === undefined ? '' : row[i]).trim(); if (v) cells.push({ code: code, day: st.month + '-' + ('0' + dn).slice(-2), to: v, reason: ri > -1 ? String(row[ri] || '').trim() : '' }); }); });
+          } catch (e) { toast(e.message || 'This file could not be read.', true); return; }
+          if (!cells.length) { toast('The file has no day in it.', true); return; }
+          st.cells = cells; st.file = f.name; api('attImport', { month: st.month, rows: cells, dry: true }).then(function (r) { st.look = r; approvals(); }, fail);
+        }; rd.readAsArrayBuffer(f);
+      }); pick.value = '';
+    };
+    tools.appendChild(exp); tools.appendChild(btn('pri', 'Import the corrected file…', function () { pick.click(); })); tools.appendChild(pick); root.appendChild(tools);
+    var r = st.look;
+    if (r) {
+      var sum = el('div', 'rb-site'), tt = el('div'); tt.appendChild(el('small', '', st.file)); tt.appendChild(el('b', '', r.changes.length + (r.changes.length === 1 ? ' day' : ' days') + ' can be set right · ' + r.refused.length + ' refused · ' + r.skipped + ' left as they are')); sum.appendChild(tt);
+      if (r.changes.length) { var why = el('input'); why.type = 'text'; why.maxLength = 200; why.placeholder = 'Reason for the whole file *'; why.setAttribute('aria-label', 'Reason for the whole file'); why.style.cssText = 'height:42px;border:1px solid #ECECEE;border-radius:10px;padding:0 12px;min-width:280px;font:inherit';
+        var go = btn('st-btn red', 'Set right ' + r.changes.length + (r.changes.length === 1 ? ' day' : ' days'), function () { go.disabled = true; api('attImport', { month: st.month, rows: st.cells, reason: why.value, file_name: st.file }).then(function (x) { st.look = null; st.cells = null; if (x.waits) { done('Sent for approval', x.changes + ' days wait in Approvals'); A.view = 'asks'; A.status = 'pending'; } else done('Set right', x.changed + (x.changed === 1 ? ' day' : ' days') + ' · ' + st.month); approvals(); }, function (e) { go.disabled = false; fail(e); }); });
+        sum.appendChild(why); sum.appendChild(go); }
+      root.appendChild(sum);
+      var box = el('div', 'box'), tb0 = el('table'), th = el('thead'), hr = el('tr'); ['Employee', 'Day', 'It is', 'It becomes', 'Reason / why not'].forEach(function (x) { hr.appendChild(el('th', '', x)); }); th.appendChild(hr); tb0.appendChild(th); var tb = el('tbody'); tb0.appendChild(tb); box.appendChild(tb0);
+      r.changes.slice(0, 400).forEach(function (c) { var tr = el('tr'); tr.style.cursor = 'default'; var nm = el('td', 'nm pwho'), bx = el('div'); bx.appendChild(el('b', '', c.name)); bx.appendChild(el('small', '', c.code)); nm.appendChild(bx); tr.appendChild(nm); tr.appendChild(el('td', '', dmy(c.day))); tr.appendChild(el('td', '', c.was)); var to = el('td'); to.appendChild(el('span', 'st s-active', c.to)); tr.appendChild(to); tr.appendChild(el('td', '', c.reason || '–')); tb.appendChild(tr); });
+      r.refused.slice(0, 200).forEach(function (c) { var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', c.code)); tr.appendChild(el('td', '', dmy(c.day))); tr.appendChild(el('td', '', '')); var to = el('td'); to.appendChild(el('span', 'st s-left', 'Refused: ' + c.to)); tr.appendChild(to); var w = el('td', '', c.why); w.style.whiteSpace = 'normal'; tr.appendChild(w); tb.appendChild(tr); });
+      root.appendChild(box); if (r.changes.length > 400) root.appendChild(el('p', 'muted', '+ ' + (r.changes.length - 400) + ' more days'));
+    } else {
+      api('attImports').then(function (x) {
+        if (!x.ready || !x.rows.length) { root.appendChild(el('p', 'none', 'No bulk correction on this site yet.')); return; }
+        var box = el('div', 'box'), t2 = el('table'), th = el('thead'), hr = el('tr'); ['Month', 'Days set right', 'Refused', 'Reason', 'File', 'By', 'When'].forEach(function (h) { hr.appendChild(el('th', '', h)); }); th.appendChild(hr); t2.appendChild(th); var tb = el('tbody'); t2.appendChild(tb); box.appendChild(t2);
+        x.rows.forEach(function (i) { var tr = el('tr'); tr.style.cursor = 'default'; [i.month, i.changed, i.refused, i.reason, i.file_name || '–', i.by, dmy(String(i.at).slice(0, 10))].forEach(function (v, k) { var td = el('td', '', v); if (k === 3) td.style.whiteSpace = 'normal'; tr.appendChild(td); }); tb.appendChild(tr); }); root.appendChild(box);
+      }, function () { /* the list stays away */ });
+    }
   }
 
   window.HRBOOK = {
