@@ -645,7 +645,7 @@ test('the new look (13-11-2026): the menu on the left with every page as before,
   assert.match(html, /<script src="find\.js"><\/script>/); for (const id of src.match(/\$\('([a-z_0-9]+)'\)/g).map(x => x.slice(3, -2))) assert.ok(html.indexOf('id="' + id + '"') > -1, 'the page has #' + id);
   // every page of before has its group; the pages a person may not open are not in the menu – nor in the search (the same list)
   const G = new Function('return ' + /var GROUP = (\{[^}]+\})/.exec(js)[1])();
-  assert.deepStrictEqual(Object.keys(G).sort(), ['attendance', 'departments', 'employees', 'leave', 'lists', 'month', 'muster', 'payroll', 'phones', 'places', 'requests', 'rules']);
+  assert.deepStrictEqual(Object.keys(G).sort(), ['attendance', 'departments', 'employees', 'leave', 'lists', 'month', 'muster', 'payroll', 'phones', 'places', 'requests', 'rulebook', 'rules']);      // (step 13) the Rule Book
   assert.match(js, /\.filter\(function \(p\) \{ return p\[2\]; \}\);/); assert.match(js, /pages: function \(\) \{ return S\.init \? pages\(\) : \[\]; \}/);
   // Ctrl K: the words typed must all be there; what starts with them comes first; an employee is asked from the server's own list
   const win = {}; new Function('window', 'document', 'navigator', src)(win, { getElementById: () => null, readyState: 'complete' }, {});

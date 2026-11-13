@@ -346,6 +346,22 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
 .fm-acts{border-top:1px solid #ECECEE;margin-top:24px;padding-top:18px;display:flex;align-items:center;gap:12px}.fm-x{margin-right:auto;border:0;background:none;font:inherit;font-weight:500;color:#4A5365;cursor:pointer;padding:10px 4px}.fm-x:hover{color:#1A1A1A}.fm-acts .pri,.fm-acts .sec{height:46px;padding:0 20px}
 .fm-sec[hidden]{display:none!important}body.in #f_form .fm-sec{border:0!important;padding:0!important;margin:0!important;background:none!important;box-shadow:none!important}body.in #f_form .fm-acts{position:static!important;background:none!important;margin:24px 0 0!important;padding:18px 0 0!important;box-shadow:none!important;border-top:1px solid #ECECEE!important}.dlg.pg .ep-face{background:#F3F4F6;color:#A80015}
 @media(max-width:1180px){.ep-cols{grid-template-columns:1fr}.ep-cols>.ep-col{grid-column:1!important;grid-row:auto!important}}@media(max-width:900px){.fm{grid-template-columns:1fr}.sp-days{grid-template-columns:repeat(7,minmax(0,1fr))}}
+/* ═══ (step 13) THE RULE BOOK ═══ */
+.rb{display:grid;grid-template-columns:300px minmax(0,1fr);gap:20px;align-items:start}.rb-side{background:#fff;border:1px solid #ECECEE;border-radius:14px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.rb-k{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;background:none;border:1px solid transparent;border-radius:10px;padding:12px;cursor:pointer;color:#1A1A1A;margin-bottom:2px}.rb-k:hover{background:#F7F7F8}.rb-k span{min-width:0;flex:1}.rb-k b{display:block;font-size:15px;font-weight:600}.rb-k small{display:block;font-size:13px;color:#4A5365;line-height:1.35}
+.rb-k em{font-style:normal;font-weight:600;font-size:13px;background:#F3F4F6;border-radius:999px;min-width:26px;text-align:center;padding:2px 8px}.rb-k.on{background:#FDECEE;border-color:#F9D0D5;box-shadow:inset 3px 0 0 #D2001A}.rb-k.on b{color:#B20018}.rb-k.on em{background:#D2001A;color:#fff}.rb-k:focus-visible{outline:3px solid rgba(210,0,26,.35)}
+.rb-tabs{display:flex;gap:4px;border-bottom:1px solid #ECECEE;margin-bottom:16px}.rb-tabs button{border:0;background:none;font:inherit;font-size:15px;font-weight:500;color:#4A5365;padding:10px 14px;border-bottom:2.5px solid transparent;margin-bottom:-1px;cursor:pointer}.rb-tabs button.on{color:#B20018;border-color:#D2001A;font-weight:600}
+.rb-site{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #ECECEE;border-radius:14px;padding:16px 20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}.rb-site div{flex:1;min-width:0}.rb-site small{display:block;text-transform:uppercase;letter-spacing:.05em;font-size:12.5px;font-weight:600;color:#4A5365}.rb-site b{display:block;font-size:17px;font-weight:600;margin:2px 0}.rb-site span{font-size:13.5px;color:#4A5365;margin-right:12px}.rb-site span.next{color:#B45309;font-weight:600}
+.rb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}.rb-card{background:#fff;border:1px solid #ECECEE;border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.04);display:flex;flex-direction:column;gap:12px}.rb-card.closed{background:#FAFAFA}.rb-card.closed .rb-h b{color:#6B7280}
+.rb-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid #ECECEE}.rb-h b{display:block;font-size:17px;font-weight:600}.rb-h small{font-size:13px;color:#4A5365}.rb-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.rb-card dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:8px 12px;font-size:14.5px}.rb-card dt{text-transform:uppercase;letter-spacing:.04em;font-size:12.5px;font-weight:600;color:#4A5365;padding-top:2px}.rb-card dd{margin:0;font-weight:500}
+.rb-auth{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#F7F7F8;border:1px solid #ECECEE;border-radius:10px;padding:10px 12px;font-size:14px}.rb-auth span{text-transform:uppercase;letter-spacing:.04em;font-size:12px;font-weight:600;color:#4A5365}.rb-auth b{font-weight:600}.rb-auth i{font-style:normal;color:#9CA3AF}
+.rb-for{margin:0;font-size:13.5px;color:#4A5365}.rb-do{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}.rb-do .st-btn{height:38px;font-size:14px;padding:0 13px}.st-btn.del{color:#B20018;border-color:#F9D0D5;background:#FDECEE}
+.rb-ver{font-size:13.5px;color:#4A5365}.rb-ver summary{cursor:pointer;font-weight:600;color:#1A1A1A}.rb-ver p{margin:8px 0 0}.rb-off{background:#fff;border:1px solid #ECECEE;border-radius:14px;padding:26px;max-width:720px}.rb-off b{display:block;font-size:19px;margin-bottom:6px}
+.rb-hint{display:block;font-size:13px;color:#4A5365;margin-top:4px}.rb-wo div{display:flex;align-items:center;gap:16px;padding:9px 0;border-bottom:1px solid #ECECEE}.rb-wo b{width:110px;font-weight:600}.rb-wo label{display:inline-flex;align-items:center;gap:4px;margin:0;font-weight:500;cursor:pointer}.rb-wo input{width:18px;height:18px;accent-color:#D2001A}
+.rb-step{border:1px solid #ECECEE;border-radius:12px;padding:12px}.rb-chips{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;align-items:center;margin:6px 0 10px}.rb-chip{display:inline-flex;align-items:center;gap:6px;background:#FDECEE;color:#B20018;font-weight:600;font-size:13.5px;border-radius:999px;padding:4px 6px 4px 12px}.rb-chip button{border:0;background:none;color:#B20018;font-size:17px;line-height:1;cursor:pointer;padding:0 4px}
+.rb-add{display:grid;grid-template-columns:1fr 1.2fr 1.2fr auto;gap:8px}.rb-add select,.rb-add input{height:40px;border:1px solid #ECECEE;border-radius:10px;padding:0 10px;font:inherit;font-size:14px;min-width:0}#p_book .tools select,#p_book .tools input[type=date],#p_book .tools input[type=text]{max-width:240px}
+@media(max-width:1000px){.rb{grid-template-columns:1fr}.rb-add{grid-template-columns:1fr 1fr}.rb-grid{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 </head>
@@ -380,6 +396,7 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
   <section id="p_dash" hidden></section>
   <section id="p_prof" hidden></section>
   <section id="p_leave" hidden></section>
+  <section id="p_book" hidden></section>
   <section id="p_month" hidden></section>
   <section id="p_roll" hidden></section>
   <section id="p_att" hidden></section>
@@ -596,6 +613,7 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
 <script src="prof.js"></script>
 <script src="find.js"></script>
 <script src="leave.js"></script>
+<script src="book.js"></script>
 <script src="month.js"></script>
 <script src="pay.js"></script>
 <script src="payroll.js"></script>
