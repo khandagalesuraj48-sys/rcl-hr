@@ -837,3 +837,33 @@ test('rule book: overtime in steps, overtime as leave, comp-off for a whole shif
   assert.ok(B.importChange('P', 'A').error && B.importChange('P', 'HD').error && B.importChange('A', 'X').error && B.importChange('WO', 'P').error, 'never against the person, never a day off');
   assert.deepStrictEqual(B.importChange('HD', 'P'), { to: 'P' });
 });
+
+test('rule book: leave – a Sunday worked earns one (at most 4 a month), two balances, a leave only while the balance has it, the ledger says where each day came from', () => {
+  const L = require('../lib/leave');
+  // November 2026: Sundays 1, 8, 15, 22, 29. A road site: every day is a working day.
+  const site = { earn: 'sunday', per_month: 4, carry: true, auto_absent: false, strict: true }, day = n => '2026-11-' + String(n).padStart(2, '0');
+  const days = []; for (let i = 1; i <= 30; i++) days.push({ day: day(i), code: i === 8 ? 'A' : i === 15 ? 'HD' : 'P' });
+  let k = L.walk2(days, { polOn: () => site });
+  assert.deepStrictEqual([k.paid, k.comp], [3.5, 0], 'Sundays 1, 22, 29 worked = 3, the 15th half = 0.5, the 8th absent = 0');
+  assert.deepStrictEqual(k.ledger.map(x => [x.day.slice(8), x.days, x.source]), [['01', 1, 'sunday'], ['15', 0.5, 'sunday'], ['22', 1, 'sunday'], ['29', 1, 'sunday']]);
+  assert.deepStrictEqual(k.absent, { [day(8)]: 'none' }, 'absent without a request: nothing is taken, the day is marked');
+  // five Sundays all worked: still 4
+  k = L.walk2(days.map(d => ({ day: d.day, code: 'P' })), { polOn: () => site }); assert.strictEqual(k.paid, 4);
+  // a leave of 3 days with a balance of 1: one day is leave, the others stay absent; a refused request is marked
+  const d2 = []; for (let i = 1; i <= 12; i++) d2.push({ day: day(i), code: i >= 3 && i <= 5 ? 'A' : i === 10 ? 'A' : 'P' });
+  k = L.walk2(d2, { polOn: () => site, leave: { [day(3)]: { days: 1, bucket: 'paid' }, [day(4)]: { days: 1, bucket: 'paid' }, [day(5)]: { days: 1, bucket: 'paid' } }, refused: { [day(10)]: true } });
+  assert.deepStrictEqual(Object.keys(k.marks), [day(3)]); assert.deepStrictEqual(k.absent, { [day(4)]: 'nobalance', [day(5)]: 'nobalance', [day(10)]: 'refused' }); assert.strictEqual(k.paid, 1, '1 (Sunday the 1st) − 1 (leave) + 1 (Sunday the 8th)');
+  // comp-off: its own balance; a leave from it does not touch the paid one; the HR office's days and the opening balance are lines of the ledger
+  k = L.walk2(d2, { polOn: () => site, credits: { [day(1)]: [{ bucket: 'paid', days: 6, source: 'opening', reason: 'Opening balance' }], [day(2)]: [{ bucket: 'comp', days: 1, source: 'compoff', reason: 'Worked on a holiday' }] }, leave: { [day(3)]: { days: 1, bucket: 'comp' }, [day(4)]: { days: 1, bucket: 'comp' } } });
+  assert.deepStrictEqual([k.paid, k.comp], [8, 0]); assert.deepStrictEqual(k.marks[day(3)], { days: 1, auto: false, bucket: 'comp' }); assert.strictEqual(k.absent[day(4)], 'nobalance');
+  assert.ok(k.ledger.some(x => x.source === 'opening' && x.days === 6) && k.ledger.some(x => x.source === 'leave' && x.bucket === 'comp' && x.days === -1));
+  // the Head Office: 1 at the start of every month, carried on; a weekly off or a day at work never takes a leave
+  const ho = { earn: 'month', per_month: 1, carry: true, auto_absent: false, strict: true }, two = [{ day: '2026-10-01', code: 'P' }, { day: '2026-10-02', code: 'P' }, { day: '2026-11-01', code: 'WO' }, { day: '2026-11-02', code: 'A' }, { day: '2026-11-03', code: 'P' }];
+  k = L.walk2(two, { polOn: () => ho, leave: { '2026-11-01': { days: 1, bucket: 'paid' }, '2026-11-02': { days: 1, bucket: 'paid' }, '2026-11-03': { days: 1, bucket: 'paid' } } });
+  assert.deepStrictEqual([k.paid, Object.keys(k.marks)], [1, ['2026-11-02']], 'October\'s leave is carried on: 2, one taken');
+  // no policy of the Rule Book on a day: nothing is earned and nothing is taken there
+  assert.deepStrictEqual(L.walk2(two, { polOn: () => null }).ledger, []);
+  // a policy of before read through the same walk gives the same balance as the old walk (not strict: a leave is taken as asked)
+  const old = { per_month: 4, carry: true, auto_absent: true, valid_from: '2026-11-01' }, od = [{ day: '2026-11-01', code: 'A' }, { day: '2026-11-02', code: 'P' }, { day: '2026-11-03', code: 'A' }];
+  assert.strictEqual(L.walk2(od, { polOn: () => ({ earn: 'month', per_month: 4, carry: true, auto_absent: true, strict: false }) }).paid, L.walk(od, { policies: [old] }).balance);
+});
