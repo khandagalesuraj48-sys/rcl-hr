@@ -17,12 +17,12 @@ const M = require('../../lib/act_muster'), BK = require('../../lib/act_rulebook'
   const one = a.rows[0], own = await BK.ACT.rbSave(sup, { kind: 'weekoff', name: 'Sat Sun ' + tag, valid_from: from, body: { days: [0, 6] }, auth: { approve: [{ role: 'super' }] } });
   await BK.ACT.rbAssign(sup, { kind: 'weekoff', policy_id: own.id, valid_from: from, employees: [one.id], reason: 'rig' });
   const c = await snap(), mine = c.rows.find(w => w.id === one.id), other = c.rows.find(w => w.id !== one.id), otherB = b.rows.find(w => w.id === other.id);
-  ok(mine.codes.filter(x => x === 'WO' || x === 'WOP').length >= 2, 'his Saturdays and Sundays are off: ' + mine.codes.filter(x => x === 'WO' || x === 'WOP').length); ok(JSON.stringify(other.codes) === JSON.stringify(otherB.codes), 'nobody else changed');
-  // the HR office's word on one day: the 7th (a Saturday) is a working day for him too
-  await BK.ACT.rbDayOff(sup, { day: '2026-11-07', off: false, reason: 'rig: fifth Saturday works' });
-  const d = await snap(), mine2 = d.rows.find(w => w.id === one.id); ok(mine2.codes[6] !== 'WO' && mine2.codes[6] !== 'WOP' && (mine.codes[6] === 'WO' || mine.codes[6] === 'WOP'), 'the 7th: ' + mine.codes[6] + ' → ' + mine2.codes[6]);
-  await BK.ACT.rbDayOff(sup, { day: '2026-11-07', off: true, reason: 'rig: off again' }); const d2 = await snap(); ok(['WO', 'WOP'].indexOf(d2.rows.find(w => w.id === one.id).codes[6]) > -1, 'the office\'s newest word counts');
-  await BK.ACT.rbDayOff(sup, { day: '2026-11-07', off: false, reason: 'rig: a working Saturday, as the site\'s rules say' });
+  ok(['WO', 'WOP'].indexOf(mine.codes[7]) > -1 && ['WO', 'WOP'].indexOf(b.rows.find(w => w.id === one.id).codes[7]) < 0, 'his Sunday the 8th is off again: ' + mine.codes[7]); ok(JSON.stringify(other.codes) === JSON.stringify(otherB.codes), 'nobody else changed');
+  // the HR office's word on one day wins over every policy: Tuesday the 10th off, then a working day again (the newest word counts)
+  await BK.ACT.rbDayOff(sup, { day: '2026-11-10', off: true, reason: 'rig: the office says off' });
+  const d = await snap(); ok(d.rows.every(w => ['WO', 'WOP', ''].indexOf(w.codes[9]) > -1), 'the 10th is off for everybody: ' + [...new Set(d.rows.map(w => w.codes[9]))].join(','));
+  await BK.ACT.rbDayOff(sup, { day: '2026-11-10', off: false, reason: 'rig: a working day, as before' });
+  const d2 = await snap(); ok(JSON.stringify(d2.rows.map(w => w.codes)) === JSON.stringify(c.rows.map(w => w.codes)), 'the office\'s newest word counts: as it was');
   // a late policy: late after 0 minutes, no late day allowed – a late present day becomes a half day
   const late = await BK.ACT.rbSave(sup, { kind: 'late', name: 'Strict ' + tag, valid_from: from, body: { grace_min: 0, early_min: 0, free: 0 }, auth: { approve: [{ role: 'super' }] } });
   await BK.ACT.rbDefault(sup, { kind: 'late', policy_id: late.id, valid_from: from });
@@ -30,6 +30,6 @@ const M = require('../../lib/act_muster'), BK = require('../../lib/act_rulebook'
   ok(count(e.rows, 'HD') >= count(c.rows, 'HD'), 'never fewer half days with the strict policy');
   // everything taken away: the muster is exactly what it was
   await BK.ACT.rbDefault(sup, { kind: 'late', policy_id: null, valid_from: from }); await BK.ACT.rbDefault(sup, { kind: 'weekoff', policy_id: null, valid_from: from }); await BK.ACT.rbAssign(sup, { kind: 'weekoff', policy_id: null, valid_from: from, employees: [one.id], reason: 'rig back' });
-  const z = await snap(); ok(z.key !== a.key ? (await (async () => { /* the 7th still has the office's word "off" – a Saturday that was no weekly off before */ return z.rows.filter(w => JSON.stringify(w.codes) !== JSON.stringify(a.rows.find(v => v.id === w.id).codes)).every(w => { const o = a.rows.find(v => v.id === w.id).codes; return w.codes.every((x, i) => i === 6 || x === o[i]); }); })()) : true, 'taken away: as before (but for the day the office set)');
+  const z = await snap(); ok(z.key === a.key, 'everything taken away: the muster is exactly what it was');
   console.log((n - bad) + ' passed, ' + bad + ' failed');
 })().catch(e => { console.log('ERR', e.stack || e.message); process.exit(1); });
