@@ -25,17 +25,27 @@
   /* (13-11-2026, the pictures he approved: "all approved aahe … ctrl k thew") THE MENU: the same pages as before, now down the left
    * side in three groups (in Mechanical's screen and on a narrow screen: the row of buttons as before). A page shows a count
    * beside its name when the dashboard knows of work waiting there (HRBADGE). The list is also what Ctrl K searches. */
-  var GROUP = { employees: 'People', departments: 'People', lists: 'People', attendance: 'Attendance', muster: 'Attendance', requests: 'Attendance', places: 'Attendance', phones: 'Attendance', rules: 'Attendance', leave: 'Leave & pay', month: 'Leave & pay', payroll: 'Leave & pay' }, ORDER = ['', 'People', 'Attendance', 'Leave & pay'];
+  /* (13-11-2026, his picture) the menu as in the picture: HR Management · Organization · Payroll, each page with its sign; a page
+   * picked closes the menu (HRNAV). */
+  var GROUP = { employees: 'HR Management', attendance: 'HR Management', leave: 'HR Management', muster: 'HR Management', requests: 'HR Management', departments: 'Organization', lists: 'Organization', places: 'Organization', phones: 'Organization', rules: 'Organization', payroll: 'Payroll', month: 'Payroll' }, ORDER = ['', 'HR Management', 'Organization', 'Payroll'];
+  var RANK = ['dashboard', 'employees', 'attendance', 'leave', 'muster', 'requests', 'departments', 'lists', 'places', 'phones', 'rules', 'payroll', 'month'];
+  var ICON = { dashboard: 'M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10', employees: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18.5 14.5c1.8.8 3 2.7 3 5.5', attendance: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+    leave: 'M4 7h16v13H4zM8 3v4M16 3v4M4 11h16M9 16l2 2 4-4', muster: 'M5 4h14v16H5zM9 9h.01M12 9h.01M15 9h.01M9 13h.01M12 13h.01M15 13h.01M9 17h6', requests: 'M5 4h14v12H9l-4 4zM9 9h6M9 12h4', departments: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+    lists: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01', places: 'M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21zM12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', phones: 'M8 3h8v18H8zM11 18h2', rules: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1',
+    payroll: 'M6 3h9l4 4v14H6zM14 3v5h5M9 12h6M9 16h6M9 8h2', month: 'M4 6h16v14H4zM8 3v4M16 3v4M8.5 14l2.5 2.5 4.5-5' };
+  function sign(key) { var NS = 'http://www.w3.org/2000/svg', s = document.createElementNS(NS, 'svg'), p = document.createElementNS(NS, 'path'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); p.setAttribute('d', ICON[key] || ICON.lists); s.appendChild(p); return s; }
   function pages() {
     var all = (window.HRDASH ? window.HRDASH.pages.map(function (p) { return [p[0], p[1], true]; }) : []).concat([['employees', 'Employees', true]]).concat((window.HRATT ? window.HRATT.pages : []).concat(window.HRMUS ? window.HRMUS.pages : []).map(function (p) { return [p[0], p[1], true]; }), (window.HRLEAVE ? window.HRLEAVE.pages : []).map(function (p) { return [p[0], p[1], true]; }), (window.HRMONTH ? window.HRMONTH.pages : []).map(function (p) { return [p[0], p[1], true]; }), (window.HRROLL ? window.HRROLL.pages : []).map(function (p) { return [p[0], p[1], !!(S.init && S.init.ho)]; }), (window.HRPROF ? window.HRPROF.pages : []).map(function (p) { return [p[0], p[1], isAdmin()]; }), [['departments', 'Departments & designations', isAdmin()]]).filter(function (p) { return p[2]; });
-    return all.map(function (p, i) { return [p[0], p[1], GROUP[p[0]] || '', i]; }).sort(function (x, y) { return (ORDER.indexOf(x[2]) - ORDER.indexOf(y[2])) || (x[3] - y[3]); });
+    var rank = function (k) { var r = RANK.indexOf(k); return r < 0 ? 99 : r; };
+    return all.map(function (p, i) { return [p[0], p[1], GROUP[p[0]] || '', i]; }).sort(function (x, y) { return (ORDER.indexOf(x[2]) - ORDER.indexOf(y[2])) || (rank(x[0]) - rank(y[0])) || (x[3] - y[3]); });
   }
   function tabs() {
-    var t = $('tabs'), last = '', bd = window.HRBADGE || {}; t.textContent = '';
+    var t = $('tabs'), last = '', bd = window.HRBADGE || {}, n = 0; t.textContent = '';
     pages().forEach(function (p) {
-      if (p[2] !== last) { last = p[2]; t.appendChild(el('span', 'sd-grp', p[2])); }
-      var b = el('button', 'tab' + (S.page === p[0] ? ' on' : ''), p[1]); b.type = 'button'; b.dataset.page = p[0]; if (S.page === p[0]) b.setAttribute('aria-current', 'page'); b.onclick = function () { go(p[0]); };
-      if (bd[p[0]] > 0) { var n = el('em', 'sd-n', bd[p[0]]); n.title = bd[p[0]] + ' waiting'; b.appendChild(n); } t.appendChild(b);
+      if (p[2] !== last) { last = p[2]; var g = el('span', 'sd-grp', p[2]); g.style.setProperty('--i', n++); t.appendChild(g); }
+      var b = el('button', 'tab' + (S.page === p[0] ? ' on' : '')); b.type = 'button'; b.dataset.page = p[0]; b.style.setProperty('--i', n++); b.appendChild(sign(p[0])); b.appendChild(document.createTextNode(p[1])); if (S.page === p[0]) b.setAttribute('aria-current', 'page');
+      b.onclick = function () { go(p[0]); if (window.HRNAV) window.HRNAV.picked(); };
+      if (bd[p[0]] > 0) { var m = el('em', 'sd-n', bd[p[0]]); m.title = bd[p[0]] + ' waiting'; b.appendChild(m); } t.appendChild(b);
     });
   }
   // the head of every page: its name, one line about it, and on the right the page's own controls beside the site

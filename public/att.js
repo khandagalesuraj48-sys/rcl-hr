@@ -214,7 +214,7 @@
     var m = A.amap = L.map(box, { zoomControl: true, attributionControl: true }); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
     var pts = [];
     rows.forEach(function (o) {
-      var g = shapeOf(o, { color: o.active ? '#1E63E9' : '#8A94A8', weight: 2, fillOpacity: o.active ? 0.16 : 0.06 }); if (!g) return; g.addTo(m);
+      var g = shapeOf(o, { color: o.active ? '#D2001A' : '#8A94A8', weight: 2, fillOpacity: o.active ? 0.16 : 0.06 }); if (!g) return; g.addTo(m);
       var each = function (l) { if (l.bindTooltip) l.bindTooltip(o.name + (o.active ? '' : ' (off)')); if (l.on) l.on('click', function () { place(o); }); }; if (g.eachLayer && !g.getLatLng) g.eachLayer(each); else each(g);
       (o.shape === 'circle' ? [[o.lat, o.lng]] : (o.points || [])).forEach(function (q) { pts.push(q); });
     });
@@ -248,7 +248,7 @@
     $('wp_rad_lab').textContent = sh === 'corridor' ? 'Metres on each side *' : 'Radius in metres *';
     $('wp_help').textContent = sh === 'circle' ? 'Click the map on the middle of the place (or type / paste the latitude and longitude).' : sh === 'polygon' ? 'Click the corners of the area on the map, one after the other.' : 'Click along the road on the map, from one end to the other.';
     $('wp_count').textContent = A.edit.points.length + ' points';
-    if (!A.map) return; A.draw.clearLayers(); var o = now(), g = shapeOf(o, { color: '#1570EF', weight: 2, fillOpacity: 0.18 }); if (g) g.addTo(A.draw);
+    if (!A.map) return; A.draw.clearLayers(); var o = now(), g = shapeOf(o, { color: '#D2001A', weight: 2, fillOpacity: 0.18 }); if (g) g.addTo(A.draw);
     if (sh === 'circle' && isFinite(o.lat) && isFinite(o.lng)) window.L.circleMarker([o.lat, o.lng], { radius: 5, color: '#0A1B44', fillOpacity: 1 }).addTo(A.draw);
     if (sh !== 'circle') o.points.forEach(function (q) { window.L.circleMarker(q, { radius: 4, color: '#0A1B44', fillOpacity: 1 }).addTo(A.draw); });
   }

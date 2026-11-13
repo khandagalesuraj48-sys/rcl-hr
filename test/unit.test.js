@@ -303,7 +303,7 @@ test('the attendance pages: the script runs; three pages; a person\'s text only 
   const M = require('../api/menu'); assert.deepStrictEqual(M.PAGES.map(p => p.key), ['dashboard', 'employees', 'attendance', 'places', 'muster', 'requests', 'phones', 'rules', 'leave', 'month', 'payroll', 'lists', 'departments', 'designations']);
   assert.deepStrictEqual([M.mayOpen('all', 'user'), M.mayOpen('admin', 'user'), M.mayOpen('all', 'self'), M.mayOpen('admin', 'super')], [true, false, false, true]);
   const v = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8')).headers[0].headers.find(h => h.key === 'Content-Security-Policy').value;
-  assert.match(v, /img-src 'self' data: https:\/\/tile\.openstreetmap\.org https:\/\/\*\.supabase\.co;/); assert.match(v, /script-src 'self' 'unsafe-inline';/);
+  assert.match(v, /img-src 'self' data: https:\/\/tile\.openstreetmap\.org https:\/\/\*\.supabase\.co https:\/\/i\.ibb\.co;/);      // (13-11-2026) the company's logo, the same picture as the ERP's assert.match(v, /script-src 'self' 'unsafe-inline';/);
   assert.match(fs.readFileSync(path.join(root, 'public', 'vendor', 'leaflet', 'LICENSE.txt'), 'utf8'), /BSD 2-Clause License/);
 });
 
@@ -736,4 +736,21 @@ test('(13-11-2026) one look wherever HR is opened from: shown by the ERP it take
   assert.match(html, /window\.top\.location\.assign\(BASE \+ \(location\.hash \|\| ''\)\); OUT = true;/, 'the site, the page and the person go along; Back returns to the ERP');
   assert.match(html, /if \(!OUT\) start\(\);/); assert.match(html, /id="go_erp" type="button"[^>]*hidden>‹ ERP<\/button>/);
   assert.match(html, /main = \/\\\/hr\\\/\$\/\.test\(BASE\) \? BASE\.replace\(\/hr\\\/\$\/, ''\) : ''; if \(ge\) \{ ge\.hidden = EMBED \|\| !main;/);
+});
+
+test('(13-11-2026) the RCL look: the logo\'s red in balance, the white menu with the logo, the three lines open and close it, a page picked closes it', () => {
+  const rd = f => fs.readFileSync(path.join(root, 'public', f), 'utf8'), html = rd('index.html'), js = rd('hr.js'), dash = rd('dash.js');
+  // the logo: the company's own picture (the same as the ERP's), the mark kept here when it cannot be loaded
+  assert.match(html, /<img class="sd-logo" id="sd_logo" src="https:\/\/i\.ibb\.co\/CpSfBqXX\/RCL-LOGO-PDF\.png" alt="Rachana Construction Limited">/); assert.match(html, /lg\.onerror = function \(\) \{ lg\.onerror = null; lg\.src = 'rcl-mark\.png'; lg\.classList\.add\('mark'\); \};/);
+  assert.ok(fs.statSync(path.join(root, 'public', 'rcl-mark.png')).size > 2000);
+  // the three lines; a page picked closes the menu; a narrow screen starts closed; motion is not forced on who asked for less
+  assert.match(html, /<button class="nav-tog" id="nav_tog" type="button" aria-label="Menu" aria-controls="side" aria-expanded="true"><i><\/i><i><\/i><i><\/i><\/button>/);
+  assert.match(html, /tg\.onclick = function \(\) \{ set\(!isOpen\(\)\); \};/); assert.match(html, /if \(!wide\(\)\) document\.body\.classList\.add\('nav-off'\);/); assert.match(js, /b\.onclick = function \(\) \{ go\(p\[0\]\); if \(window\.HRNAV\) window\.HRNAV\.picked\(\); \};/);
+  assert.match(html, /@media\(prefers-reduced-motion:reduce\)\{html:not\(\.embed\) body\.in #app,html:not\(\.embed\) \.sd,/);
+  // the menu of the picture: the same pages, their groups, a sign for each
+  const G = new Function('return ' + /var GROUP = (\{[^}]+\})/.exec(js)[1])(), R = new Function('return ' + /var RANK = (\[[^\]]+\])/.exec(js)[1])(), I = new Function('return ' + /var ICON = (\{[\s\S]*?\});\n/.exec(js)[1])();
+  assert.deepStrictEqual([...new Set(Object.values(G))], ['HR Management', 'Organization', 'Payroll']); for (const k of R) assert.ok(I[k], 'a sign for ' + k); for (const k of Object.keys(G)) assert.ok(R.indexOf(k) > -1, k + ' has its place');
+  // red in balance: no blue of before is left in the page's styles; the dashboard still asks nothing new
+  const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>')); for (const c of ['#1E63E9', '#1570EF', '#1857D0']) assert.ok(css.indexOf(c) === -1, c);
+  assert.deepStrictEqual([...new Set([...dash.matchAll(/api\('([a-zA-Z]+)'/g)].map(x => x[1]))].sort(), ['attDash', 'punchSelfie']); assert.match(dash, /function hello\(now\)/);
 });
