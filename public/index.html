@@ -203,6 +203,17 @@ body.in .ep-do .sec:first-child{background:#fff;color:#0F1F3D}body.in .ep-do .da
 @media(max-width:1180px){.ep-cols{grid-template-columns:1fr 1fr}.ep-cols>.ep-col:last-child{grid-column:1/-1}}@media(max-width:760px){.ep-cols{grid-template-columns:1fr}.dlg.pg>.sheet{padding:12px}}
 .dlg.sv-dlg{z-index:120;background:rgba(15,31,61,.35)}body.in .sheet.sv-box{max-width:340px;text-align:center;padding:26px 24px 20px}.sv-ok{width:64px;height:64px;border-radius:50%;background:#E3F6EA;color:#12A150;font-size:34px;font-weight:800;display:grid;place-items:center;margin:0 auto 12px}
 .sv-box h2{margin:0 0 4px}.sv-box .sub{margin:0 0 16px}.sv-box .pri{min-width:120px}
+.ms-two{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;align-items:start}.ms-card{padding:16px 18px}.ms-add{display:flex;gap:8px;margin-bottom:10px}.ms-add input{flex:1;min-width:0;height:42px;border:1px solid #E4EAF5;border-radius:11px;padding:0 12px;background:#fff}
+.ms-add select,.ms-rows select{height:42px;border:1px solid #E4EAF5;border-radius:11px;padding:0 8px;background:#fff}.ms-add .pri{height:42px}.ms-rows{list-style:none;margin:0;padding:0;display:block;max-height:calc(100vh - 330px);min-height:120px;overflow:auto}
+.ms-rows li{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid #F0F3FA;background:transparent;border-radius:0;font-size:14.5px}.ms-rows li:last-child{border-bottom:0}.ms-rows li:hover{background:#F8FAFE}.ms-rows li.off .ms-nm{color:#8A96B2}
+.ms-nm{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ms-rows input{flex:1;min-width:0;height:38px;border:1px solid #1E63E9;border-radius:10px;padding:0 10px}.ms-rows select{height:38px}
+.ms-cat{font-size:12px;font-weight:600;border-radius:999px;padding:3px 9px;background:#EAF1FF;color:#1E63E9;white-space:nowrap}.ms-cat.c-operator{background:#FFF1D6;color:#A86400}.ms-cat.c-driver{background:#EEEAFE;color:#6B4EE6}.ms-cat.c-labour{background:#EEF1F7;color:#55607c}
+.ms-acts{display:flex;gap:6px;flex:none}body.in .ms-rows .sm{height:32px;padding:0 10px;font-size:12.5px;box-shadow:none;border-radius:9px}body.in .ms-rows .sm.ghost.ms-del{color:#B42318;border-color:#F3C1BC}
+@media(max-width:1180px){.ms-two{grid-template-columns:1fr}.ms-rows{max-height:none}}
+/* the buttons of an employee's head while his page is being read: readable, not faded away */
+body.in .ep-do button:disabled{opacity:1;color:rgba(255,255,255,.72)}body.in .ep-do .sec:first-child:disabled{color:#55607c}.ep-do button{white-space:nowrap;flex:none}
+/* "Not available" under a box of the profile */
+.na-ck{display:inline-flex;align-items:center;gap:6px;margin:5px 0 0;font-size:12.5px;font-weight:500;color:#55607c;cursor:pointer}.na-ck input{width:15px!important;height:15px!important;margin:0}
 /* Ctrl K */
 .dlg.fd{place-items:start center;padding-top:10vh}.fd-box{width:100%;max-width:640px;background:#fff;border-radius:18px;box-shadow:0 30px 70px rgba(10,27,68,.35);overflow:hidden;text-align:left}
 .fd-in{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #EEF1F7;color:#6B7690}.fd-in input{flex:1;border:0;outline:0;font-size:16.5px;background:transparent;min-width:0;color:#0F1F3D}
@@ -247,11 +258,7 @@ body.in .ep-do .sec:first-child{background:#fff;color:#0F1F3D}body.in .ep-do .da
   <section id="p_roll" hidden></section>
   <section id="p_att" hidden></section>
   <section id="p_mus" hidden></section>
-  <section id="p_mast" hidden>
-    <h2 id="m_title" style="margin:0 0 12px;font-size:20px"></h2>
-    <div class="tools"><input id="m_name" maxlength="60" aria-label="New name"><button class="pri" id="m_add" type="button">+ Add</button></div>
-    <div class="box"><ul class="mrows" id="m_rows"></ul><p class="none" id="m_none" hidden>Nothing in this list yet.</p></div>
-  </section>
+  <section id="p_mast" hidden><div id="m_two"></div></section>
   </div>
 </div>
 <!-- (13-11-2026) Ctrl K: one box that finds a page, an employee (name, code, mobile, e-mail), a department, a designation or an action – find.js -->

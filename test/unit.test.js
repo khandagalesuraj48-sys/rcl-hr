@@ -181,7 +181,7 @@ test('the actions: every one asks the sign-in first; the Admin\'s ones are refus
   const src = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), { ACT } = require('../api/hr');
   assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'empDelete', 'empExport', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'empPhotos', 'docRemove', 'signinPeople', 'signinLinked', 'empImport',
     'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'placeMap', 'placePeople', 'placePerson', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'selfieUrl', 'punch',
-    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave', 'monthList', 'monthVerify', 'monthReturn', 'monthApprove', 'monthReopen', 'monthSites', 'hoList', 'hoSet', 'salaryGet', 'salaryAsk', 'salaryWaiting', 'salaryDecide', 'payList', 'payFlags', 'payAdjust', 'payLock', 'paySettings', 'paySettingsSave', 'advList', 'advGive', 'advClose', 'mySlips', 'hrComing', 'paySlipOf', 'payBank', 'sheetCols', 'sheetImport', 'sheetExport', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
+    'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave', 'monthList', 'monthVerify', 'monthReturn', 'monthApprove', 'monthReopen', 'monthSites', 'hoList', 'hoSet', 'salaryGet', 'salaryAsk', 'salaryWaiting', 'salaryDecide', 'payList', 'payFlags', 'payAdjust', 'payLock', 'paySettings', 'paySettingsSave', 'advList', 'advGive', 'advClose', 'mySlips', 'hrComing', 'paySlipOf', 'payBank', 'sheetCols', 'sheetImport', 'sheetExport', 'masterDelete', 'masterSeed', 'empPage', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
   assert.match(src, /const s = await ses\.need\(req\), att = [^\n]+\n[^\n]+\n[^\n]+\n  if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'empDelete', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   // (12-11-2026) ONE action deletes: empDelete – an employee added by mistake, after the check that nothing hangs on him, with the reason, written in the audit
@@ -351,7 +351,7 @@ test('the site is chosen in HR among the Portal\'s sites of the person; the form
   for (const id of ['site_pick', 'f_site', 'd_att', 'd_att_lab']) assert.ok(html.indexOf('id="' + id + '"') > -1, '#' + id);
   assert.match(html, /function sitePick\(me\) \{[\s\S]+?sel\.hidden = list\.length < 2;[\s\S]+?ticketFor\(code, false\)[\s\S]+?api\('api\/sso', \{ ticket: x\.j\.ticket \}\)[\s\S]+?location\.reload\(\);/, 'another site = a new ticket of the Portal, then the page again');
   assert.ok(!/api\/(site|sites)\b/.test(html + js), 'HR makes no site – it only chooses');
-  assert.match(js, /site: \$\('f_site'\)\.value,/); assert.match(js, /fs\.disabled = !!e\.id && !isAdmin\(\);/); assert.match(js, /api\('empAround', \{ id: id \}\)/);
+  assert.match(js, /site: \$\('f_site'\)\.value,/); assert.match(js, /fs\.disabled = !!e\.id && !isAdmin\(\);/); assert.match(js, /api\('empPage', \{ id: id \}\)/); assert.match(js, /aroundDraw\(id, r\.around\)/);      // (13-11-2026) his attendance comes with the one reading of his page
   assert.match(api, /if \(sitesOf\(s\)\.indexOf\(site\) < 0\) throw fail\(403, 'Site: choose a site where you have HR\.', 'site'\);\n    if \(was && site !== was\.site\) needAdmin\(s\);/);
 });
 
@@ -447,8 +447,8 @@ test('an employee\'s sign-in is asked of the Portal from the page; HR\'s server 
 
 test('an employee\'s page opens at once from the list; nothing of him is changed before the server\'s own answer; the readings of one action are asked together', () => {
   const js = fs.readFileSync(path.join(root, 'public', 'hr.js'), 'utf8'), api = fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8');
-  assert.match(js, /if \(had\) \{ drawEmp\(\{ employee: had, history: \[\], boss: null \}, false\); show\('dlg_emp'\); \}/);
-  assert.match(js, /if \(seq !== S\.seq \|\| \(had && \$\('dlg_emp'\)\.hidden\)\) return;/, 'closed or another opened meanwhile: the late answer is dropped');
+  assert.match(js, /else if \(had\) \{ drawEmp\(\{ employee: had, history: \[\], boss: null \}, false\); show\('dlg_emp'\); \}/);
+  assert.match(js, /if \(seq !== S\.seq \|\| \(\(had \|\| mem\) && \$\('dlg_emp'\)\.hidden\)\) return;/, 'closed or another opened meanwhile: the late answer is dropped');
   assert.match(js, /\['d_prof', 'd_kyc', 'd_docs', 'd_login', 'd_facebtn', 'd_salary', 'd_del', 'd_exit', 'd_tr', 'd_edit'\]\.forEach\(function \(b\) \{ \$\(b\)\.disabled = !full; \}\);/);
   assert.ok(!/localStorage|sessionStorage/.test(js.slice(js.indexOf('function openEmp'), js.indexOf('function login()'))), 'kept in the page\'s memory only');
   for (const a of ['empList', 'empGet', 'privGet']) { const i = api.indexOf('async ' + a + '('); assert.match(api.slice(i, i + 1400), /await Promise\.all\(\[db\('GET'/, a); }
@@ -644,7 +644,7 @@ test('the new look (13-11-2026): the menu on the left with every page as before,
   assert.match(html, /<script src="find\.js"><\/script>/); for (const id of src.match(/\$\('([a-z_0-9]+)'\)/g).map(x => x.slice(3, -2))) assert.ok(html.indexOf('id="' + id + '"') > -1, 'the page has #' + id);
   // every page of before has its group; the pages a person may not open are not in the menu – nor in the search (the same list)
   const G = new Function('return ' + /var GROUP = (\{[^}]+\})/.exec(js)[1])();
-  assert.deepStrictEqual(Object.keys(G).sort(), ['attendance', 'departments', 'designations', 'employees', 'leave', 'lists', 'month', 'muster', 'payroll', 'phones', 'places', 'requests', 'rules']);
+  assert.deepStrictEqual(Object.keys(G).sort(), ['attendance', 'departments', 'employees', 'leave', 'lists', 'month', 'muster', 'payroll', 'phones', 'places', 'requests', 'rules']);
   assert.match(js, /\.filter\(function \(p\) \{ return p\[2\]; \}\);/); assert.match(js, /pages: function \(\) \{ return S\.init \? pages\(\) : \[\]; \}/);
   // Ctrl K: the words typed must all be there; what starts with them comes first; an employee is asked from the server's own list
   const win = {}; new Function('window', 'document', 'navigator', src)(win, { getElementById: () => null, readyState: 'complete' }, {});
@@ -696,4 +696,27 @@ test('a save is seen at once (13-11-2026): "Saving…" on the button, a window w
   assert.match(prof, /api\('profRowSave', [^\n]{0,120}?\.then\(function \(n\) \{ draw\(n\); saved\('Saved', [^}]+\}, function \(x\) \{ back\(\); err\(x\); \}\);/);
   assert.match(prof, /s\.setAttribute\('role', 'alertdialog'\)/); assert.match(js, /window\.HRPROF\.saved\('Saved', r\.code/);
   assert.match(act, /L\.p = Object\.assign\(\{\}, L\.p, \{ \[col\]: next \}\); return out\(s, L\);/);
+});
+
+test('13-11-2026: the two masters on one page with delete and the usual list; an employee\'s page in one reading; "Not available"; the sign in / out times only in the sheet', () => {
+  const rd = f => fs.readFileSync(path.join(root, f), 'utf8'), js = rd('public/hr.js'), prof = rd('public/prof.js'), html = rd('public/index.html'), lib = rd('lib/act_masters.js'), api = rd('api/hr.js');
+  const M = require('../lib/act_masters'), P = require('../lib/act_profile'), { ACT } = require('../api/hr');
+  // masters: delete only what nobody has (employees AND their history are asked), written down; the list only adds
+  const del = String(ACT.masterDelete), seed = String(ACT.masterSeed);
+  assert.match(del, /H\.needAdmin\(s\)/); assert.match(del, /'hr_employees\?select=id&' \+ COL\[x\.kind\][\s\S]*'hr_employment\?select=id&' \+ COL\[x\.kind\][\s\S]*if \(n \|\| h\) throw fail\(409,[\s\S]*await db\('DELETE', t \+ '\?id=eq\.' \+ id[\s\S]*await audit\(/);
+  assert.match(seed, /H\.needAdmin\(s\)/); assert.ok(!/db\('(PATCH|DELETE|PUT)'/.test(seed), 'the list only adds'); assert.strictEqual((lib.match(/db\('DELETE'/g) || []).length, 1);
+  assert.ok(M.there(['account', 'highway'], 'Accounts') && M.there(['hr'], 'HR') && !M.there(['hr'], 'Highway') && !M.there(['account'], 'Administration'));
+  assert.ok(M.DEPARTMENTS.length >= 15 && Object.keys(M.DESIGNATIONS).join() === 'staff,operator,driver,labour'); const all = [].concat(...Object.values(M.DESIGNATIONS)); assert.strictEqual(new Set(all.map(M.low)).size, all.length, 'no designation twice');
+  assert.match(js, /\[\['departments', 'Departments & designations', isAdmin\(\)\]\]/); assert.match(js, /if \(page === 'designations'\) page = 'departments';/); assert.match(html, /<section id="p_mast" hidden><div id="m_two"><\/div><\/section>/);
+  assert.match(js, /if \(M\.del !== key\) \{ M\.del = key;/, 'Delete is pressed twice');
+  // an employee's page: one reading; a part the person may not see comes back empty; nothing is written
+  const pg = String(ACT.empPage); assert.match(pg, /const emp = await H\.ACT\.empGet\(s, \{ id: x\.id \}\);/); assert.match(pg, /Promise\.all\(\[part\('empAround'\), part\('privGet'\), part\('profGet'\)\]\)/); assert.ok(!/db\(/.test(pg));
+  assert.match(js, /\(S\.pages \|\| \(S\.pages = \{\}\)\)\[id\] = \{ at: Date\.now\(\), r: r \};/); assert.ok(!/localStorage|sessionStorage/.test(js.slice(js.indexOf('function openEmp'), js.indexOf('function profIn'))));
+  // "Not available": only a name, a number or a date; it counts as filled; never for an amount, Yes / No, a time or a list
+  const F = [{ key: 'cug', label: 'CUG', type: 'digits', min: 10, max: 10 }, { key: 'ifsc', label: 'IFSC', type: 'ifsc' }, { key: 'd', label: 'D', type: 'date' }, { key: 'amt', label: 'Amt', type: 'num' }, { key: 'yn', label: 'YN', type: 'yesno' }, { key: 'must', label: 'Must', type: 'text', need: true }];
+  let c = P.clean(F, { cug: 'na', ifsc: 'Not Available', d: 'N/A', amt: 'NA', yn: 'NA', must: 'NA' }, {}, {}); assert.deepStrictEqual(c.row, { cug: 'NA', ifsc: 'NA', d: 'NA', must: 'NA' }); assert.strictEqual(c.errors.length, 2, c.errors.join(' | '));
+  assert.ok(P.isNa(' n.a. ') && !P.isNa('Nagpur') && !P.isNa('')); assert.match(prof, /return \{ box: w, get: function \(\) \{ return nc\.checked \? 'NA' : i\.value; \} \};/);
+  // the sign in / out times: in the Excel sheet as before; not on the page, not in the count, and a save of the Job tab leaves them alone
+  assert.deepStrictEqual(P.GROUPS.job.fields.filter(d => d.sheet).map(d => d.key), ['sign_in', 'sign_out']); assert.ok(!P.ITEMS.some(i => /sign_(in|out)/.test(i.key))); assert.deepStrictEqual(P.seen(P.GROUPS.job.fields).filter(d => /sign_/.test(d.key)), []);
+  assert.match(rd('lib/act_profile.js'), /const keys = seen\(GROUPS\[g\]\.fields\)\.map\(d => d\.key\)/); assert.match(rd('lib/act_sheet.js'), /pf\('sign_in', 'Sign In', 'job'\), pf\('sign_out', 'Sign Out', 'job'\)/);
 });

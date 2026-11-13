@@ -18,7 +18,7 @@
   function btn(cls, text, fn) { var b = el('button', cls, text); b.type = 'button'; b.onclick = fn; return b; }
   var nameIn = function (list, id) { var r = (list || []).filter(function (x) { return x.id === id; })[0]; return r ? r.name : ''; };
   // what a kept value reads as
-  function show(d, v, lists) { if (v === undefined || v === null || v === '') return ''; return d.type === 'list' ? nameIn(lists[d.list], v) : d.type === 'yesno' ? (v ? 'Yes' : 'No') : d.type === 'date' ? dmy(v) : String(v); }
+  function show(d, v, lists) { if (v === undefined || v === null || v === '') return ''; if (v === 'NA') return 'Not available'; return d.type === 'list' ? nameIn(lists[d.list], v) : d.type === 'yesno' ? (v ? 'Yes' : 'No') : d.type === 'date' ? dmy(v) : String(v); }
   // the box of one detail → { box (label + input), get() }
   function input(d, v, lists) {
     var w = el('div'), l = el('label', '', d.label + (d.need ? ' *' : '')), i;
@@ -26,7 +26,13 @@
     else if (d.type === 'yesno') { i = el('select'); [['', '–'], ['yes', 'Yes'], ['no', 'No']].forEach(function (k) { var p = el('option', '', k[1]); p.value = k[0]; i.appendChild(p); }); i.value = v === true ? 'yes' : v === false ? 'no' : ''; }
     else { i = el('input'); i.type = d.type === 'date' ? 'date' : d.type === 'int' || d.type === 'num' ? 'number' : d.type === 'time' ? 'time' : d.type === 'email' ? 'email' : 'text'; if (d.type === 'num') { i.min = 0; i.step = '0.01'; } if (d.max && d.type !== 'int') i.maxLength = d.type === 'digits' ? d.max + 4 : d.max; if (d.type === 'int') { i.min = d.min; i.max = d.max; } if (d.type === 'digits' || d.type === 'mobile') i.inputMode = 'numeric'; if (d.type === 'ifsc') i.style.textTransform = 'uppercase'; i.autocomplete = 'off'; i.value = v === undefined || v === null ? '' : v; }
     var id = 'pf_' + d.key + '_' + Math.random().toString(36).slice(2, 7); i.id = id; l.htmlFor = id; w.appendChild(l); w.appendChild(i);
-    return { box: w, get: function () { return i.value; } };
+    /* (13-11-2026, asked: "jith details available nahit … not available ha option de") a detail he does not have: the tick
+     * "Not available" – kept as "NA", it counts as filled; the tick taken away gives the box back */
+    if (!d.na) return { box: w, get: function () { return i.value; } };
+    var isNa = v === 'NA', kind = i.type, nl = el('label', 'na-ck'), nc = el('input'); nc.type = 'checkbox'; nc.checked = isNa; nl.appendChild(nc); nl.appendChild(document.createTextNode('Not available'));
+    var set = function (on) { if (on) { i.type = 'text'; i.value = 'Not available'; i.disabled = true; } else { i.disabled = false; i.type = kind; if (i.value === 'Not available' || i.value === 'NA') i.value = ''; } };
+    if (isNa) set(true); nc.onchange = function () { set(nc.checked); if (!nc.checked) i.focus(); }; w.appendChild(nl);
+    return { box: w, get: function () { return nc.checked ? 'NA' : i.value; } };
   }
   function form(fields, values, lists) { var g = el('div', 'grid g3'), ins = {}; fields.forEach(function (d) { var x = input(d, values[d.key], lists); ins[d.key] = x; g.appendChild(x.box); }); return { grid: g, get: function () { var o = {}; Object.keys(ins).forEach(function (k) { o[k] = ins[k].get(); }); return o; } }; }
   function ring(pct) {
@@ -104,7 +110,9 @@
         var a3 = el('div', 'acts'); if (!left) a3.appendChild(btn('pri', '+ Add ' + w.one, function () { open(null); })); if (!into) a3.appendChild(btn('sec', 'Close', close)); body.appendChild(a3);
       }
     };
-    api('profGet', { id: id }).then(draw, function (x) { if (into) { if (into.fail) into.fail(x); return; } s.textContent = ''; s.appendChild(el('p', 'err', x.message)); var a = el('div', 'acts'); a.appendChild(btn('sec', 'Close', close)); s.appendChild(a); });
+    if (into && into.mem) draw(into.mem);      // what was read of him a moment ago is shown at once – the fresh reading follows
+    var same = function (r) { try { return !!(into && into.mem && P.data === into.mem && JSON.stringify(r) === JSON.stringify(into.mem)); } catch (e) { return false; } };      // the fresh reading says the same: what he is typing is not drawn over
+    (into && into.first ? into.first : api('profGet', { id: id })).then(function (r) { if (!same(r)) draw(r); }, function (x) { if (into) { if (into.fail) into.fail(x); return; } s.textContent = ''; s.appendChild(el('p', 'err', x.message)); var a = el('div', 'acts'); a.appendChild(btn('sec', 'Close', close)); s.appendChild(a); });
     return { open: function (tab) { if (P.data && (!into || !into.live || into.live())) { P.tab = tab; draw(P.data); } } };
   }
 
