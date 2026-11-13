@@ -870,3 +870,20 @@ test('rule book: leave – a Sunday worked earns one (at most 4 a month), two ba
   const old = { per_month: 4, carry: true, auto_absent: true, valid_from: '2026-11-01' }, od = [{ day: '2026-11-01', code: 'A' }, { day: '2026-11-02', code: 'P' }, { day: '2026-11-03', code: 'A' }];
   assert.strictEqual(L.walk2(od, { polOn: () => ({ earn: 'month', per_month: 4, carry: true, auto_absent: true, strict: false }) }).paid, L.walk(od, { policies: [old] }).balance);
 });
+
+test('the Rule Book in the pay: approved overtime and comp-off "for pay" – and nothing changes without them', () => {
+  const P = require('../lib/pay'), c = { present: 24, half: 0, leave: 0, week_off: 4, holiday: 0, extra: 2, paid: 30 }, base = { salary: { pay_type: 'monthly', amount: 30000 }, counts: c, month_days: 30, flags: { pf: true }, settings: { pf_pct: 12 }, adjust: {} };
+  const a = P.slip(base); assert.deepStrictEqual([a.day, a.earned, a.extra_days, a.extra, a.gross, a.pf], [1000, 30000, 2, 2000, 32000, 3600]); assert.ok(!('overtime' in a) && !('ot_hours' in a), 'no overtime: the slip has no such line');
+  assert.deepStrictEqual(P.slip(Object.assign({}, base, { extra_days: undefined, overtime: [] })), a, 'nothing of the Rule Book: the very same slip');
+  // a comp-off policy: of the 2 days worked on a day off only the one approved "for pay" is paid
+  const b = P.slip(Object.assign({}, base, { extra_days: 1 })); assert.deepStrictEqual([b.extra_days, b.extra, b.gross], [1, 1000, 31000]); assert.strictEqual(P.slip(Object.assign({}, base, { extra_days: 0 })).extra, 0, 'none approved for pay: no extra day');
+  // overtime: 90 + 30 minutes with an 8-hour shift, plain hourly rate: 1000 / 8 × 2 h = 250; at 1.5 ×: 375; PF stays on the earned pay
+  const o = P.slip(Object.assign({}, base, { overtime: [{ minutes: 90, shift_hours: 8, rate: 1 }, { minutes: 30, shift_hours: 8 }] })); assert.deepStrictEqual([o.ot_hours, o.overtime, o.gross, o.pf], [2, 250, 32250, 3600]);
+  assert.strictEqual(P.slip(Object.assign({}, base, { overtime: [{ minutes: 120, shift_hours: 8, rate: 1.5 }] })).overtime, 375);
+  assert.strictEqual(P.slip(Object.assign({}, base, { overtime: [{ minutes: 120, shift_hours: 0, rate: 1 }] })).overtime, 0, 'no shift hours known: nothing is made up');
+  // a day's rate: the day's pay is the rate itself
+  assert.strictEqual(P.slip({ salary: { pay_type: 'daily', amount: 800 }, counts: c, month_days: 30, flags: {}, settings: {}, overtime: [{ minutes: 60, shift_hours: 8, rate: 1 }] }).overtime, 100);
+  // the totals carry overtime only in a month that has any
+  assert.ok(!('overtime' in P.totals([a, b]))); assert.strictEqual(P.totals([a, o]).overtime, 250); assert.strictEqual(P.totals([a, o]).gross, 64250);
+  const src = fs.readFileSync(path.join(root, 'lib', 'act_payroll.js'), 'utf8'); assert.match(src, /status=eq\.approved&kind=in\.\(overtime,compoff\)/, 'only approved requests count'); assert.match(src, /\(q\.body \|\| \{\}\)\.result === 'pay'/, 'only the ones "for pay"');
+});

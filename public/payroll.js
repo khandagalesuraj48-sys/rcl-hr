@@ -48,13 +48,14 @@
       var lt = el('div', 'tools'); lt.appendChild(btn('pri', 'Bank list (Excel)', function () { bank(r.month); })); lt.appendChild(el('span', 'muted', 'Name, bank, IFSC, account number and net pay – for the bank. A payslip: the button of each line.')); lt.lastChild.style.alignSelf = 'center'; root.appendChild(lt); }
     else { root.appendChild(note('Counted from the approved attendance and each person\'s approved salary. A day\'s pay = the month\'s salary ÷ ' + r.month_days + ' days; an extra day = one day\'s pay.' + (r.settings ? ' PF / ESIC / PT: the settings from ' + dmy(r.settings.valid_from) + '.' : ' PF / ESIC / PT: no settings yet – nothing is deducted for them.')));
       if (r.problems) root.appendChild(note(r.problems + ' people cannot be paid yet – see the red line of each.', 'warn')); }
-    var t = table(['Code', 'Name', 'Salary', 'Pay days', 'Extra', 'Earned', 'Extra pay', 'Other +', 'Gross', 'PF', 'ESIC', 'PT', 'Advance', 'Other −', 'Net pay', '']);
+    var ot = r.rows.some(function (w) { return w.overtime !== undefined; });      // (step 13) the overtime column only in a month that has approved overtime for pay
+    var t = table(['Code', 'Name', 'Salary', 'Pay days', 'Extra', 'Earned', 'Extra pay'].concat(ot ? ['Overtime'] : []).concat(['Other +', 'Gross', 'PF', 'ESIC', 'PT', 'Advance', 'Other −', 'Net pay', '']));
     r.rows.forEach(function (w) {
       var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', w.code)); var nm = el('td', '', w.name);
       if (w.problem) { var p = el('div', '', w.problem); p.style.cssText = 'font-size:13.5px;color:#B42318'; nm.appendChild(p); } tr.appendChild(nm);
       tr.appendChild(el('td', '', w.rate ? rs(w.rate) + (w.pay_type === 'daily' ? ' a day' : ' a month') : '–'));
       [w.pay_days, w.extra_days].forEach(function (v) { var c = el('td', '', v || '–'); c.style.textAlign = 'center'; tr.appendChild(c); });
-      num(tr, w.earned); num(tr, w.extra); num(tr, w.other_earn); num(tr, w.gross, true); num(tr, w.pf); num(tr, w.esic); num(tr, w.pt); num(tr, w.advance); num(tr, w.other_ded); num(tr, w.net, true);
+      num(tr, w.earned); num(tr, w.extra); if (ot) num(tr, w.overtime); num(tr, w.other_earn); num(tr, w.gross, true); num(tr, w.pf); num(tr, w.esic); num(tr, w.pt); num(tr, w.advance); num(tr, w.other_ded); num(tr, w.net, true);
       var a = el('td'); if (!r.locked) a.appendChild(btn('sm ghost', 'Set…', function () { person(r, w); })); else a.appendChild(btn('sm ghost', 'Payslip', function () { slip(r.month, w.id); })); tr.appendChild(a); t.body.appendChild(tr);
     });
     if (!r.rows.length) t.box.appendChild(el('p', 'none', 'Nobody is verified in ' + mName(r.month) + '.'));
