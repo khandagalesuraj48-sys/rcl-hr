@@ -786,7 +786,9 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
     // 1. the Portal sent the person here with a ticket after "#sso=" (it never reaches a server log): taken out of the address at once
     var m = /(?:^#|&)sso=([A-Za-z0-9_.-]+)/.exec(location.hash);
     if (m) {
-      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* the page still works */ }
+      // (step 13) the Portal may name the page to open (its "Rule Book" button: …#sso=<ticket>&page=rulebook) – the page's name stays, the ticket goes
+      var pg = hashArg('page'); pg = /^[a-z0-9_-]{1,40}$/i.test(pg) ? '#page=' + pg : '';
+      try { history.replaceState(null, '', location.pathname + location.search + pg); } catch (e) { /* the page still works */ }
       return api('api/sso', { ticket: m[1] }).then(show, function (e) { return api('api/me').then(function (me) { PORTAL = me.portal || ''; if (me.signedIn) return show(me); msg(e.message, 'HR उघडता आले नाही.', 'HR खुल नहीं सका।', true); }, function () { msg(e.message, 'HR उघडता आले नाही.', 'HR खुल नहीं सका।', false); }); });
     }
     // 2. inside Mechanical's screen (#site=…&u=…) or opened by itself: the sign-in HR has, else a ticket of the Portal
