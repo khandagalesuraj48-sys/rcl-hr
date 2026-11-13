@@ -52,6 +52,23 @@
   // the head of every page: its name, one line about it, and on the right the page's own controls beside the site
   function head(title, sub, nodes) { $('p_title').textContent = title; $('p_sub').textContent = sub || ''; var t = $('p_tools'); t.textContent = ''; (nodes || []).forEach(function (n) { t.appendChild(n); }); }
   window.HRHEAD = { set: head };
+  /* ───────── BACK, ONE STEP AT A TIME (14-11-2026) ─────────
+   * windowOpen – a window of HR is open over the page (an employee's page, a form, a sheet of the Rule Book, the day of the muster …):
+   *   every one of them closes on Esc, so "one step back" closes it the same way.
+   * The browser's Back (popstate): a window open → it is closed and the step is put back (the page stays); else the page of
+   *   that step is shown. The "‹ Back" button does the same and is off when there is nothing of HR to go back to. */
+  var BACK = { on: false, pop: false };
+  function windowOpen() { var l = document.querySelectorAll('.dlg'); for (var i = 0; i < l.length; i++) if (!l[i].hidden && l[i].getClientRects().length) return true; return false; }
+  function closeWindow() { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); }
+  function backPaint() { var b = $('nav_back'); if (b) b.disabled = !(windowOpen() || (history.state && +history.state.hrN > 0)); }
+  function stepBack() { if (windowOpen()) { closeWindow(); backPaint(); return; } if (history.state && +history.state.hrN > 0) history.back(); }
+  if (window.addEventListener) window.addEventListener('popstate', function (ev) {
+    if (!S.init) return; var st = ev.state || {}, page = st.hrPage || (/[#&]page=([a-z0-9_-]+)/i.exec(location.hash) || [])[1] || '';
+    if (windowOpen()) { closeWindow(); try { history.pushState({ hrPage: S.page, hrN: (+st.hrN || 0) + 1 }, '', location.pathname + location.search + '#page=' + S.page); } catch (e) { /* the page still works */ } backPaint(); return; }
+    if (!page || page === S.page) { backPaint(); return; }
+    BACK.pop = true; try { go(page); } finally { BACK.pop = false; } backPaint();
+  });
+  if (document.addEventListener) { document.addEventListener('click', function () { setTimeout(backPaint, 60); }, true); document.addEventListener('keydown', function () { setTimeout(backPaint, 60); }, true); }
   function go(page) {
     ['dlg_emp', 'dlg_form'].forEach(function (d) { if ($(d) && !$(d).hidden) hide(d); });      // (13-11-2026) an employee's full page and his form are left when another page is chosen in the menu
     if (page === 'designations') page = 'departments';      // (13-11-2026) the two lists are one page
@@ -67,7 +84,12 @@
     S.page = att || mus || dash || prof || lv || mon || roll || book || page === 'departments' || page === 'designations' ? page : 'employees'; tabs();
     $('p_emp').hidden = S.page !== 'employees'; $('p_att').hidden = !att; $('p_mus').hidden = !mus; $('p_dash').hidden = !dash; $('p_prof').hidden = !prof; $('p_leave').hidden = !lv; $('p_month').hidden = !mon; $('p_roll').hidden = !roll; $('p_book').hidden = !book; $('p_mast').hidden = att || mus || dash || prof || lv || mon || roll || book || S.page === 'employees';
     var hd = PAGE_HEAD[S.page]; if (hd) head(hd[0], hd[1], []);      // the dashboard and the muster fill the head themselves (HRHEAD.set)
-    try { history.replaceState(null, '', location.pathname + location.search + '#page=' + S.page); } catch (e) { /* the page still works */ }
+    /* (14-11-2026, asked: "back cha problem aple purn web war aahe … ek back mhnje ek step back … easy asaw back jane") ONE BACK = ONE
+     * STEP: a page chosen is a step of the browser's own history (its Back, Alt+←, the "‹ Back" button here) – the first page and a
+     * page come back to are not a new step. An open window (an employee's page, a form, a list) is closed first – see stepBack. */
+    try { var addr = location.pathname + location.search + '#page=' + S.page, st = history.state || {};
+      if (BACK.pop || !BACK.on || st.hrPage === S.page) history.replaceState({ hrPage: S.page, hrN: +st.hrN || 0 }, '', addr); else history.pushState({ hrPage: S.page, hrN: (+st.hrN || 0) + 1 }, '', addr);
+      BACK.on = true; backPaint(); } catch (e) { /* the page still works */ }
     if (dash) window.HRDASH.open(S.me, go); else if (book) window.HRBOOK.open(S.page, S.me); else if (prof) window.HRPROF.open(S.page, S.me); else if (lv) window.HRLEAVE.open(S.page, S.me); else if (mon) window.HRMONTH.open(S.page, S.me); else if (roll) window.HRROLL.open(S.page, S.me); else if (att) window.HRATT.open(S.page, S.me, S.init); else if (mus) window.HRMUS.open(S.page, S.me, S.init); else if (S.page === 'employees') list(); else masters();
   }
 
@@ -487,7 +509,8 @@
 
   window.HR = {
     open: function (me, page) {
-      S.me = me; if (S.init) return; 
+      S.me = me; if (S.init) return; var nb = $('nav_back'); if (nb) nb.onclick = stepBack;
+      
       // "My HR" (an employee for himself): his attendance is in the phone app – the office's pages are not his
       if (me && me.user && me.user.role === 'self') { window.HRMSG('Your attendance is marked in the phone app (One Click Solution → HR). These pages are for the HR office. · तुमची हजेरी phone app मध्ये लावायची आहे. ही pages HR office साठी आहेत. · आपकी हाज़िरी phone app में लगानी है। ये pages HR office के लिए हैं।'); return; }
       api('init').then(function (i) {
