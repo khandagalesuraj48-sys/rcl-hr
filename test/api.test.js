@@ -31,7 +31,7 @@ test('an employee: added with his code; incomplete without DOB / e-mail; a mobil
   const m1 = mob(), a = await ACT.empSave(user, { name: 'Asha Rig', category: 'staff', mobile: '+91 ' + m1, email: mail('ASHA'), dob: '05-03-1990', joined_on: '2024-04-01', department_id: dep, designation_id: des });
   assert.match(a.code, /^RCL\d{3,}$/); assert.strictEqual(a.status, 'pending'); assert.deepStrictEqual(a.missing, []);
   const b = await ACT.empSave(user, { name: 'Babu Rig', category: 'Labour', mobile: mob() });
-  assert.strictEqual(b.status, 'incomplete'); assert.deepStrictEqual(b.missing, ['Date of birth', 'E-mail']); assert.notStrictEqual(b.code, a.code);
+  assert.strictEqual(b.status, 'incomplete'); assert.deepStrictEqual(b.missing, ['Date of birth']); assert.notStrictEqual(b.code, a.code);
   await no(ACT.empSave(user, { name: 'Copy Rig', category: 'driver', mobile: m1 }), new RegExp('mobile number already belongs to employee ' + a.code), 409);
   await no(ACT.empSave(user, { name: 'Copy Rig', category: 'driver', email: mail('asha') }), new RegExp('e-mail already belongs to employee ' + a.code), 409);
   // completing him: pending; reporting to Asha; the history gets a new row; the audit has old and new
@@ -261,7 +261,7 @@ const D = require('../lib/day'), RU = require('../lib/rules');
 const TODAY = RU.today(), ago = n => D.addDays(TODAY, -n), OFF = (D.weekday(TODAY) + 1) % 7;      // the weekly off: tomorrow's weekday – none of the last five days
 
 test('shifts, holidays and the rules with their date: only who has the power; a new version, the old days keep theirs', async () => {
-  let a = await ACT.attSetup(user); assert.deepStrictEqual([a.shifts.length, a.rules, Object.values(a.powers).every(v => v === true), a.power_list.length], [0, {}, true, 9]);
+  let a = await ACT.attSetup(user); assert.deepStrictEqual([a.shifts.length, a.rules, Object.keys(a.powers).filter(k => a.powers[k] !== true), a.power_list.length], [0, {}, ['signin'], 10]);      // (13-11-2026) "a sign-in for everybody at once" is off until the Super Admin gives it
   await no(ACT.attSetup(self(mail1)), /HR office only/, 403); await no(ACT.shiftSave(user, { name: 'G' }), /Only the HR Admin/, 403);
   await no(ACT.shiftSave(admin, { name: 'G', start_time: '9', end_time: '9:00' }), /Name: at least 2 letters\. Starts at: a time as HH:MM\./);
   a = await ACT.shiftSave(admin, { name: 'General ' + tag, start_time: '9:00', end_time: '18:00', valid_from: '2026-01-01' }); const sh = a.shifts[0];
@@ -834,4 +834,26 @@ test('(13-11-2026) the employee sheet: the company\'s sheet adds people with ITS
   const au = JSON.stringify((await db('GET', 'hr_audit?select=action,detail&site=eq.' + SITE + '&action=like.Employee sheet*')) || []);
   assert.ok(au.includes('Employee sheet imported') && au.includes('Employee sheet exported')); for (const n of [uan, pan('A'), '123456789012', '25000', m1]) assert.ok(!au.includes(n), 'not in the audit: ' + n);
   await no(ACT.sheetImport(ses('self'), { rows: back }), /HR office only/, 403);
+});
+
+test('(13-11-2026) a sign-in for everybody at once: the Super Admin, or an HR Admin he gave the power (off until then); the people with an e-mail or a mobile number; the user ID of a mobile-only employee is kept and "My HR" finds him by it', async () => {
+  const S3 = tag + 'S', s = r => ses(r, S3), m1 = mob(), m2 = mob();
+  const a = await ACT.empSave(s('admin'), { name: 'Signin Mobile', category: 'driver', mobile: m1 }), b = await ACT.empSave(s('admin'), { name: 'Signin Mail', category: 'staff', email: mail('signin.b'), dob: '01-01-1990' }), c = await ACT.empSave(s('admin'), { name: 'Signin Nothing', category: 'labour' });
+  assert.deepStrictEqual([a.status, a.missing, b.status, c.missing], ['incomplete', ['Date of birth'], 'pending', ['Date of birth', 'Mobile or e-mail']], 'an e-mail OR a mobile number is enough');
+  // who may: the power is OFF for an HR Admin until the Super Admin gives it; an HR User never
+  assert.strictEqual((await ACT.init(s('admin'))).signin, false); assert.strictEqual((await ACT.init(s('super'))).signin, true);
+  await no(ACT.signinPeople(s('admin')), /has not given the HR Admin this power on this site \(Give a sign-in to every employee at once\)/, 403); await no(ACT.signinPeople(s('user')), /Only the HR Admin or the Super Admin/, 403);
+  await ACT.powerSet(s('super'), { power: 'signin', allowed: true }); assert.strictEqual((await ACT.init(s('admin'))).signin, true);
+  const p = await ACT.signinPeople(s('admin'));
+  assert.deepStrictEqual([p.people.map(x => [x.code, x.email, x.mobile, x.known]), p.without], [[[a.code, '', m1, ''], [b.code, mail('signin.b'), '', '']].sort((x, y) => (x[0] < y[0] ? -1 : 1)), 1]);
+  // what the Portal answered: only a user ID made of a mobile number is kept, for an employee of this site, one employee a user
+  let r = await ACT.signinLinked(s('admin'), { rows: [{ id: a.id, portal: m1 + '@mobile.id' }, { id: b.id, portal: mail('signin.b') }, { id: c.id, portal: 'someone@else.example' }, { id: b.id, portal: m1 + '@mobile.id' }] });
+  assert.strictEqual(r.linked, 1); assert.strictEqual((await ACT.empGet(s('admin'), { id: a.id })).employee.portal_email, m1 + '@mobile.id'); assert.strictEqual((await ACT.empGet(s('admin'), { id: b.id })).employee.portal_email, '');
+  await no(ACT.signinLinked(s('user'), { rows: [{ id: a.id, portal: m1 + '@mobile.id' }] }), /Only the HR Admin/, 403);
+  assert.strictEqual((await ACT.signinPeople(s('super'))).people.find(x => x.code === a.code).known, m1 + '@mobile.id');
+  // "My HR": the sign-in whose user ID is his number IS this employee – also after HR changed his number
+  const self = { site: S3, email: m1 + '@mobile.id', name: 'Signin Mobile', role: 'self', info: { sites: [] } };
+  assert.strictEqual((await ACT.myHr(self, {})).employee.code, a.code);
+  await ACT.empSave(s('admin'), { id: a.id, name: 'Signin Mobile', category: 'driver', mobile: m2 }); assert.strictEqual((await ACT.myHr(self, {})).employee.code, a.code);
+  await no(ACT.myHr({ site: S3, email: m2 + '@mobile.id', name: 'X', role: 'self', info: { sites: [] } }, {}), /is not in the Employee Master/, 403);
 });

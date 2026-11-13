@@ -20,6 +20,7 @@ const MONTH = require('../lib/act_month');      // (step 10) the month: verified
 const PAY = require('../lib/act_pay');      // (step 11) an employee's salary: proposed by the site's HR, approved by the HO HR
 const ROLL = require('../lib/act_payroll');      // (step 12) payroll: the month's pay, the settings, advances, a person's payslips
 const MORE = require('../lib/act_more');      // what comes up (papers, birthdays), a payslip to print, the bank list
+const power = require('../lib/powers');      // what the Super Admin left the HR Admin of a site
 const PROF = require('../lib/act_profile');      // (step 6) the full profile, the lists, what is compulsory
 const SHEET = require('../lib/act_sheet');      // (13-11-2026) the employee sheet: one Excel format to import and export
 
@@ -27,7 +28,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const id = v => { v = String(v || '').toLowerCase(); return UUID.test(v) ? v : ''; };
 const isAdmin = s => s.role === 'admin' || s.role === 'super';
 const needAdmin = s => { if (!isAdmin(s)) throw fail(403, 'Only the HR Admin or the Super Admin can do this.', 'role'); };
-const EMP = 'id,code,name,category,gender,dob,mobile,email,site,department_id,designation_id,reports_to,joined_on,left_on,left_reason,status,email_verified_at,updated_at';
+const EMP = 'id,code,name,category,gender,dob,mobile,email,site,department_id,designation_id,reports_to,joined_on,left_on,left_reason,status,email_verified_at,portal_email,updated_at';
 const NOT_READY3 = 'The employee\'s details and papers are not set up yet: the Super Admin runs sql/hr_step3_kyc_docs.sql once in the rcl-hr Supabase → SQL Editor.';
 const NOT_READY = 'The Employee Master is not set up yet: the Super Admin runs sql/hr_step2_employees.sql once in the rcl-hr Supabase → SQL Editor.';
 const MAST = { department: 'hr_departments', designation: 'hr_designations' };
@@ -88,7 +89,7 @@ async function checkLinks(s, x, selfId) {
 
 const ACT = {
   // the lists a page needs to begin
-  async init(s) { const m = await masters(); return Object.assign({ site: s.site, role: s.role, ho: s.role !== 'self' && await require('../lib/act_month').isHo(s).catch(() => false), sites: (s.info && s.info.sites) || [], categories: R.CATS.map(k => ({ key: k, name: R.CAT_NAME[k] })) }, m); },
+  async init(s) { const m = await masters(); return Object.assign({ site: s.site, role: s.role, signin: s.role === 'super' || (s.role === 'admin' && !!(await power.of(s.site)).signin), ho: s.role !== 'self' && await require('../lib/act_month').isHo(s).catch(() => false), sites: (s.info && s.info.sites) || [], categories: R.CATS.map(k => ({ key: k, name: R.CAT_NAME[k] })) }, m); },
 
   async masterSave(s, x) {
     needAdmin(s); const t = MAST[x.kind]; if (!t) throw fail(400, 'Unknown list.');
@@ -294,6 +295,30 @@ const ACT = {
     await db('PATCH', 'hr_employee_docs?id=eq.' + d.id, { active: false, removed_by: s.email, removed_at: new Date().toISOString(), removed_reason: reason }, 'return=minimal');
     await audit(s.site, s.email, 'Paper removed', e.code, { kind: d.kind, doc: d.id, reason: reason });
     return { ok: true };
+  },
+
+  /* THE SIGN-IN OF MANY AT ONCE (13-11-2026: after an import nobody can be given his sign-in one by one – the Portal makes the
+   * users, its api/hrlogin, by its own rule; HR's server keeps and sees nothing of it). Who may: the Super Admin, or the HR Admin of a site the Super Admin gave
+   * the power "signin" (off until he gives it). The people of this site who are not relieved and have an e-mail or a mobile
+   * number; `known` = the user ID the Portal gave him before (kept in portal_email) so that a changed number finds the same user. */
+  async signinPeople(s) {
+    await power.need(s, 'signin');
+    const rows = []; for (let off = 0; off < 20000; off += 1000) { const r = (await db('GET', 'hr_employees?select=id,code,name,email,mobile,portal_email&site=eq.' + enc(s.site) + '&status=neq.left&order=code,id&limit=1000&offset=' + off)) || []; r.forEach(v => rows.push(v)); if (r.length < 1000) break; }
+    const can = rows.filter(e => e.email || e.mobile);
+    return { site: s.site, people: can.map(e => ({ id: e.id, code: e.code, name: e.name, email: e.email || '', mobile: e.mobile || '', known: e.portal_email || '' })), without: rows.length - can.length };
+  },
+  /* What the Portal answered is kept: the USER ID of an employee who signs in with his mobile number only (<number>@mobile.id) –
+   * "My HR" finds him by it. An employee with an e-mail is found by his e-mail: nothing is kept for him. HR Admin / Super Admin. */
+  async signinLinked(s, x) {
+    needAdmin(s); const list = (Array.isArray(x.rows) ? x.rows : []).slice(0, 100), done = [];
+    for (const r of list) {
+      const pid = R.str(r.portal, 60).toLowerCase(), eid = id(r.id); if (!eid || !/^[6-9]\d{9}@mobile\.id$/.test(pid)) continue;
+      const e = ((await db('GET', 'hr_employees?select=id,code,email,portal_email&id=eq.' + eid + '&site=eq.' + enc(s.site))) || [])[0]; if (!e || e.portal_email === pid) continue;
+      if (((await db('GET', 'hr_employees?select=id&portal_email=eq.' + enc(pid) + '&id=neq.' + eid + '&limit=1')) || []).length) continue;      // one user = one employee
+      await db('PATCH', 'hr_employees?id=eq.' + eid, { portal_email: pid, updated_by: s.email, updated_at: new Date().toISOString() }, 'return=minimal'); done.push(e.code);
+    }
+    if (done.length) await audit(s.site, s.email, 'Sign-in by mobile number linked', done.length + ' employees', { codes: done.slice(0, 200) });
+    return { ok: true, linked: done.length };
   },
 
   /* IMPORT from Excel: the page reads the file and sends its rows. A row with a fault is NOT saved and comes back with why; a row

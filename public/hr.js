@@ -132,15 +132,44 @@
   /* ---------- his sign-in for the app (12-11-2026: "ADMIN … LA EK TEMP PASSWORD DEU SHAKEL NANTR USER SWATACHA PASS SET KRU SHAKEL") ----------
    * Given by the Portal (its api/hrlogin) to the HR Admin of the site or the Super Admin: a one-time password, and "My HR" only. */
   function login() {
-    var e = S.open.employee; $('lg_title').textContent = 'Sign-in for ' + e.name + ' (' + e.code + ')'; $('lg_email').textContent = e.email || '– none: put his e-mail in his record first –';
-    $('lg_done').hidden = true; $('lg_pw').textContent = ''; $('lg_err').hidden = true; $('lg_go').hidden = !e.email; $('lg_go').disabled = false; $('lg_go').textContent = 'Give a one-time password';
+    var e = S.open.employee, any = !!(e.email || e.mobile); $('lg_title').textContent = 'Sign-in for ' + e.name + ' (' + e.code + ')'; $('lg_email').textContent = e.email || '– none –'; $('lg_mobile').textContent = e.mobile || '– none –';
+    $('lg_done').hidden = true; $('lg_pw').textContent = ''; $('lg_err').hidden = any; if (!any) $('lg_err').textContent = 'He has no e-mail and no mobile number: put one of them in his record first – he signs in with it.';
+    $('lg_go').hidden = !any; $('lg_go').disabled = false; $('lg_go').textContent = 'Give the password';
     hide('dlg_emp'); show('dlg_login');
   }
   function loginGive() {
     var e = S.open.employee, b = $('lg_go'); b.disabled = true; $('lg_err').hidden = true;
-    window.HRPORTAL('api/hrlogin', { site: e.site, email: e.email, name: e.name }).then(function (r) {
+    // (13-11-2026) his e-mail, his mobile number, or both; `known` = the user ID the Portal gave him before (a number changed since)
+    window.HRPORTAL('api/hrlogin', { site: e.site, email: e.email || '', mobile: e.mobile || '', name: e.name, known: e.portal_email || '' }).then(function (r) {
       $('lg_pw').textContent = r.password; $('lg_done').hidden = false; b.disabled = false; b.textContent = 'Give another one';
+      if (r.id && r.id !== e.email && r.id !== e.portal_email) api('signinLinked', { rows: [{ id: e.id, portal: r.id }] }).then(function () { e.portal_email = r.id; }, function () { /* kept at the next time */ });
     }, function (x) { b.disabled = false; $('lg_err').textContent = x.message; $('lg_err').hidden = false; });
+  }
+  /* ---------- a sign-in for EVERYBODY at once (13-11-2026; the button is the Super Admin's, and an HR Admin's he gave the power) ----------
+   * The Portal makes the users, 20 a call; only new ones – nobody's password is changed; the first password follows its rule. */
+  function signinOpen() {
+    $('sg_err').hidden = true; $('sg_res').hidden = true; $('sg_res').textContent = ''; $('sg_sum').textContent = 'Reading the employees…'; $('sg_go').hidden = true; show('dlg_signin');
+    api('signinPeople').then(function (r) { S.sg = r.people; $('sg_sum').textContent = r.people.length + ' employees of this site have an e-mail or a mobile number' + (r.without ? ' · ' + r.without + ' have neither (no sign-in until one is put in their record)' : '') + '.'; $('sg_go').hidden = !r.people.length; $('sg_go').disabled = false; $('sg_go').textContent = 'Give the sign-ins'; $('sg_go').onclick = signinGo; },
+      function (e) { $('sg_sum').textContent = ''; $('sg_err').textContent = e.message; $('sg_err').hidden = false; });
+  }
+  function signinGo() {
+    var people = S.sg || [], b = $('sg_go'), made = 0, has = 0, bad = [], link = [], i = 0, site = S.init.site; b.disabled = true; $('sg_err').hidden = true;
+    var end = function (err) {
+      var box = $('sg_res'); box.textContent = ''; box.appendChild(el('p', 'sum', made + ' sign-ins given · ' + has + ' had one already (not changed) · ' + bad.length + ' not given.'));
+      if (bad.length) { var ul = el('ul', 'faults'); bad.slice(0, 200).forEach(function (x) { var li = el('li'); li.appendChild(el('b', '', x.code + ' – ' + x.name + ': ')); li.appendChild(el('span', '', x.why)); ul.appendChild(li); }); box.appendChild(ul); }
+      box.hidden = false; $('sg_sum').textContent = err ? 'Stopped after ' + i + ' of ' + people.length + '.' : 'Done – ' + people.length + ' employees.'; if (err) { $('sg_err').textContent = err; $('sg_err').hidden = false; b.disabled = false; b.textContent = 'Go on'; b.onclick = function () { b.disabled = true; $('sg_err').hidden = true; step(); }; } else b.hidden = true;      // (go on: from where it stopped)
+    };
+    var step = function () {
+      if (i >= people.length) return end('');
+      var part = people.slice(i, i + 20); $('sg_sum').textContent = 'Giving the sign-ins… ' + i + ' of ' + people.length;
+      window.HRPORTAL('api/hrlogin', { site: site, people: part.map(function (p) { return { email: p.email, mobile: p.mobile, name: p.name, known: p.known }; }) }).then(function (r) {
+        var rows = [];
+        (r.people || []).forEach(function (x, k) { var p = part[k]; if (x.state === 'made') made++; else if (x.state === 'has') has++; else bad.push({ code: p.code, name: p.name, why: x.why || 'not given' }); if (x.id && x.id !== p.email && x.id !== p.known) rows.push({ id: p.id, portal: x.id }); });
+        i += part.length;
+        return rows.length ? api('signinLinked', { rows: rows }).then(step, step) : step();
+      }, function (e) { end(e.message); });
+    };
+    step();
   }
 
   // ---------- add / change ----------
@@ -315,7 +344,7 @@
   }
   function importShow(r, m, held) {
     var box = $('i_res'); box.textContent = '';
-    box.appendChild(el('p', 'sum', r.checked ? r.rows + ' rows read · ' + r.toAdd + ' new employees' + (r.incomplete ? ' (' + r.incomplete + ' of them incomplete – date of birth / e-mail / mobile missing)' : '') + ' · ' + r.toChange + ' employees of today are changed · ' + r.faults + ' with a fault (not saved).'
+    box.appendChild(el('p', 'sum', r.checked ? r.rows + ' rows read · ' + r.toAdd + ' new employees' + (r.incomplete ? ' (' + r.incomplete + ' of them incomplete – the date of birth missing)' : '') + ' · ' + r.toChange + ' employees of today are changed · ' + r.faults + ' with a fault (not saved).'
       : r.added + ' employees added · ' + r.changed + ' changed · ' + r.faults + ' not saved' + (r.salaries ? ' · ' + r.salaries + ' salaries set' : '') + '.'));
     if (held) box.appendChild(el('p', 'muted', held + ' people of the other projects are not imported here.'));
     if (m && m.cols.length) box.appendChild(el('p', 'muted', 'Columns read (' + m.cols.length + '): ' + m.cols.join(', ')));
@@ -358,7 +387,7 @@
         $('cat').onchange = function () { S.category = $('cat').value; list(); };
         $('b_add').onclick = function () { form(null, null); }; $('b_imp').onclick = function () { $('i_file').value = ''; $('i_err').hidden = true; $('i_res').hidden = true; $('i_save').hidden = true; show('dlg_imp'); };
         $('d_edit').onclick = function () { form(S.open.employee, S.open.boss); }; $('d_tr').onclick = transfer; $('d_exit').onclick = exit; $('d_del').onclick = del; $('d_prof').onclick = function () { var id = S.open.employee.id; hide('dlg_emp'); if (window.HRPROF) window.HRPROF.profile(id, function () { openEmp(id); }); }; $('del_form').onsubmit = delSave; $('b_exp').onclick = exportList;
-        $('d_login').onclick = login; $('lg_go').onclick = loginGive; $('d_salary').onclick = function () { if (window.HRPAY) window.HRPAY.sheet(S.open.employee); }; $('d_facebtn').onclick = function () { if (window.HRMUS && window.HRMUS.face) window.HRMUS.face(S.open.employee); };
+        $('d_login').onclick = login; $('lg_go').onclick = loginGive; $('b_signin').hidden = !S.init.signin; $('b_signin').onclick = signinOpen; $('sg_go').onclick = signinGo; $('d_salary').onclick = function () { if (window.HRPAY) window.HRPAY.sheet(S.open.employee); }; $('d_facebtn').onclick = function () { if (window.HRMUS && window.HRMUS.face) window.HRMUS.face(S.open.employee); };
         $('d_kyc').onclick = kyc; $('d_docs').onclick = docs; $('k_form').onsubmit = kycSave; $('o_add').onclick = docAdd;
         $('f_form').onsubmit = save; $('t_form').onsubmit = transferSave; $('x_form').onsubmit = exitSave;
         var bt; $('f_boss').oninput = function () { clearTimeout(bt); bt = setTimeout(pickBoss, 250); };
