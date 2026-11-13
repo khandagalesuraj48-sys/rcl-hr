@@ -448,6 +448,17 @@ test('an employee\'s page opens at once from the list; nothing of him is changed
   for (const a of ['empList', 'empGet', 'privGet']) { const i = api.indexOf('async ' + a + '('); assert.match(api.slice(i, i + 1400), /await Promise\.all\(\[db\('GET'/, a); }
 });
 
+test('(13-11-2026) the rules in words – for the attendance PDF: one line for each rule that is set, none for one that is not', () => {
+  const D = require('../lib/day');
+  assert.deepStrictEqual(D.ruleNotes({}, null), []); assert.deepStrictEqual(D.ruleNotes(null, null), []);
+  assert.deepStrictEqual(D.ruleNotes({ full_hours: 9, half_hours: 4.5, grace_min: 15, half_after_min: 120, late_free: 3, late_to_half: 3, early_min: 30, once: true, week_off: [0], face: true }, { start_time: '08:30', end_time: '17:30', auto_out: '23:50' }), [
+    'Full day: 9 working hours or more.', 'Half day: 4.5 working hours or more, but fewer than 9. Fewer than 4.5 hours: absent.', 'Late: IN more than 15 minutes after the shift starts.',
+    'IN 120 minutes or more after the shift starts: the day counts as a half day.', 'The first 3 late days of a month are only marked; every late day after them counts as a half day.',
+    'Every 3 late days of a month take half a day from the days for pay.', 'Early leaving: OUT more than 30 minutes before the shift ends.', 'One IN and one OUT a day.',
+    'OUT not marked: the day is closed by itself at 23:50 and counts as absent.', 'Weekly off: Sunday.', 'Attendance is marked only with the registered face.']);
+  assert.deepStrictEqual(D.ruleNotes({ full_hours: 8 }, { start_time: '08:30', end_time: '17:30' }), ['Full day: 8 working hours or more.', 'Fewer than 8 working hours: half day.']);
+});
+
 test('(12-11-2026) once a day; a forgotten OUT closed at the shift\'s own time = absent; 3 late days only marked, then a half day; very late = a half day; a night shift', () => {
   const D = require('../lib/day'), T = (day, hm) => D.at(day, hm), day = '2026-11-10', next = '2026-11-11', dayS = { start_time: '08:30', end_time: '18:00', auto_out: '23:50' }, night = { start_time: '20:00', end_time: '06:00', auto_out: '11:50' };
   // the rules as typed
