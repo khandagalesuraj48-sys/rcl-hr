@@ -99,15 +99,16 @@
     api('empList', { q: S.q, status: S.status, category: S.category }).then(function (r) {
       S.rows = r.rows; var c = r.counts, chips = $('chips'); chips.textContent = '';
       [['', 'On the rolls', c.incomplete + c.pending + c.active], ['incomplete', 'Incomplete', c.incomplete], ['pending', 'Complete', c.pending], ['active', 'Active', c.active], ['left', 'Relieved', c.left]].forEach(function (k) {
-        var b = el('button', 'chip' + (S.status === k[0] ? ' on' : '') + (k[0] ? ' s-' + k[0] : '')); b.type = 'button'; b.appendChild(el('i', 'kic', { '': '◉', incomplete: '…', pending: '✓', active: '●', left: '↗' }[k[0]])); b.appendChild(el('span', '', k[1])); b.appendChild(el('b', '', k[2])); b.onclick = function () { S.status = k[0]; list(); }; chips.appendChild(b);
+        var b = el('button', 'chip' + (S.status === k[0] ? ' on' : '') + (k[0] ? ' s-' + k[0] : '')); b.type = 'button'; b.appendChild(el('i', 'kic', { '': '◉', incomplete: '…', pending: '✓', active: '●', left: '↗' }[k[0]])); b.appendChild(el('span', '', k[1])); b.appendChild(el('b', '', k[2])); b.appendChild(el('small', '', { '': 'on this site', incomplete: 'details still missing', pending: 'ready to be activated', active: 'working now', left: 'kept in the record' }[k[0]])); b.onclick = function () { S.status = k[0]; list(); }; chips.appendChild(b);
       });
       var tb = $('emp_rows'); tb.textContent = '';
       r.rows.forEach(function (e) {
         var tr = el('tr'); tr.tabIndex = 0;
-        var nm = el('td', 'nm pwho'), box = el('div'); box.appendChild(el('b', '', e.name)); box.appendChild(el('small', '', e.code)); nm.appendChild(box); if (window.HRDASH && window.HRDASH.face) { var fa = window.HRDASH.face(e.name, e.id); fa.dataset.face = e.id; nm.insertBefore(fa, box); } tr.appendChild(nm);
-        [CAT[e.category] || e.category, nameOf(S.init.designations, e.designation_id), nameOf(S.init.departments, e.department_id), e.mobile, dmy(e.joined_on), dmy(e.left_on)].forEach(function (v) { tr.appendChild(el('td', '', v || '–')); });
+        var nm = el('td', 'nm pwho'), box = el('div'); box.appendChild(el('b', '', e.name)); box.appendChild(el('small', '', e.code + (e.joined_on ? ' · Joined ' + dmy(e.joined_on) : ''))); nm.appendChild(box); if (window.HRDASH && window.HRDASH.face) { var fa = window.HRDASH.face(e.name, e.id); fa.dataset.face = e.id; nm.insertBefore(fa, box); } tr.appendChild(nm);
+        var ct = el('td'); ct.appendChild(el('span', 'cat c-' + e.category, CAT[e.category] || e.category)); tr.appendChild(ct);
+        [nameOf(S.init.departments, e.department_id), nameOf(S.init.designations, e.designation_id), e.mobile, dmy(e.left_on)].forEach(function (v) { tr.appendChild(el('td', '', v || '–')); });
         var sg = el('td', 'sg'); sg.dataset.sg = e.id; sg.hidden = true; tr.appendChild(sg);
-        var td = el('td'); td.appendChild(el('span', 'st s-' + e.status, STATUS[e.status])); tr.appendChild(td);
+        var td = el('td'); td.appendChild(el('span', 'st s-' + e.status, STATUS[e.status])); tr.appendChild(td); var go = el('td', 'go', '→'); go.setAttribute('aria-hidden', 'true'); tr.appendChild(go);
         tr.onclick = function () { openEmp(e.id); }; tr.onkeydown = function (ev) { if (ev.key === 'Enter') openEmp(e.id); };
         tb.appendChild(tr);
       });
@@ -121,14 +122,22 @@
   function sites() { return S.init.sites.length ? S.init.sites : [{ code: S.me.site, name: S.me.siteName }]; }
   function siteName(code) { var x = sites().filter(function (y) { return y.code === code; })[0]; return x && x.name && x.name !== code ? x.name + ' (' + code + ')' : code; }
   // his attendance at a glance: work places, shift, phone, this month, today, what waits (asked apart – the page opens at once)
+  /* (13-11-2026, his Stitch screen 3) THE MONTH AS A STRIP: five counts and one square for each day of this month – the same
+   * codes as the muster (P, HD, A, leave, weekly off, holiday); today has a ring. */
+  function strip(a) {
+    var box = $('d_strip'); box.textContent = ''; if (!a.days || !a.days.length) return; var t = a.total, today = a.today && a.today.day ? a.today.day : '', kind = function (d) { var c = String(d.code || ''); return c === 'P' ? (d.late ? 'l' : 'p') : c === 'HD' ? 'l' : c === 'A' || c === 'MIS' ? 'a' : c === 'WO' || c === 'H' || c === 'HOL' ? 'o' : c ? 'v' : ''; };
+    var top = el('div', 'sp-top'); [['p', t.P, 'Present'], ['l', t.late, 'Late'], ['a', t.A, 'Absent'], ['l', t.HD, 'Half day'], ['o', t.paid, 'Paid days']].forEach(function (x) { var d = el('div', 'k-' + x[0]); d.appendChild(el('b', '', x[1])); d.appendChild(el('span', '', x[2])); top.appendChild(d); }); box.appendChild(top);
+    var g = el('div', 'sp-days'), now = new Date(Date.now() + 19800000).toISOString().slice(0, 10); a.days.forEach(function (d) { var c = el('div', (kind(d) ? 'k-' + kind(d) : '') + (d.day === (today || now) ? ' now' : '')); c.appendChild(el('b', '', +String(d.day).slice(8, 10))); c.appendChild(el('span', '', d.code || '–')); c.title = dmy(d.day) + (d.code ? ' – ' + d.code + (d.late ? ' (late)' : '') : ''); g.appendChild(c); }); box.appendChild(g);
+  }
   function aroundDraw(id, a) {
-    var dl = $('d_att'), lab = $('d_att_lab'); dl.textContent = ''; dl.hidden = true; lab.hidden = true;
+    var dl = $('d_att'), lab = $('d_att_lab'); dl.textContent = ''; dl.hidden = true; lab.hidden = true; $('d_strip').textContent = '';
     (function () {
       if (!a || !S.open || S.open.employee.id !== id) return; var t = a.total, d = a.today;
+      strip(a);
       row(dl, 'Work places', a.places.length ? a.places.map(function (p) { return p.name; }).join(', ') : 'None is set for him – he cannot mark attendance');
       row(dl, 'Shift', a.shift); row(dl, 'Phone', a.phone ? (a.phone.model || 'Phone') + (a.phone.os ? ' · ' + a.phone.os : '') + ' – since ' + dmy(String(a.phone.since).slice(0, 10)) : 'None tied yet');
       row(dl, 'Today', d && d.code ? d.code + (d.in ? ' · IN ' + d.in : '') + (d.out ? ' · OUT ' + d.out : '') : 'Nothing yet');
-      row(dl, 'This month', 'Present ' + t.P + ' · Half day ' + t.HD + ' · Absent ' + t.A + ' · Late ' + t.late + ' · Days ' + t.paid + (t.MIS ? ' · IN without OUT ' + t.MIS : ''));
+      if (!a.days || !a.days.length) row(dl, 'This month', 'Present ' + t.P + ' · Half day ' + t.HD + ' · Absent ' + t.A + ' · Late ' + t.late + ' · Days ' + t.paid + (t.MIS ? ' · IN without OUT ' + t.MIS : '')); else if (t.MIS) row(dl, 'IN without OUT', t.MIS);
       if (a.requests_waiting) row(dl, 'Requests waiting', a.requests_waiting);
       dl.hidden = false; lab.hidden = false;
     })();      // (no answer: attendance is not set up yet, or not his to see – the page stays as it is)
@@ -170,7 +179,7 @@
       } });
   }
   function drawEmp(r, full) {
-      var e = r.employee; S.open = r; $('d_title').textContent = e.name; $('d_code').textContent = e.code + ' · ' + (CAT[e.category] || ''); $('d_crumb').textContent = '› ' + e.name; var sgv = S.sgn && S.sgn.by[e.id], sgt = $('d_sg'); sgt.hidden = !sgv; if (sgv) { sgt.className = 'st ' + (sgv === 'has' ? 's-active' : sgv === 'off' ? 's-incomplete' : 's-left'); sgt.textContent = 'Sign-in: ' + (sgv === 'has' ? 'given' : sgv === 'off' ? 'switched off' : 'not given'); }
+      var e = r.employee; S.open = r; $('d_title').textContent = e.name; $('d_code').textContent = e.code + ' · ' + (CAT[e.category] || ''); var cp = $('d_chips'); cp.textContent = ''; [e.code, CAT[e.category] || '', nameOf(S.init.designations, e.designation_id), nameOf(S.init.departments, e.department_id)].forEach(function (v) { if (v) cp.appendChild(el('span', '', v)); }); cp.appendChild(el('span', 'site', siteName(e.site))); $('d_crumb').textContent = '› ' + e.name; var sgv = S.sgn && S.sgn.by[e.id], sgt = $('d_sg'); sgt.hidden = !sgv; if (sgv) { sgt.className = 'st ' + (sgv === 'has' ? 's-active' : sgv === 'off' ? 's-incomplete' : 's-left'); sgt.textContent = 'Sign-in: ' + (sgv === 'has' ? 'given' : sgv === 'off' ? 'switched off' : 'not given'); }
       var fc = $('d_face'), st = $('d_st'); fc.textContent = e.name.trim().split(/\s+/).map(function (w) { return w.charAt(0); }).slice(0, 2).join('').toUpperCase(); st.className = 'st ep-st s-' + e.status; st.textContent = STATUS[e.status]; pic(fc, S.photos && S.photos[e.id]);
       var dl = $('d_list'), dl2 = $('d_list2'); dl.textContent = ''; dl2.textContent = '';
       row(dl, 'Site', siteName(e.site)); row(dl, 'Designation', nameOf(S.init.designations, e.designation_id)); row(dl, 'Department', nameOf(S.init.departments, e.department_id));
@@ -241,7 +250,17 @@
     // his site: one of the sites where this person has HR; for an employee of today another site = a transfer from today (HR Admin)
     var fs = $('f_site'); fs.textContent = ''; sites().forEach(function (x) { var o = el('option', '', (x.name || x.code) + (x.name && x.name !== x.code ? ' (' + x.code + ')' : '')); o.value = x.code; fs.appendChild(o); }); fs.value = e.site || S.me.site; fs.disabled = !!e.id && !isAdmin();
     $('f_boss').value = boss ? boss.name + ' (' + boss.code + ')' : ''; $('f_boss').dataset.id = boss ? boss.id : ''; $('f_err').hidden = true;
-    hide('dlg_emp'); show('dlg_form'); $('f_name').focus();
+    hide('dlg_emp'); show('dlg_form'); step(1); $('f_name').focus();
+  }
+  /* (13-11-2026, his Stitch screen 4) THE FORM IN STEPS: its three parts (Who, Work, Contact) one at a time, their list on the left
+   * with a tick on a part that is filled. Nothing is saved between the steps – "Save" sends the whole form, as before. */
+  var STEPS = [['Who', 'name, category, date of birth', ['f_name', 'f_cat', 'f_dob']], ['Work', 'site, department, designation', ['f_site', 'f_dep', 'f_des', 'f_join']], ['Contact', 'mobile and e-mail', ['f_mobile', 'f_email']]];
+  function step(n) {
+    n = Math.max(1, Math.min(STEPS.length, n)); S.step = n; var done = 0, box = $('f_steps'); box.textContent = '';
+    Array.prototype.forEach.call(document.querySelectorAll('#f_form .fm-sec'), function (x) { x.hidden = +x.dataset.step !== n; });
+    STEPS.forEach(function (x, i) { var full = x[2].every(function (id) { return !!$(id).value; }); if (full) done++; var b = el('button', 'fm-st' + (i + 1 === n ? ' on' : '') + (full ? ' ok' : '')); b.type = 'button'; b.appendChild(el('i', '', full && i + 1 !== n ? '✓' : i + 1)); var t = el('span'); t.appendChild(el('b', '', (i + 1) + '. ' + x[0])); t.appendChild(el('small', '', x[1])); b.appendChild(t); b.onclick = function () { step(i + 1); }; if (i + 1 === n) b.setAttribute('aria-current', 'step'); box.appendChild(b); });
+    $('f_pct').textContent = Math.round(done * 100 / STEPS.length) + '% done'; $('f_stepno').textContent = 'Step ' + n + ' of ' + STEPS.length; $('f_stepname').textContent = n + '. ' + STEPS[n - 1][0];
+    var last = n === STEPS.length; $('f_next').hidden = last; $('f_next').textContent = last ? '' : 'Continue to ' + STEPS[n][0] + ' →'; $('f_next').onclick = function () { step(S.step + 1); var f = document.querySelector('#f_form .fm-sec:not([hidden]) input:not([disabled]), #f_form .fm-sec:not([hidden]) select'); if (f) f.focus(); }; $('f_save').className = last ? 'pri' : 'sec';
   }
   function pickBoss() {
     var inp = $('f_boss'), box = $('f_boss_list'); inp.dataset.id = '';
@@ -256,7 +275,7 @@
     api('empSave', { id: $('f_id').value, code: $('f_code').value, name: $('f_name').value, category: $('f_cat').value, gender: $('f_gender').value, mobile: $('f_mobile').value, email: $('f_email').value, dob: $('f_dob').value, joined_on: $('f_join').value, site: $('f_site').value,
       department_id: $('f_dep').value, designation_id: $('f_des').value, reports_to: $('f_boss').dataset.id }).then(function (r) {
       busy(b, false); b.textContent = bt0; hide('dlg_form'); S.pages = {}; if (window.HRPROF && window.HRPROF.saved) window.HRPROF.saved('Saved', r.code + ($('f_name').value ? ' · ' + $('f_name').value : '')); toast(r.code + ' saved' + (r.site && r.site !== S.me.site ? ' at ' + siteName(r.site) + ' – choose that site (top right) to see him' : '') + (r.missing.length ? ' – incomplete: ' + r.missing.join(', ') + ' still needed.' : '.')); list(); if ($('f_id').value && !(r.site && r.site !== S.me.site)) openEmp($('f_id').value);      // a change saved: back on his page
-    }, function (e) { busy(b, false); b.textContent = bt0; $('f_err').textContent = e.message; $('f_err').hidden = false; });
+    }, function (e) { busy(b, false); b.textContent = bt0; $('f_err').textContent = e.message; $('f_err').hidden = false; var m = String(e.message || ''), at = /^(Name|Category|Employee code|Code|Gender|Date of birth)/i.test(m) ? 1 : /^(Mobile|E-mail)/i.test(m) ? 3 : /^(Site|Department|Designation|Report|Active|Joining)/i.test(m) ? 2 : 0; if (at) step(at); });
   }
 
   // ---------- transfer, exit ----------
