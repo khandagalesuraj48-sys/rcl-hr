@@ -56,12 +56,12 @@
   var MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   function muster() {
     var root = $('p_mus'); root.textContent = '';
-    var top = el('div', 'dz-top'), tt = el('div'), sub = el('small', '', MON[+M.month.slice(5) - 1] + ' ' + M.month.slice(0, 4) + (M.me ? ' · ' + (M.me.siteName || M.me.site) : '')); tt.appendChild(el('h2', '', 'Muster · हजेरीपट')); tt.appendChild(sub); top.appendChild(tt);
+    var top = el('div', 'dz-top'), tt = el('div'), sub = el('small', '', MON[+M.month.slice(5) - 1] + ' ' + M.month.slice(0, 4) + (M.me ? ' · ' + (M.me.siteName || M.me.site) : '')); tt.appendChild(el('h2', '', 'Muster')); tt.appendChild(sub); top.appendChild(tt);
     var pills = el('div', 'dz-pills'), mo = inp('month', M.month, { 'aria-label': 'Month' }), cat = inp('select', null, { 'aria-label': 'Category' }); mo.className = 'dz-pill'; cat.className = 'dz-pill';
     opt(cat, '', 'All categories', !M.cat); Object.keys(CAT).forEach(function (k) { opt(cat, k, CAT[k], M.cat === k); });
     mo.onchange = function () { if (mo.value) { M.month = mo.value; M.sel = null; muster(); } }; cat.onchange = function () { M.cat = cat.value; M.sel = null; muster(); };
     var dlb = btn('dz-pill dark', 'Download (CSV)', function () { csv(); });
-    if (window.HRHEAD) window.HRHEAD.set('Muster · हजेरीपट', sub.textContent, [cat, mo, dlb]); else { pills.appendChild(cat); pills.appendChild(mo); pills.appendChild(dlb); top.appendChild(pills); root.appendChild(top); }
+    if (window.HRHEAD) window.HRHEAD.set('Muster', sub.textContent, [cat, mo, dlb]); else { pills.appendChild(cat); pills.appendChild(mo); pills.appendChild(dlb); top.appendChild(pills); root.appendChild(top); }
     var wrap = el('div', 'mz-wrap mz'), card = el('div', 'dz-card'), side = el('div', 'mz-side'); side.hidden = true; wrap.appendChild(card); wrap.appendChild(side); root.appendChild(wrap); M.wrap = wrap; M.side = side;
     api('muster', { month: M.month, category: M.cat }).then(function (r) {
       M.data = r; var free = function (d) { return r.week_off.indexOf(new Date(d + 'T00:00:00Z').getUTCDay()) > -1 || r.holidays.some(function (h) { return h.day === d; }); };
@@ -116,7 +116,7 @@
     });
     if (!r.punches.length) b.appendChild(el('p', 'muted', 'No punch on this day.'));
     r.requests.filter(function (q) { return q.status === 'pending'; }).forEach(function (q) {
-      var c = el('div', 'mz-req'); c.appendChild(el('b', '', 'Request waiting · विनंती बाकी')); c.appendChild(el('p', '', 'IN ' + (q.in_time || '–') + ' · OUT ' + (q.out_time || '–') + ' – "' + q.reason + '"'));
+      var c = el('div', 'mz-req'); c.appendChild(el('b', '', 'Request waiting')); c.appendChild(el('p', '', 'IN ' + (q.in_time || '–') + ' · OUT ' + (q.out_time || '–') + ' – "' + q.reason + '"'));
       if (q.level === 1 && role() !== 'super') c.appendChild(el('small', '', 'It still waits for the reporting person.'));
       else if (may('regularize')) {
         var note = inp('text', '', { maxlength: 200, placeholder: 'Why it is refused', 'aria-label': 'Why it is refused' }); note.hidden = true; c.appendChild(note);

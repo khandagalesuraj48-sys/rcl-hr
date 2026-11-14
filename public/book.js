@@ -52,7 +52,7 @@
   function load() { api('rbList').then(function (r) { V.data = r; draw(); }, function (e) { var root = $('p_book'); root.textContent = ''; root.appendChild(el('p', 'none', e && e.message ? e.message : 'HR did not answer – try again.')); }); }
   function draw() {
     var r = V.data, root = $('p_book'); root.textContent = '';
-    if (window.HRHEAD && !root.hidden) window.HRHEAD.set('Rule Book · नियम पुस्तक', 'Every policy of attendance, leave, weekly off, comp-off and overtime – with its date, who verifies and who approves, and for whom it counts.', r && r.ready && r.can.make ? [btn('st-btn red', '+ New policy', function () { form(null); })] : []);
+    if (window.HRHEAD && !root.hidden) window.HRHEAD.set('Rule Book', 'Every policy of attendance, leave, weekly off, comp-off and overtime – with its date, who verifies and who approves, and for whom it counts.', r && r.ready && r.can.make ? [btn('st-btn red', '+ New policy', function () { form(null); })] : []);
     if (!r.ready) { var n = el('div', 'rb-off'); n.appendChild(el('b', '', 'The Rule Book is not set up yet')); n.appendChild(el('p', '', r.note || '')); n.appendChild(el('p', 'muted', 'Until then attendance, leave and pay go on exactly as they do today.')); root.appendChild(n); return; }
     var wrap = el('div', 'rb'), side = el('aside', 'rb-side'), main = el('div', 'rb-main');
     r.kinds.forEach(function (k) {
@@ -195,7 +195,7 @@
   }
   function approvals() {
     var root = $('p_book'); root.textContent = '';
-    if (window.HRHEAD && !root.hidden) window.HRHEAD.set('Approvals · मंजुरी', 'Overtime, comp-off and extra leave count only after they are verified and approved – by whom each policy says.', []);
+    if (window.HRHEAD && !root.hidden) window.HRHEAD.set('Approvals', 'Overtime, comp-off and extra leave count only after they are verified and approved – by whom each policy says.', []);
     var tabs = el('div', 'rb-tabs'); [['asks', 'Requests'], ['extras', 'Overtime & comp-off of the month'], ['bulk', 'Bulk attendance correction'], ['opening', 'Opening leave balance']].forEach(function (x) { tabs.appendChild(btn(A.view === x[0] ? 'on' : '', x[1], function () { A.view = x[0]; approvals(); })); }); root.appendChild(tabs);
     var body = el('div'); root.appendChild(body); if (A.view === 'extras') extras(body); else if (A.view === 'bulk') bulk(body); else if (A.view === 'opening') opening(body); else asks(body);
   }
@@ -218,7 +218,7 @@
         }
         tr.appendChild(a); tb.appendChild(tr);
       });
-      root.appendChild(box); if (!r.rows.length) root.appendChild(el('p', 'none', A.status === 'pending' ? 'Nothing waits. · काही बाकी नाही.' : 'Nothing here.'));
+      root.appendChild(box); if (!r.rows.length) root.appendChild(el('p', 'none', A.status === 'pending' ? 'Nothing waits.' : 'Nothing here.'));
     }, fail);
   }
   function extras(root) {
@@ -397,7 +397,7 @@
     ledger: ledger,
     pages: [['rulebook', 'Rule Book'], ['approvals', 'Approvals']],
     has: function (page) { return page === 'rulebook' || page === 'approvals'; },
-    open: function (page, me) { V.me = me; var root = $('p_book'); if (page === 'approvals') { root.textContent = ''; root.appendChild(el('p', 'none', 'Opening… · उघडत आहे…')); if (!V.data) api('rbList').then(function (r) { V.data = r; approvals(); }, function () { V.data = { roles: [], policies: [] }; approvals(); }); else approvals(); return; } if (window.HRHEAD) window.HRHEAD.set('Rule Book · नियम पुस्तक', 'Every policy of attendance, leave, weekly off, comp-off and overtime.', []); if (!V.data) { root.textContent = ''; root.appendChild(el('p', 'none', 'Opening… · उघडत आहे…')); } else draw(); load(); },
+    open: function (page, me) { V.me = me; var root = $('p_book'); if (page === 'approvals') { root.textContent = ''; root.appendChild(el('p', 'none', 'Opening…')); if (!V.data) api('rbList').then(function (r) { V.data = r; approvals(); }, function () { V.data = { roles: [], policies: [] }; approvals(); }); else approvals(); return; } if (window.HRHEAD) window.HRHEAD.set('Rule Book', 'Every policy of attendance, leave, weekly off, comp-off and overtime.', []); if (!V.data) { root.textContent = ''; root.appendChild(el('p', 'none', 'Opening…')); } else draw(); load(); },
     _lines: lines
   };
 })();
