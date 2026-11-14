@@ -12,6 +12,11 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
 * `public/index.html` – signs in through the Portal (inside Mechanical's screen: a ticket asked from the Portal; by itself: the
   Portal's `#sso=`), then says who is signed in. The pages of HR come phase by phase.
 * `api/menu.js` – the module's pages for Mechanical's dark menu (one page: Home).
+* **The language of the web** (14-11-2026) – `public/i18n.js`, `public/i18n/mr.json`, `hi.json`, `lib/lang.js`: the page's code is English;
+  the web shows English until the person chooses मराठी / हिंदी on top (next to the site). His own choice, kept with his sign-in (one
+  row of `hr_settings`: site `*`, key `web_lang` – no SQL step); the phone app is not touched. Every text is turned as it appears;
+  a text without a translation stays English. After new texts: `node tools/i18n/extract.js` (it prints how many have no
+  translation yet), then add them to both files.
 * `api/backup-export.js`, `lib/bkexport.js` – (14-11-2026) HR's data for the Google Sheet backup: only for Mechanical's backup, with
   `BACKUP_EXPORT_SECRET`. Every table of every site goes into HR's own Sheets (Portal → Sites → HR backup) – not the sign-ins,
   not the used tickets; the face numbers go as "(hidden)"; a photo or a paper is a file – the Sheet holds its place only.

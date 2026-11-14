@@ -65,7 +65,7 @@
     else {
       d = el('div', 'dlg'); s = el('div', 'sheet wide pf'); s.setAttribute('role', 'dialog'); s.setAttribute('aria-modal', 'true'); d.appendChild(s); document.body.appendChild(d);
       var key = function (ev) { if (ev.key === 'Escape') close(); }; close = function () { document.removeEventListener('keydown', key); if (d.parentNode) d.parentNode.removeChild(d); if (done) done(); };
-      document.addEventListener('keydown', key); s.appendChild(el('p', 'none', 'Opening… · उघडत आहे…'));
+      document.addEventListener('keydown', key); s.appendChild(el('p', 'none', 'Opening…'));
     }
     var draw = function (r) {
       P.data = r; s.textContent = ''; var e = r.employee, L = r.lists;
@@ -121,7 +121,7 @@
     var root = $('p_prof'); root.textContent = '';
     api('listAll').then(function (r) {
       P.lists = r; root.textContent = ''; var wrap = el('div', 'pf-two'), c1 = el('div', 'dz-card'), c2 = el('div', 'dz-card');
-      c1.appendChild(el('h3', '', 'The lists of the profile · याद्या')); var sel = el('select', 'dz-pill'); sel.setAttribute('aria-label', 'List'); r.kinds.forEach(function (k) { var o = el('option', '', k.name + ' (' + r.lists[k.key].length + ')'); o.value = k.key; sel.appendChild(o); }); sel.value = P.kind; sel.onchange = function () { P.kind = sel.value; lists(); }; c1.appendChild(sel);
+      c1.appendChild(el('h3', '', 'The lists of the profile')); var sel = el('select', 'dz-pill'); sel.setAttribute('aria-label', 'List'); r.kinds.forEach(function (k) { var o = el('option', '', k.name + ' (' + r.lists[k.key].length + ')'); o.value = k.key; sel.appendChild(o); }); sel.value = P.kind; sel.onchange = function () { P.kind = sel.value; lists(); }; c1.appendChild(sel);
       var ul = el('ul', 'mrows'); ul.style.marginTop = '10px';
       r.lists[P.kind].forEach(function (x) {
         var li = el('li', x.active ? '' : 'off'), i = el('input'); i.value = x.name; i.maxLength = 60; i.setAttribute('aria-label', 'Name'); i.disabled = !r.can; li.appendChild(i);
@@ -130,7 +130,7 @@
       });
       if (!r.lists[P.kind].length) ul.appendChild(el('li', 'off', 'Nothing in this list yet.')); c1.appendChild(ul);
       if (r.can) { var t = el('div', 'tools'), ni = el('input'); ni.maxLength = 60; ni.placeholder = 'New value – its name'; ni.setAttribute('aria-label', 'New value'); t.style.marginTop = '10px'; var add = function () { api('listSave', { kind: P.kind, name: ni.value }).then(function () { toast('Added.'); lists(); }, fail); }; ni.onkeydown = function (ev) { if (ev.key === 'Enter') add(); }; t.appendChild(ni); t.appendChild(btn('pri', '+ Add', add)); c1.appendChild(t); }
-      c2.appendChild(el('h3', '', 'Compulsory for "profile complete" · आवश्यक माहिती')); c2.appendChild(el('p', 'muted', 'Tick the details every employee of this site must have. A missing one is shown on his profile. Nothing is blocked by it.'));
+      c2.appendChild(el('h3', '', 'Compulsory for "profile complete"')); c2.appendChild(el('p', 'muted', 'Tick the details every employee of this site must have. A missing one is shown on his profile. Nothing is blocked by it.'));
       var boxes = [], grp = ''; r.items.forEach(function (it) { if (it.group !== grp) { grp = it.group; c2.appendChild(el('label', 'pf-g', grp)); } var l = el('label', 'ck'), c = el('input'); c.type = 'checkbox'; c.checked = r.required.indexOf(it.key) > -1; c.disabled = !r.can; c.value = it.key; boxes.push(c); l.appendChild(c); l.appendChild(document.createTextNode(' ' + it.label)); c2.appendChild(l); });
       if (r.can) { var a = el('div', 'acts'); a.style.justifyContent = 'flex-start'; a.appendChild(btn('pri', 'Save what is compulsory', function () { api('profRequiredSave', { keys: boxes.filter(function (c) { return c.checked; }).map(function (c) { return c.value; }) }).then(function () { toast('Saved.'); lists(); }, fail); })); c2.appendChild(a); }
       wrap.appendChild(c1); wrap.appendChild(c2); root.appendChild(wrap);

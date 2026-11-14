@@ -53,7 +53,7 @@
     var live = btn('dz-pill dz-live', 'Live · ' + r.now, function () { load(false); }); live.title = 'Asked again every minute – press to ask now';
     /* (13-11-2026, his Stitch screens: "same as it is") the head: the name, "Live", and on the right the two things done most */
     var mark = btn('st-btn', 'Mark attendance', function () { Z.go('attendance'); }), add = btn('st-btn red', '+ Add employee', function () { Z.go('employees'); var b = $('b_add'); if (b && !b.hidden && !b.disabled) b.click(); });
-    if (window.HRHEAD && !$('p_dash').hidden) window.HRHEAD.set('HR Dashboard · हजेरी', 'Who is at work right now, today’s count and what waits for the office.', [live, mark, add]);
+    if (window.HRHEAD && !$('p_dash').hidden) window.HRHEAD.set('HR Dashboard', 'Who is at work right now, today’s count and what waits for the office.', [live, mark, add]);
     root.appendChild(quick());      // (13-11-2026, asked: "quick action khali nahi re warti astat") the quick ways are the first row
     var ra = el('div', 'dk-r a'); ra.appendChild(hero(r)); ra.appendChild(ring(r)); root.appendChild(ra);
     var rb = el('div', 'dk-r b'); rb.appendChild(who(r)); rb.appendChild(week(r)); rb.appendChild(coming()); root.appendChild(rb);
@@ -69,10 +69,10 @@
     var bits = [c.on + ' of ' + c.total + ' on duty right now']; if (open) bits.push(open + ' not marked yet'); if (c.first_in) bits.push('first IN ' + c.first_in); if (r.arc.shift) bits.push('shift ' + r.arc.shift);
     top.appendChild(el('p', '', bits.join(' · ') + '.')); h.appendChild(top);
     var row = el('div', 'st-hk');
-    [['Present · हजर', c.present, pct(c.present, c.total) ? pct(c.present, c.total) + ' of the site' : c.out + ' already out', 'attendance'],
-      ['Late · उशीर', c.late, r.arc.shift ? 'after shift ' + r.arc.shift : 'today', 'attendance'],
-      ['Absent · गैरहजर', ab, 'Yesterday: ' + c.absent_yesterday, 'muster'],
-      ['On leave · रजा', lv, c.off ? c.off + ' off today' : 'today', 'leave']].forEach(function (x) {
+    [['Present', c.present, pct(c.present, c.total) ? pct(c.present, c.total) + ' of the site' : c.out + ' already out', 'attendance'],
+      ['Late', c.late, r.arc.shift ? 'after shift ' + r.arc.shift : 'today', 'attendance'],
+      ['Absent', ab, 'Yesterday: ' + c.absent_yesterday, 'muster'],
+      ['On leave', lv, c.off ? c.off + ' off today' : 'today', 'leave']].forEach(function (x) {
       var k = btn('', '', function () { Z.go(x[3]); }); k.appendChild(el('small', '', x[0])); k.appendChild(el('b', '', x[1])); k.appendChild(el('span', '', x[2])); row.appendChild(k);
     });
     h.appendChild(row); return h;
@@ -90,7 +90,7 @@
   }
   // today's roll call: one ring of who came, and each category below it – counted from the same list as "Who is in"
   function ring(r) {
-    var c = r.count, cd = card('Today’s roll call · आजची हजेरी', c.present + ' of ' + c.total), w = el('div', 'st-roll'), R = 58, C = 2 * Math.PI * R, part = c.total ? c.present / c.total : 0;
+    var c = r.count, cd = card('Today’s roll call', c.present + ' of ' + c.total), w = el('div', 'st-roll'), R = 58, C = 2 * Math.PI * R, part = c.total ? c.present / c.total : 0;
     var s = sv('svg', { viewBox: '0 0 150 150', role: 'img', 'aria-label': 'Present today: ' + (pct(c.present, c.total) || '0%') }); s.appendChild(sv('circle', { cx: 75, cy: 75, r: R, fill: 'none', stroke: '#F3F4F6', 'stroke-width': 13 }));
     if (part > 0) s.appendChild(sv('circle', { cx: 75, cy: 75, r: R, fill: 'none', stroke: '#D2001A', 'stroke-width': 13, 'stroke-linecap': 'round', transform: 'rotate(-90 75 75)', 'stroke-dasharray': (part * C).toFixed(2) + ' ' + C.toFixed(2) }));
     s.appendChild(sv('text', { x: 75, y: 76, 'text-anchor': 'middle', 'font-size': 26, 'font-weight': 700, fill: '#1A1A1A' }, pct(c.present, c.total) || '–')); s.appendChild(sv('text', { x: 75, y: 95, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 600, 'letter-spacing': '.6', fill: '#6B7280' }, 'PRESENT')); w.appendChild(s);
@@ -128,7 +128,7 @@
     return el('span', 'dz-chip s', 'Not marked');
   }
   function who(r) {
-    var n = r.who.length, c = card('Who is in now · आत्ता कोण कामावर', n > SHOW ? (Z.all ? 'Show less' : 'See all ' + n) : '', function () { Z.all = !Z.all; draw(); }), wrap = el('div', 'dz-scroll st-who' + (Z.all ? ' all' : ''));
+    var n = r.who.length, c = card('Who is in now', n > SHOW ? (Z.all ? 'Show less' : 'See all ' + n) : '', function () { Z.all = !Z.all; draw(); }), wrap = el('div', 'dz-scroll st-who' + (Z.all ? ' all' : ''));
     (Z.all ? r.who : r.who.slice(0, SHOW)).forEach(function (w, i) {
       var row = el('div', 'st-w'), av = el('span', 'dz-av', initials(w.name)), bx = el('div', 'st-wn'), nm = el('b', '', w.name); av.style.background = tintOf(w.id); row.appendChild(av);
       if (CAT[w.category]) nm.appendChild(el('em', 'c-' + w.category, CAT[w.category])); bx.appendChild(nm); bx.appendChild(el('small', '', w.code + (w.place ? ' · ' + w.place : ''))); row.appendChild(bx);
@@ -138,14 +138,14 @@
     c.appendChild(wrap); if (!n) c.appendChild(el('p', 'none', 'Nobody here yet.')); return c;
   }
   function places(r) {
-    var c = card('Work places · जागेनुसार', r.count.on ? r.count.on + ' on duty' : '', function () { Z.go('places'); }), max = Math.max.apply(null, r.places.map(function (p) { return p.on; }).concat([1]));
+    var c = card('Work places', r.count.on ? r.count.on + ' on duty' : '', function () { Z.go('places'); }), max = Math.max.apply(null, r.places.map(function (p) { return p.on; }).concat([1]));
     r.places.slice(0, 8).forEach(function (p) { var row = el('div', 'st-pl'), t = el('p'); t.appendChild(el('b', '', p.name)); t.appendChild(el('span', '', p.on + ' on duty')); row.appendChild(t); var tr = el('u'), f = el('s'); f.style.width = Math.max(4, Math.round(p.on * 100 / max)) + '%'; tr.appendChild(f); row.appendChild(tr); c.appendChild(row); });
     if (!r.places.length) c.appendChild(el('p', 'none', 'Nobody is at a work place right now.')); return c;
   }
   function week(r) {
     var days = r.week.map(function (d) { var all = d.P + d.HD + d.A; return { day: d.day, all: all, part: all ? (d.P + d.HD) / all : null, d: d }; }), had = days.filter(function (d) { return d.part !== null; });
     var avg = had.length ? Math.round(had.reduce(function (a, d) { return a + d.part; }, 0) * 1000 / had.length) / 10 + '%' : '';
-    var c = card('This week · हा आठवडा', 'Muster', function () { Z.go('muster'); }); if (avg) c.appendChild(el('p', 'st-sub', 'Present of those marked – average ' + avg));
+    var c = card('This week', 'Muster', function () { Z.go('muster'); }); if (avg) c.appendChild(el('p', 'st-sub', 'Present of those marked – average ' + avg));
     var W = 420, H = 150, x0 = 24, x1 = 396, top = 18, base = 128, n = days.length, xOf = function (i) { return n > 1 ? x0 + i * (x1 - x0) / (n - 1) : (x0 + x1) / 2; }, yOf = function (v) { return base - v * (base - top); };
     var s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, 'class': 'st-line', role: 'img', 'aria-label': 'Share present, day by day' });
     [0, 0.5, 1].forEach(function (v) { s.appendChild(sv('line', { x1: x0, y1: yOf(v), x2: x1, y2: yOf(v), stroke: '#ECECEE', 'stroke-width': 1 })); });
@@ -159,14 +159,14 @@
   /* (12-11-2026) what comes up on this site: papers whose date runs out (30 days, or run out already), birthdays and years at work
    * of the coming week – read on its own, so the dashboard does not wait for it */
   function coming() {
-    var c = card('Coming up · पुढे येणारे', ''); var box = el('div'); box.appendChild(el('p', 'none', 'Reading…')); c.appendChild(box);
+    var c = card('Coming up', ''); var box = el('div'); box.appendChild(el('p', 'none', 'Reading…')); c.appendChild(box);
     var dm = function (d) { return String(d).slice(8, 10) + '-' + String(d).slice(5, 7); }, line = function (cls, n, title, sub) { var d = el('div', 'st-need ' + cls); d.appendChild(el('span', 'n', n)); var t = el('div'); t.appendChild(el('b', '', title)); t.appendChild(el('small', '', sub)); d.appendChild(t); return d; };
     window.HRAPI('api/hr', { action: 'hrComing' }).then(function (r) {
       box.textContent = '';
       r.papers.slice(0, 8).forEach(function (p) { box.appendChild(line(p.left < 0 ? 'r' : 'y', p.left < 0 ? '!' : p.left, p.name + ' – ' + p.paper, p.left < 0 ? 'ran out on ' + dm(p.expires_on) + '-' + String(p.expires_on).slice(0, 4) : p.left === 0 ? 'runs out today' : 'runs out in ' + p.left + (p.left === 1 ? ' day' : ' days') + ' (' + dm(p.expires_on) + ')')); });
       if (r.papers.length > 8) box.appendChild(el('p', 'muted', '+ ' + (r.papers.length - 8) + ' more papers'));
       r.days.slice(0, 8).forEach(function (d) { box.appendChild(line(d.what === 'birthday' ? 'v' : 'b', d.in === 0 ? '★' : d.in, d.name, (d.what === 'birthday' ? 'Birthday' : d.years + (d.years === 1 ? ' year' : ' years') + ' with us') + ' – ' + (d.in === 0 ? 'today' : d.in === 1 ? 'tomorrow' : 'on ' + dm(d.day)))); });
-      if (!r.papers.length && !r.days.length) box.appendChild(el('p', 'none', 'Nothing in the coming days. · पुढच्या दिवसांत काही नाही.'));
+      if (!r.papers.length && !r.days.length) box.appendChild(el('p', 'none', 'Nothing in the coming days.'));
     }, function () { box.textContent = ''; box.appendChild(el('p', 'none', 'Could not be read – open the page again.')); });
     return c;
   }
@@ -176,17 +176,17 @@
       [n.review, 'b', 'Punches to check', 'taken with no network – clock or place in doubt', 'Check', 'attendance'],
       [n.phones, 'r', 'Another phone', 'tried with a phone that is not theirs – last 7 days', 'Open', 'phones'],
       [n.no_phone, 'v', 'No phone – by hand', 'not marked today and no phone tied – enter in the muster', 'Enter', 'muster']].filter(function (x) { return x[0] > 0; });
-    var total = rows.reduce(function (a, x) { return a + x[0]; }, 0), c = card('Needs your attention · तुमच्याकडे बाकी', total ? total + (total === 1 ? ' item' : ' items') : '');
+    var total = rows.reduce(function (a, x) { return a + x[0]; }, 0), c = card('Needs your attention', total ? total + (total === 1 ? ' item' : ' items') : '');
     rows.forEach(function (x) { var d = el('div', 'st-need line ' + x[1]); d.appendChild(el('span', 'n', x[0])); var t = el('div'); t.appendChild(el('b', '', x[2])); t.appendChild(el('small', '', x[3])); d.appendChild(t); d.appendChild(btn('st-go', x[4] + ' →', function () { Z.go(x[5]); })); c.appendChild(d); });
-    if (!rows.length) c.appendChild(el('p', 'none', 'Nothing waits for you. · काही बाकी नाही.')); return c;
+    if (!rows.length) c.appendChild(el('p', 'none', 'Nothing waits for you.')); return c;
   }
 
   window.HRDASH = {
     pages: [['dashboard', 'Dashboard']],
     has: function (page) { return page === 'dashboard'; },
     open: function (me, go) {
-      Z.me = me; Z.go = go; if (window.HRHEAD) window.HRHEAD.set('HR Dashboard · हजेरी', 'Who is at work right now, today’s count and what waits for the office.', []);
-      if (!Z.data) { var root = $('p_dash'); root.textContent = ''; root.appendChild(el('p', 'none', 'Opening… · उघडत आहे…')); } else draw();
+      Z.me = me; Z.go = go; if (window.HRHEAD) window.HRHEAD.set('HR Dashboard', 'Who is at work right now, today’s count and what waits for the office.', []);
+      if (!Z.data) { var root = $('p_dash'); root.textContent = ''; root.appendChild(el('p', 'none', 'Opening…')); } else draw();
       load(true); clearInterval(Z.timer);
       Z.timer = setInterval(function () { if ($('p_dash').hidden) { clearInterval(Z.timer); return; } if (!document.hidden) load(false); }, 60000);
     },

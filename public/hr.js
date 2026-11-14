@@ -19,9 +19,9 @@
 
   // ---------- the frame of the pages ----------
   function face(td, key) { if (window.HRDASH && window.HRDASH.face) td.insertBefore(window.HRDASH.face(td.textContent, key), td.firstChild); return td; }      // the letters of his name before it
-  var PAGE_HEAD = { employees: ['Employees · कर्मचारी', 'The Employee Master of this site – press a person to open his page.'], attendance: ['Attendance · आजची हजेरी', 'Every punch of a day as it was taken – and the doubtful ones to be looked at.'], places: ['Work places · कामाच्या जागा', 'Where attendance can be marked: the place, how many metres, for whom.'],
-    phones: ['Phones · फोन', 'One phone a person – only attendance is tied to it.'], requests: ['Requests · विनंत्या', 'People ask to set an old day right – it counts only when approved.'], rules: ['Shifts & rules · शिफ्ट व नियम', 'Shifts, holidays and the rules of the muster – each with its date.'],
-    departments: ['Departments & designations · विभाग व पदे', 'The two lists offered in an employee\'s form – a designation says its category.'], designations: ['Departments & designations · विभाग व पदे', ''], leave: ['Leave · रजा', 'Requests to decide, everybody\'s balance, and the site\'s leave policy.'], payroll: ['Payroll · पगार', 'The HO HR makes a month\'s pay from the approved attendance and the approved salaries – then locks it.'], month: ['Month verification · महिन्याची पडताळणी', 'After the month ends: the site\'s HR verifies each person\'s days, the HO HR approves the month.'], lists: ['Lists · याद्या', 'Every pick-list of the profile, and which details are compulsory – yours to change.'] };
+  var PAGE_HEAD = { employees: ['Employees', 'The Employee Master of this site – press a person to open his page.'], attendance: ['Attendance', 'Every punch of a day as it was taken – and the doubtful ones to be looked at.'], places: ['Work places', 'Where attendance can be marked: the place, how many metres, for whom.'],
+    phones: ['Phones', 'One phone a person – only attendance is tied to it.'], requests: ['Requests', 'People ask to set an old day right – it counts only when approved.'], rules: ['Shifts & rules', 'Shifts, holidays and the rules of the muster – each with its date.'],
+    departments: ['Departments & designations', 'The two lists offered in an employee\'s form – a designation says its category.'], designations: ['Departments & designations', ''], leave: ['Leave', 'Requests to decide, everybody\'s balance, and the site\'s leave policy.'], payroll: ['Payroll', 'The HO HR makes a month\'s pay from the approved attendance and the approved salaries – then locks it.'], month: ['Month verification', 'After the month ends: the site\'s HR verifies each person\'s days, the HO HR approves the month.'], lists: ['Lists', 'Every pick-list of the profile, and which details are compulsory – yours to change.'] };
   /* (13-11-2026, the pictures he approved: "all approved aahe … ctrl k thew") THE MENU: the same pages as before, now down the left
    * side in three groups (in Mechanical's screen and on a narrow screen: the row of buttons as before). A page shows a count
    * beside its name when the dashboard knows of work waiting there (HRBADGE). The list is also what Ctrl K searches. */
@@ -499,7 +499,7 @@
       c.appendChild(ul); if (!rows.length) c.appendChild(el('p', 'none', list.length ? 'Nothing matches.' : 'Nothing in this list yet.')); return c;
     }
     function catPick(v) { var c = el('select'); c.setAttribute('aria-label', 'Category'); Object.keys(CAT).forEach(function (k) { var o = el('option', '', CAT[k]); o.value = k; c.appendChild(o); }); c.value = v; return c; }
-    function draw() { two.textContent = ''; two.appendChild(card('department', 'Departments · विभाग', S.init.departments)); two.appendChild(card('designation', 'Designations · पदे', S.init.designations)); }
+    function draw() { two.textContent = ''; two.appendChild(card('department', 'Departments', S.init.departments)); two.appendChild(card('designation', 'Designations', S.init.designations)); }
     draw();
   }
 

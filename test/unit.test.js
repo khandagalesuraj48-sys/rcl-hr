@@ -183,7 +183,7 @@ test('the actions: every one asks the sign-in first; the Admin\'s ones are refus
   assert.deepStrictEqual(Object.keys(ACT), ['init', 'masterSave', 'empList', 'empGet', 'empPick', 'empSave', 'empTransfer', 'empExit', 'empDelete', 'empExport', 'privGet', 'privSave', 'docList', 'docUploadUrl', 'docAdd', 'docLink', 'empPhotos', 'docRemove', 'signinPeople', 'signinLinked', 'empImport',
     'placeList', 'projSave', 'placeSave', 'placeBulk', 'placeImport', 'placeRemove', 'placeMap', 'placePeople', 'placePerson', 'placeGuest', 'devList', 'devRelease', 'punchDay', 'punchSelfie', 'punchReview', 'myAttend', 'selfieUrl', 'punch',
     'attSetup', 'shiftSave', 'shiftRemove', 'holidaySave', 'holidayRemove', 'rulesSave', 'powerSet', 'muster', 'empAround', 'dayGet', 'daySet', 'regList', 'regDecide', 'myMonth', 'regAsk', 'myRegs', 'teamRegs', 'teamRegDecide', 'attDash', 'profGet', 'profSave', 'profRowSave', 'profRowRemove', 'listAll', 'listSave', 'profRequiredSave', 'myLeave', 'leaveAsk', 'leaveCancel', 'teamLeaves', 'teamLeaveDecide', 'leaveList', 'leaveDecide', 'leaveBalances', 'leaveAdjust', 'leavePolicy', 'leavePolicySave', 'monthList', 'monthVerify', 'monthReturn', 'monthApprove', 'monthReopen', 'monthSites', 'hoList', 'hoSet', 'salaryGet', 'salaryAsk', 'salaryWaiting', 'salaryDecide', 'payList', 'payFlags', 'payAdjust', 'payLock', 'paySettings', 'paySettingsSave', 'advList', 'advGive', 'advClose', 'mySlips', 'hrComing', 'paySlipOf', 'payBank', 'sheetCols', 'sheetImport', 'sheetExport', 'masterDelete', 'masterSeed', 'empPage',
-    'rbList', 'rbSave', 'rbClose', 'rbDelete', 'rbDefault', 'rbAssign', 'rbPeople', 'rbOf', 'rbDayOff', 'askList', 'askDecide', 'extraFind', 'extraAsk', 'leaveOpening', 'leaveCreditAsk', 'leaveLedger', 'attImport', 'attImports', 'myLeaveFiles', 'myLeaveFileUrl', 'myLeaveFileAdd', 'myLeaveFileLink', 'myLeaveFileRemove', 'leaveFiles', 'leaveFileUrl', 'leaveFileAdd', 'leaveFileLink', 'leaveFileRemove', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
+    'rbList', 'rbSave', 'rbClose', 'rbDelete', 'rbDefault', 'rbAssign', 'rbPeople', 'rbOf', 'rbDayOff', 'askList', 'askDecide', 'extraFind', 'extraAsk', 'leaveOpening', 'leaveCreditAsk', 'leaveLedger', 'attImport', 'attImports', 'myLeaveFiles', 'myLeaveFileUrl', 'myLeaveFileAdd', 'myLeaveFileLink', 'myLeaveFileRemove', 'leaveFiles', 'leaveFileUrl', 'leaveFileAdd', 'leaveFileLink', 'leaveFileRemove', 'langSet', 'myHr', 'myDocs', 'myDocUploadUrl', 'myDocAdd', 'myDocLink']);
   assert.match(src, /const s = ses\.as\(await ses\.need\(req\), x\.as_site\), att = [^\n]+\n[^\n]+\n[^\n]+\n  if \(s\.role === 'self' && SELF\.indexOf\(String\(x\.action\)\) < 0\) throw fail\(403, 'This is for the HR office only\.', 'role'\);\n  try \{ send\(res, 200, Object\.assign\(\{ ok: true \}, await fn\(s, x\)\)\); \}/);
   for (const a of ['masterSave', 'empTransfer', 'empExit', 'empDelete', 'docRemove']) assert.match(String(ACT[a]), /needAdmin\(s\)/, a);
   // (12-11-2026) ONE action deletes: empDelete – an employee added by mistake, after the check that nothing hangs on him, with the reason, written in the audit
@@ -962,4 +962,53 @@ test('the backup export (Mechanical update-243): only with the secret; every sit
   assert.deepStrictEqual(Object.keys(T).filter(t => T[t].hide || T[t].cols), ['hr_faces']); assert.deepStrictEqual(T.hr_faces.hide, ['descriptors']);
   assert.ok(Object.keys(T).every(t => T[t].title && T[t].title.length <= 60 && /^[a-z_]+(,[a-z_]+)*$/.test(T[t].key)));
   assert.strictEqual(new Set(Object.keys(T).map(t => T[t].title)).size, Object.keys(T).length, 'every tab has its own name');
+});
+
+test('the language of the HR web (14-11-2026): English until the person chooses; the picker on top; his own choice kept with his sign-in; the words files are sound', async () => {
+  const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8'), eng = fs.readFileSync(path.join(root, 'public', 'i18n.js'), 'utf8');
+  // English is what the page's own code says: no label carries a second language any more (the three-language notices before the sign-in stay)
+  for (const f of fs.readdirSync(path.join(root, 'public')).filter(x => /\.js$/.test(x) && x !== 'i18n.js')) {
+    const bad = fs.readFileSync(path.join(root, 'public', f), 'utf8').split('\n').filter(l => /'[^']* · [ऀ-ॿ][^'·]*'/.test(l) && !/[ऀ-ॿ][^']* · [^']*[ऀ-ॿ]/.test(l));
+    assert.deepStrictEqual(bad.map(l => l.trim().slice(0, 80)), [], f + ': a label with Marathi in it – the words belong in public/i18n/mr.json');
+  }
+  assert.ok(!/>[^<>]* · [ऀ-ॿ][^<>·]*</.test(html.replace(/<script[\s\S]*?<\/script>/g, '')), 'the page\'s markup is English');
+  // the picker: on top next to the site, never turned itself, hidden inside "All sites" and for "My HR"
+  assert.match(html, /<select id="site_pick"[^>]*><\/select><select id="lang_pick" class="dz-pill" data-noi18n [^>]*hidden><option value="en">English<\/option><option value="mr">मराठी<\/option><option value="hi">हिंदी<\/option><\/select>/);
+  assert.match(html, /sel\.hidden = !!AS \|\| me\.user\.role === 'self'; L\.set\(cur\);/);
+  assert.ok(/api\('api\/hr', \{ action: 'langSet', lang: v \}\)\.then\(function \(\) \{/.test(html) && html.indexOf('location.reload(); },', html.indexOf("action: 'langSet'")) > -1, 'saved with the person first, then the page opens again in it');
+  assert.ok(html.indexOf('<script src="i18n.js"></script>') > -1 && html.indexOf('<script src="i18n.js"></script>') < html.indexOf('<script src="dash.js"></script>'));
+  assert.match(eng, /var SKIP = 'script, style, textarea, code, pre, svg, \[data-noi18n\], \[contenteditable="true"\]';/, 'what is typed is never turned');
+  // the choice is the PERSON's: one row of the settings table of step 6 (no new step), read with the sign-in
+  const L = require('../lib/lang.js'), src = fs.readFileSync(path.join(root, 'lib', 'lang.js'), 'utf8');
+  assert.match(src, /const SITE = '\*', KEY = 'web_lang';/); assert.ok(/^[a-z_]{2,40}$/.test('web_lang'), 'a key the table of step 6 allows');
+  assert.match(fs.readFileSync(path.join(root, 'api', 'me.js'), 'utf8'), /lang: await lang\.of\(s\.email\)/);
+  const HR = require('../api/hr.js'); assert.strictEqual(typeof HR.ACT.langSet, 'function'); assert.ok(HR.SELF.indexOf('langSet') < 0);
+  const f0 = global.fetch, asked = []; let row = { by: { 'other@rcl.test': 'hi' } };
+  global.fetch = async (u, o) => { asked.push([String(u), o && o.method, o && o.body]); if (o && o.method === 'POST') { row = JSON.parse(o.body)[0].value; return { ok: true, status: 201, text: async () => '', json: async () => null }; }
+    return { ok: true, status: 200, text: async () => JSON.stringify([{ value: row }]), json: async () => [{ value: row }] }; };
+  try {
+    const s = { email: 'Me@RCL.test', site: 'S1', role: 'user' };
+    assert.strictEqual(await L.of('nobody@rcl.test'), '', 'nothing chosen = English'); assert.strictEqual(await L.of('OTHER@rcl.test'), 'hi');
+    assert.deepStrictEqual(await L.ACT.langSet(s, { lang: 'mr' }), { lang: 'mr' }); assert.deepStrictEqual(row, { by: { 'other@rcl.test': 'hi', 'me@rcl.test': 'mr' } }, 'only his own line changes');
+    assert.strictEqual(await L.of('me@rcl.test'), 'mr');
+    await L.ACT.langSet(s, { lang: 'en' }); assert.deepStrictEqual(row, { by: { 'other@rcl.test': 'hi' } }, 'English: he is taken out of the row');
+    await assert.rejects(() => L.ACT.langSet(s, { lang: 'fr' }), /Language/);
+    assert.ok(asked.every(a => /hr_settings\?/.test(a[0])), 'nothing else is touched');
+    global.fetch = async () => { throw new Error('down'); }; assert.strictEqual(await L.of('me@rcl.test'), '', 'the database cannot be asked: English, the page still opens');
+  } finally { global.fetch = f0; }
+  // the words: both files hold the same texts, each one a text the module can show, with the same parts to fill in
+  const keys = new Set(JSON.parse(fs.readFileSync(path.join(root, 'public', 'i18n', 'keys.json'), 'utf8'))), mr = JSON.parse(fs.readFileSync(path.join(root, 'public', 'i18n', 'mr.json'), 'utf8')), hi = JSON.parse(fs.readFileSync(path.join(root, 'public', 'i18n', 'hi.json'), 'utf8'));
+  assert.deepStrictEqual(Object.keys(mr), Object.keys(hi)); assert.ok(Object.keys(mr).length > 900, 'the words are there: ' + Object.keys(mr).length);
+  const parts = t => (t.match(/\{\d+\}/g) || []).sort().join();
+  for (const d of [mr, hi]) for (const k of Object.keys(d)) {
+    assert.ok(keys.has(k), 'not a text of the module: ' + k); assert.ok(typeof d[k] === 'string' && d[k].trim(), 'empty: ' + k);
+    assert.strictEqual(parts(d[k]), parts(k), 'the parts to fill in differ: ' + k);
+  }
+  // the engine: a whole text, a pattern with its parts, a text without a translation, a typed name
+  const win = {}, vm2 = require('vm'); vm2.runInNewContext(eng, { window: win, document: { body: null, addEventListener() {}, documentElement: {} }, localStorage: { getItem: () => '', setItem() {} }, Map, WeakMap, Set, Promise, RegExp, Object, String, Array, console });
+  win.HRLANG._use(mr);
+  assert.strictEqual(win.HRLANG.as('Present'), 'हजर'); assert.strictEqual(win.HRLANG.as('  Employees '), '  कर्मचारी ');
+  assert.strictEqual(win.HRLANG.as('Yesterday: 4'), 'काल: 4'); assert.strictEqual(win.HRLANG.as('3 of 36 on duty right now'), '36 पैकी 3 आत्ता कामावर');
+  assert.strictEqual(win.HRLANG.as('Suresh Patil'), 'Suresh Patil', 'a name stays as it was typed'); assert.strictEqual(win.HRLANG.as('RCL001'), 'RCL001');
+  win.HRLANG._use(hi); assert.strictEqual(win.HRLANG.as('Present'), 'उपस्थित'); assert.strictEqual(win.HRLANG.as('Yesterday: 4'), 'कल: 4');
 });
