@@ -88,6 +88,12 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
   of this site's people whose date runs out within 30 days or has run out, the birthdays and the years at work of the coming 7
   days. A person's own (`myHr.coming`): his papers running out, his birthday today, his years at work today – for the app.
   `myAttend` also says `week_off` / `days_off` for the phone's IN / OUT reminders.
+* **A work place of another site for one person (14-11-2026)** – his words: "vtr cha manus head office la gela tr vtr madhunch tyala
+  ho geo fence access deta yawa". The HR office of HIS OWN site (who may manage work places) opens Work places → By person → Change,
+  chooses the other site, ticks its work places and writes why (`placeGuest`). He is written to that place (`hr_place_people` – **no
+  new table, no SQL**); a place that is not of his site counts for him whatever its "for whom" says, while it is on. Nothing of the
+  other site is changed: its office sees only its own people and keeps the guest when it saves its own. His attendance stays his own
+  site's. The other sites' work places are shown by NAME only.
 * **The Rule Book (step 13, 13-11-2026)** – his words: "super admin kade ek main rule book haway … ek hun anek policy banwayta
   yeil … employee la site la ho la asign krta yetil … authorization … kon verify krel kon approval krel". **UNTIL A POLICY IS GIVEN
   TO A SITE OR A PERSON NOTHING CHANGES** – the muster and the pay sheet of the test rig are the same as before (checked against
