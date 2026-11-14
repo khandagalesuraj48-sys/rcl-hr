@@ -163,6 +163,8 @@
       var at = el('td'); at.style.whiteSpace = 'normal';
       if (!e.places.length) at.appendChild(redTag('No place – cannot mark'));
       e.places.forEach(function (pid) { var sp = el('span', 'st s-active', nameOf(d.places, pid)); sp.style.marginRight = '6px'; sp.style.display = 'inline-block'; sp.style.marginBottom = '3px'; at.appendChild(sp); });
+      // (14-11-2026) the work places of another site he was given – named with their site
+      (e.guest || []).forEach(function (pid) { var o = (d.others || []).filter(function (x) { return x.places.some(function (p) { return p.id === pid; }); })[0]; if (!o) return; var sp = el('span', 'st pm-gchip', o.name + ' · ' + nameOf(o.places, pid)); sp.style.cssText = 'margin:0 6px 3px 0;display:inline-block;background:#E4E8FB;color:#3B49B8'; at.appendChild(sp); });
       tr.appendChild(at); tr.appendChild(el('td', 'muted', lastText(e, d)));
       if (isAdmin()) { var ch = el('td'); ch.style.textAlign = 'right'; var cbn = btn('sec', A.pedit === e.id ? 'Close' : 'Change', function () { A.pedit = A.pedit === e.id ? '' : e.id; drawMap(); }); cbn.className = 'sec pm-change'; ch.appendChild(cbn); tr.appendChild(ch); }
       t.body.appendChild(tr);
@@ -176,7 +178,31 @@
         if (!d.places.length) wrap.appendChild(el('span', 'muted', 'No work place yet – add one under "Work places".'));
         ec.appendChild(wrap); var eb = el('div', 'tools'); eb.style.margin = '0';
         var sv = btn('pri', 'Save his places', function () { sendPerson({ employee_id: e.id, places: Object.keys(pick).filter(function (k) { return pick[k]; }) }); }); sv.className = 'pri pm-save'; eb.appendChild(sv);
-        eb.appendChild(btn('sec', 'Cancel', function () { A.pedit = ''; drawMap(); })); ec.appendChild(eb); er.appendChild(ec); t.body.appendChild(er);
+        eb.appendChild(btn('sec', 'Cancel', function () { A.pedit = ''; drawMap(); })); ec.appendChild(eb);
+        /* (14-11-2026, asked: "vtr cha manus head office la gela tr vtr madhunch tyala ho geo fence access deta yawa") WORK PLACES OF
+         * ANOTHER SITE for this person: the site is chosen, its places are ticked, why is written – saved by itself. Nothing of the
+         * other site changes; his attendance stays this site's. */
+        if ((d.others || []).length) {
+          var gp = {}; (e.guest || []).forEach(function (pid) { gp[pid] = true; }); var nameG = {}; d.others.forEach(function (o) { o.places.forEach(function (p) { nameG[p.id] = o.name + ' · ' + p.name; }); });
+          var gb = el('div', 'pm-guest'); gb.style.cssText = 'margin-top:14px;padding-top:12px;border-top:1px solid #DDE3EE';
+          gb.appendChild(el('div', 'muted', 'When ' + e.name + ' works at ANOTHER SITE for some days: give him that site\'s work place too. His attendance stays here.'));
+          var now = el('div', ''); now.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:8px 0'; var gl = el('div', ''); gl.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px 18px;margin:10px 0';
+          var gs = el('select'); gs.className = 'pm-gsite'; gs.setAttribute('aria-label', 'The other site'); opt(gs, '', 'Choose the other site…', !A.gsite); d.others.forEach(function (o) { opt(gs, o.site, o.name + ' (' + o.places.length + ')', A.gsite === o.site); });
+          var paintG = function () {
+            now.textContent = ''; var have = Object.keys(gp).filter(function (k) { return gp[k]; });
+            have.forEach(function (k) { var c = el('span', 'st s-active', (nameG[k] || 'a place') + '  ✕'); c.style.cursor = 'pointer'; c.title = 'Take it back'; c.onclick = function () { gp[k] = false; paintG(); }; now.appendChild(c); });
+            if (!have.length) now.appendChild(el('span', 'muted', 'No work place of another site.'));
+            gl.textContent = ''; var o = d.others.filter(function (x) { return x.site === A.gsite; })[0]; if (!o) return;
+            o.places.forEach(function (p) { var lb = el('label', ''); lb.style.cssText = 'display:inline-flex;align-items:center;gap:7px;cursor:pointer'; var cx = el('input'); cx.type = 'checkbox'; cx.checked = !!gp[p.id]; cx.style.width = '18px'; cx.style.height = '18px';
+              cx.onchange = function () { gp[p.id] = cx.checked; paintG(); }; lb.appendChild(cx); lb.appendChild(document.createTextNode(p.name + (p.on ? '' : ' (off)'))); gl.appendChild(lb); });
+          };
+          gs.onchange = function () { A.gsite = gs.value; paintG(); };
+          var gw = el('input'); gw.type = 'text'; gw.maxLength = 200; gw.className = 'pm-gwhy'; gw.placeholder = 'Why (for example: at HO till 20-11) *'; gw.setAttribute('aria-label', 'Why'); gw.style.minWidth = '280px';
+          var gt = el('div', 'tools'); gt.style.margin = '0'; gt.appendChild(gs); gt.appendChild(gw);
+          var gsv = btn('pri', 'Save the other sites\' places', function () { gsv.disabled = true; api('placeGuest', { employee_id: e.id, places: Object.keys(gp).filter(function (k) { return gp[k]; }), reason: gw.value }).then(function (r) { A.who = r; A.pedit = ''; toast(r.changed ? 'Saved – the work places of another site are changed for ' + e.name + '.' : 'Nothing was changed.'); drawMap(); }, function (x) { gsv.disabled = false; fail(x); }); }); gsv.className = 'pri pm-gsave'; gt.appendChild(gsv);
+          gb.appendChild(now); gb.appendChild(gt); gb.appendChild(gl); ec.appendChild(gb); paintG();
+        }
+        er.appendChild(ec); t.body.appendChild(er);
       }
     });
     if (!rows.length) t.box.appendChild(el('p', 'none', d.people.length ? 'Nobody matches.' : 'No employee on this site yet.'));
