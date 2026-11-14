@@ -88,8 +88,9 @@
      * STEP: a page chosen is a step of the browser's own history (its Back, Alt+←, the "‹ Back" button here) – the first page and a
      * page come back to are not a new step. An open window (an employee's page, a form, a list) is closed first – see stepBack. */
     try { var addr = location.pathname + location.search + '#page=' + S.page, st = history.state || {};
-      if (BACK.pop || !BACK.on || st.hrPage === S.page) history.replaceState({ hrPage: S.page, hrN: +st.hrN || 0 }, '', addr); else history.pushState({ hrPage: S.page, hrN: (+st.hrN || 0) + 1 }, '', addr);
+      if (BACK.pop || !BACK.on || st.hrPage === S.page || window.HRINNER) history.replaceState({ hrPage: S.page, hrN: +st.hrN || 0 }, '', addr); else history.pushState({ hrPage: S.page, hrN: (+st.hrN || 0) + 1 }, '', addr);
       BACK.on = true; backPaint(); } catch (e) { /* the page still works */ }
+    if (window.HRALL && !window.HRINNER) window.HRALL.page(S.page);      // (14-11-2026) "All sites": every site's page goes to the chosen page
     if (dash) window.HRDASH.open(S.me, go); else if (book) window.HRBOOK.open(S.page, S.me); else if (prof) window.HRPROF.open(S.page, S.me); else if (lv) window.HRLEAVE.open(S.page, S.me); else if (mon) window.HRMONTH.open(S.page, S.me); else if (roll) window.HRROLL.open(S.page, S.me); else if (att) window.HRATT.open(S.page, S.me, S.init); else if (mus) window.HRMUS.open(S.page, S.me, S.init); else if (S.page === 'employees') list(); else masters();
   }
 

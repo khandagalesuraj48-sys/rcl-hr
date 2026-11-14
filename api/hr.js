@@ -373,7 +373,8 @@ module.exports = handler(async (req, res) => {
   sameSite(req);
   const x = await readBody(req), fn = Object.prototype.hasOwnProperty.call(ACT, String(x.action)) ? ACT[x.action] : null;
   if (!fn) return send(res, 400, { error: 'Unknown action.' });
-  const s = await ses.need(req), att = Object.prototype.hasOwnProperty.call(ATT.ACT, String(x.action));
+  // (14-11-2026) "All sites": the request names the site it is for – one of HIS sites, with his role there (lib/session.js as)
+  const s = ses.as(await ses.need(req), x.as_site), att = Object.prototype.hasOwnProperty.call(ATT.ACT, String(x.action));
   const mus = Object.prototype.hasOwnProperty.call(MUS.ACT, String(x.action)) || Object.prototype.hasOwnProperty.call(DASH.ACT, String(x.action));
   // "My HR" (an employee for himself): only his own attendance – nothing of the HR office's pages
   if (s.role === 'self' && SELF.indexOf(String(x.action)) < 0) throw fail(403, 'This is for the HR office only.', 'role');

@@ -88,6 +88,14 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
   of this site's people whose date runs out within 30 days or has run out, the birthdays and the years at work of the coming 7
   days. A person's own (`myHr.coming`): his papers running out, his birthday today, his years at work today – for the app.
   `myAttend` also says `week_off` / `days_off` for the phone's IN / OUT reminders.
+* **"All sites" (14-11-2026)** – his words: "hr portal madhe site wise bghta yet but ek as ek option banaw ki all site saglech ekdam
+  sagle disel … hr admin tithunch badal pn kru shaktil". The site switch offers **All sites** to a person the Portal gave two or
+  more sites with a role (the ticket's `sites[].role` – rcl-portal `api/go.js`). The open page – Dashboard, Employees, Attendance,
+  Muster, Leave, Requests, Approvals – is then shown for every one of his sites, one under the other (`public/allsites.js`): each
+  part IS that site's own page, opened inside HR's page for that site (`/?as=<SITE>`), so everything works in it as on the site.
+  Every request of such a part names its site (`as_site`); `lib/session.js as()` lets it through only for a site of HIS ticket,
+  with the role he has THERE – then the action runs as always: on that one site. No action was changed; no SQL. The other pages
+  belong to one site.
 * **A work place of another site for one person (14-11-2026)** – his words: "vtr cha manus head office la gela tr vtr madhunch tyala
   ho geo fence access deta yawa". The HR office of HIS OWN site (who may manage work places) opens Work places → By person → Change,
   chooses the other site, ticks its work places and writes why (`placeGuest`). He is written to that place (`hr_place_people` – **no
