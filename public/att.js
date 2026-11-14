@@ -7,7 +7,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var el = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null) e.textContent = String(text); return e; };
   var api = function (action, body) { return window.HRAPI('api/hr', Object.assign({ action: action }, body || {})); };
-  var A = { me: null, init: null, page: 'attendance', data: null, sel: {}, proj: '', day: '', review: false, map: null, draw: null, edit: null, people: [] };
+  var A = { me: null, init: null, page: 'attendance', data: null, sel: {}, proj: '', day: '', per: 'today', from: '', to: '', month: '', review: false, map: null, draw: null, edit: null, people: [] };
   var PAGES = [['attendance', 'Attendance'], ['places', 'Work places'], ['phones', 'Phones']];
   var CAT = { staff: 'Staff', operator: 'Operator', driver: 'Driver', labour: 'Labour' };
   var isAdmin = function () { return A.me && (A.me.user.role === 'admin' || A.me.user.role === 'super'); };
@@ -33,14 +33,30 @@
   /* ───────────── Attendance: the day ───────────── */
   function attendance() {
     var root = $('p_att'); root.textContent = '';
-    var tools = el('div', 'tools'), day = el('input'); day.type = 'date'; day.value = A.day; day.setAttribute('aria-label', 'Day'); day.style.flex = '0 0 170px'; day.onchange = function () { A.day = day.value; A.review = false; attendance(); };
-    tools.appendChild(day); tools.appendChild(btn(A.review ? 'sec' : 'pri', 'The day', function () { A.review = false; attendance(); })); var rb = btn(A.review ? 'pri' : 'sec', 'To be looked at', function () { A.review = true; attendance(); }); tools.appendChild(rb); root.appendChild(tools);
-    var note = el('p', 'muted', A.review ? 'Punches sent later (no network) whose clock or order was doubtful. Accept = it counts; Refuse = it does not. The punch itself is never changed.' : 'Every punch of the day, as it was taken: inside the work place, with a photo as proof. Nothing here can be changed.'); note.style.margin = '0 0 10px'; root.appendChild(note);
-    api('punchDay', A.review ? { review: 1 } : { day: A.day }).then(function (r) {
-      var t = table(['Code', 'Name', A.review ? 'Day' : 'Category', 'IN / OUT', 'Time', 'Work place', 'How', 'Photo', '']);
+    /* (14-11-2026, asked: "ethe period wise month wise this month yesterday ase option de") WHICH DAYS: today, yesterday, one day, this
+     * month, last month, a month, or from – to. One day is shown as before; more days: the newest punch first, with its day. */
+    var tools = el('div', 'tools'), iso = function (ms) { return new Date(ms + 19800000).toISOString().slice(0, 10); }, now0 = iso(Date.now()), monthEnd = function (m) { return m + '-' + String(new Date(Date.UTC(+m.slice(0, 4), +m.slice(5), 0)).getUTCDate()).padStart(2, '0'); };
+    var lastM = function () { var d = new Date(Date.UTC(+now0.slice(0, 4), +now0.slice(5, 7) - 2, 1)); return d.toISOString().slice(0, 7); };
+    if (!A.month) A.month = now0.slice(0, 7); if (!A.from) A.from = now0.slice(0, 8) + '01'; if (!A.to) A.to = now0;
+    var per = el('select'); per.setAttribute('aria-label', 'Period'); per.style.flex = '0 0 170px';
+    [['today', 'Today'], ['yesterday', 'Yesterday'], ['day', 'One day…'], ['thismonth', 'This month'], ['lastmonth', 'Last month'], ['month', 'A month…'], ['range', 'From – to…']].forEach(function (x) { var o = el('option', '', x[1]); o.value = x[0]; per.appendChild(o); });
+    per.value = A.per; per.onchange = function () { A.per = per.value; A.review = false; if (A.per === 'day' && !A.day) A.day = now0; attendance(); }; tools.appendChild(per);
+    var day = el('input'); day.type = 'date'; day.value = A.day; day.max = now0; day.setAttribute('aria-label', 'Day'); day.style.flex = '0 0 170px'; day.onchange = function () { A.day = day.value || now0; A.review = false; attendance(); };
+    var mon = el('input'); mon.type = 'month'; mon.value = A.month; mon.max = now0.slice(0, 7); mon.setAttribute('aria-label', 'Month'); mon.style.flex = '0 0 170px'; mon.onchange = function () { A.month = mon.value || now0.slice(0, 7); A.review = false; attendance(); };
+    var f1 = el('input'); f1.type = 'date'; f1.value = A.from; f1.max = now0; f1.setAttribute('aria-label', 'From'); f1.style.flex = '0 0 160px'; var f2 = el('input'); f2.type = 'date'; f2.value = A.to; f2.max = now0; f2.setAttribute('aria-label', 'To'); f2.style.flex = '0 0 160px';
+    f1.onchange = f2.onchange = function () { A.from = f1.value || A.from; A.to = f2.value || A.to; if (A.from > A.to) { toast('From – to: the first day is after the last one.', true); return; } A.review = false; attendance(); };
+    if (A.per === 'day') tools.appendChild(day); else if (A.per === 'month') tools.appendChild(mon); else if (A.per === 'range') { tools.appendChild(f1); tools.appendChild(f2); }
+    // the days asked: one day { day } – or a period { from, to }
+    var ask = A.per === 'today' ? { day: now0 } : A.per === 'yesterday' ? { day: iso(Date.now() - 86400000) } : A.per === 'day' ? { day: A.day || now0 } : A.per === 'thismonth' ? { from: now0.slice(0, 8) + '01', to: now0 }
+      : A.per === 'lastmonth' ? { from: lastM() + '-01', to: monthEnd(lastM()) } : A.per === 'month' ? { from: A.month + '-01', to: A.month === now0.slice(0, 7) ? now0 : monthEnd(A.month) } : { from: A.from, to: A.to };
+    var many = !A.review && !!ask.from; if (ask.day) A.day = ask.day;
+    tools.appendChild(btn(A.review ? 'sec' : 'pri', many ? 'The period' : 'The day', function () { A.review = false; attendance(); })); var rb = btn(A.review ? 'pri' : 'sec', 'To be looked at', function () { A.review = true; attendance(); }); tools.appendChild(rb); root.appendChild(tools);
+    var note = el('p', 'muted', A.review ? 'Punches sent later (no network) whose clock or order was doubtful. Accept = it counts; Refuse = it does not. The punch itself is never changed.' : many ? 'Every punch from ' + dmy(ask.from) + ' to ' + dmy(ask.to) + ', the newest first, as it was taken. Nothing here can be changed.' : 'Every punch of the day, as it was taken: inside the work place, with a photo as proof. Nothing here can be changed.'); note.style.margin = '0 0 10px'; root.appendChild(note);
+    api('punchDay', A.review ? { review: 1 } : ask).then(function (r) {
+      var t = table(['Code', 'Name', A.review || many ? 'Day' : 'Category', 'IN / OUT', 'Time', 'Work place', 'How', 'Photo', '']);
       var shown = 0;      // the first 30 photos are fetched at once, the rest when pressed
       r.punches.forEach(function (p) {
-        var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', p.code)); tr.appendChild(face(el('td', 'nm', p.name), p.code)); tr.appendChild(el('td', '', A.review ? dmy(p.day) : CAT[p.category] || ''));
+        var tr = el('tr'); tr.style.cursor = 'default'; tr.appendChild(el('td', '', p.code)); tr.appendChild(face(el('td', 'nm', p.name), p.code)); tr.appendChild(el('td', '', A.review || many ? dmy(p.day) : CAT[p.category] || ''));
         var k = el('td'); k.appendChild(el('span', 'st ' + (p.kind === 'in' ? 's-active' : 's-left'), p.kind === 'in' ? 'IN' : 'OUT')); tr.appendChild(k); tr.appendChild(el('td', '', p.time)); tr.appendChild(el('td', '', p.place));
         var how = el('td'); how.style.whiteSpace = 'normal'; how.appendChild(el('span', 'st ' + (p.status === 'review' ? 's-incomplete' : p.offline ? 's-pending' : 's-active'), p.status === 'review' ? (p.decided ? (p.decided.decision === 'accepted' ? 'Accepted' : 'Refused') : 'To be looked at') : p.offline ? 'Sent later' : 'On the spot'));
         if (p.why && p.why.length) how.appendChild(el('div', 'muted', p.why.join('; ') + (p.decided ? ' — ' + p.decided.by + (p.decided.note ? ': ' + p.decided.note : '') : ''))); tr.appendChild(how);
@@ -49,12 +65,13 @@
         var act = el('td'); if (A.review && isAdmin()) { act.appendChild(btn('sm', 'Accept', function () { decide(p, 'accepted'); })); var no = btn('sm ghost', 'Refuse', function () { decide(p, 'refused'); }); no.style.marginLeft = '6px'; act.appendChild(no); } tr.appendChild(act);
         t.body.appendChild(tr);
       });
-      if (!r.punches.length) t.box.appendChild(el('p', 'none', A.review ? 'Nothing is waiting.' : 'No punch on ' + dmy(r.day) + ' yet.'));
+      if (!r.punches.length) t.box.appendChild(el('p', 'none', A.review ? 'Nothing is waiting.' : many ? 'No punch from ' + dmy(r.from) + ' to ' + dmy(r.to) + '.' : 'No punch on ' + dmy(r.day) + ' yet.'));
+      if (r.more) { var mo = el('p', 'muted', 'The newest ' + r.max + ' punches are shown – choose a shorter period to see the earlier ones.'); mo.style.margin = '0 0 10px'; root.appendChild(mo); }
       // (13-11-2026, the picture he approved) the day's counts on top – counted from the punches shown, nothing new is asked
       if (!A.review && window.HRDASH && window.HRDASH.cards) {
         var ins = r.punches.filter(function (p) { return p.kind === 'in'; }), first = ins.map(function (p) { return p.time; }).sort()[0] || '', who = {}; r.punches.forEach(function (p) { who[p.code] = 1; });
-        root.appendChild(window.HRDASH.cards([['⇅', 'blue', 'Punches', r.punches.length, '', 'IN ' + ins.length + ' · OUT ' + (r.punches.length - ins.length)], ['◉', 'violet', 'People', Object.keys(who).length, '', 'who punched on ' + dmy(r.day)],
-          ['↓', 'green', 'First IN', first || '–', '', first ? (ins.filter(function (p) { return p.time === first; })[0].place || '') : 'nobody yet'], ['↗', 'cyan', 'Sent later', r.punches.filter(function (p) { return p.offline && p.status !== 'review'; }).length, '', 'no network at the time'],
+        root.appendChild(window.HRDASH.cards([['⇅', 'blue', 'Punches', r.punches.length, '', 'IN ' + ins.length + ' · OUT ' + (r.punches.length - ins.length)], ['◉', 'violet', 'People', Object.keys(who).length, '', many ? 'who punched in the period' : 'who punched on ' + dmy(r.day)],
+          many ? ['▦', 'green', 'Days', Object.keys(r.punches.reduce(function (o, p) { o[p.day] = 1; return o; }, {})).length, '', dmy(r.from) + ' – ' + dmy(r.to)] : ['↓', 'green', 'First IN', first || '–', '', first ? (ins.filter(function (p) { return p.time === first; })[0].place || '') : 'nobody yet'], ['↗', 'cyan', 'Sent later', r.punches.filter(function (p) { return p.offline && p.status !== 'review'; }).length, '', 'no network at the time'],
           ['!', 'amber', 'To be looked at', r.punches.filter(function (p) { return p.status === 'review' && !p.decided; }).length, '', 'clock or place in doubt']]));
       }
       root.appendChild(t.box);
