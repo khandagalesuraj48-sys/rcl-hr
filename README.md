@@ -12,6 +12,10 @@ HRMS & Attendance module of the RCL ERP (One Click Solution). The plan and the o
 * `public/index.html` – signs in through the Portal (inside Mechanical's screen: a ticket asked from the Portal; by itself: the
   Portal's `#sso=`), then says who is signed in. The pages of HR come phase by phase.
 * `api/menu.js` – the module's pages for Mechanical's dark menu (one page: Home).
+* `api/backup-export.js`, `lib/bkexport.js` – (14-11-2026) HR's data for the Google Sheet backup: only for Mechanical's backup, with
+  `BACKUP_EXPORT_SECRET`. Every table of every site goes into HR's own Sheets (Portal → Sites → HR backup) – not the sign-ins,
+  not the used tickets; the face numbers go as "(hidden)"; a photo or a paper is a file – the Sheet holds its place only.
+  **A new table must be added to the list in `api/backup-export.js`** (the unit test fails until it is).
 * Before the SQL step is run the page says so ("The HR database is not set up yet…") – nothing else happens.
 * A Preview (a branch's test deployment) works only with a database marked as a test database (`lib/preview.js`) – never the live one.
 
@@ -341,6 +345,7 @@ designation's category beside the settings (`hr_settings`, site `*`).
 | `PUBLIC_URL` | this module under the one address: `https://oneclicksolution.online/hr` (an address, not a secret) |
 | `SUPABASE_URL` | the HR Supabase project's address |
 | `SUPABASE_SECRET_KEY` | its secret key – only in Vercel |
+| `BACKUP_EXPORT_SECRET` | (with Mechanical's update-243) the SAME long secret word as in rclerp, rcl-portal, rcl-engineering and rcl-purchase – only in Vercel. Mechanical's nightly backup asks `/api/backup-export` with it; without it nothing is given |
 
 ## Tests
 `timeout 120 node --test test/unit.test.js` – no real database, no network (the Portal's key and a stand-in of the database are
