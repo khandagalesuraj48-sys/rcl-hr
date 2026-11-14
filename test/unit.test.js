@@ -918,3 +918,48 @@ test('"All sites": the same sign-in acts on another site only when the Portal wr
   const src = fs.readFileSync(path.join(root, 'lib', 'portal.js'), 'utf8'); assert.match(src, /c\.super === true \? \{ role: 'super' \} : \['admin', 'user'\]\.indexOf\(s\.role\) > -1 \? \{ role: s\.role \} : \{\}/);
   assert.match(fs.readFileSync(path.join(root, 'api', 'hr.js'), 'utf8'), /const s = ses\.as\(await ses\.need\(req\), x\.as_site\)/, 'every action goes through it');
 });
+
+test('the backup export (Mechanical update-243): only with the secret; every site and every table (HR\'s own Sheet); never the sign-ins or tickets; the face numbers hidden; "since" only for the lists that only grow', async () => {
+  const E = require('../api/backup-export.js'), T = E.TABLES;
+  const env = { BACKUP_EXPORT_SECRET: process.env.BACKUP_EXPORT_SECRET, VERCEL_ENV: process.env.VERCEL_ENV }, f0 = global.fetch;
+  const asked = [];
+  global.fetch = async (url) => { const u = String(url); asked.push(u);
+    if (/\/rest\/v1\/$/.test(u)) return new Response(JSON.stringify({ definitions: { hr_employees: { properties: { id: {}, code: {}, name: {}, site: {}, later_col: {} } }, hr_faces: { properties: { id: {}, employee_id: {}, descriptors: {} } },
+      hr_punches: { properties: { id: {}, received_at: {} } }, hr_sessions: { properties: { id_hash: {} } }, hr_tickets: { properties: { jti: {} } } } }), { status: 200 });
+    if (/hr_faces\?select=\*/.test(u)) return new Response(JSON.stringify([{ id: 1, employee_id: 7, descriptors: [[0.1, 0.2]] }, { id: 2, employee_id: 8, descriptors: null }]), { status: 200 });
+    return new Response('[]', { status: 200, headers: { 'content-range': '*/3' } }); };
+  const call = async (body, auth) => { let status = 0, out = null;
+    const res = { setHeader() {}, end(t) { out = JSON.parse(t); }, set statusCode(v) { status = v; } };
+    await E({ method: 'POST', headers: { authorization: auth === undefined ? 'Bearer ' + 'k'.repeat(30) : auth }, body: body }, res); return { status: status, j: out }; };
+  try {
+    process.env.VERCEL_ENV = 'production'; delete process.env.BACKUP_EXPORT_SECRET;
+    assert.strictEqual((await call({ action: 'catalog' })).status, 503, 'not set up: nothing is given');
+    process.env.BACKUP_EXPORT_SECRET = 'k'.repeat(30);
+    assert.strictEqual((await call({ action: 'catalog' }, 'Bearer wrong')).status, 401); assert.strictEqual((await call({ action: 'catalog' }, '')).status, 401);
+    assert.strictEqual((await call({ action: 'rows', table: 'hr_employees' }, 'Bearer wrong')).status, 401, 'no row without the secret');
+    asked.length = 0; let r = await call({ action: 'catalog' });
+    assert.strictEqual(r.status, 200, JSON.stringify(r.j));
+    assert.deepStrictEqual(r.j.tables.map(t => t.name), ['hr_employees', 'hr_punches', 'hr_faces'], 'the tables this database has; the sign-ins and tickets never');
+    assert.deepStrictEqual(r.j.tables[0].cols, ['id', 'code', 'name', 'site', 'later_col'], 'everything: every column of the table');
+    assert.ok(asked.every(u => !/site=eq\./.test(u)), 'every site: no site filter');
+    asked.length = 0; await call({ action: 'rows', table: 'hr_employees', since: '2026-11-14T08:00:00Z' });
+    assert.ok(/hr_employees\?select=\*&order=id\.asc&offset=0&limit=1000$/.test(asked[0]), 'a table that changes is always given whole: ' + asked[0]);
+    asked.length = 0; await call({ action: 'rows', table: 'hr_punches', since: '2026-11-14T08:00:00Z' });
+    assert.ok(/hr_punches\?select=\*&received_at=gte\.2026-11-14T08%3A00%3A00Z&order=id\.asc/.test(asked[0]), asked[0]);
+    r = await call({ action: 'rows', table: 'hr_faces' });
+    assert.deepStrictEqual(r.j.rows, [{ id: 1, employee_id: 7, descriptors: { __hidden: true } }, { id: 2, employee_id: 8, descriptors: null }], 'the face numbers never leave');
+    for (const t of ['hr_sessions', 'hr_tickets', 'web_props', '__proto__']) assert.strictEqual((await call({ action: 'rows', table: t })).status, 400, t);
+    assert.strictEqual((await call({ action: 'usage' })).status, 400);
+    assert.strictEqual((await call({ action: 'rows', table: 'hr_audit', since: "x';--" })).status, 400);
+    assert.strictEqual((await call({ action: 'catalog' }, undefined)).status, 200);
+  } finally { global.fetch = f0; Object.keys(env).forEach(k => { if (env[k] === undefined) delete process.env[k]; else process.env[k] = env[k]; }); }
+  // EVERY table of HR's database steps is in the list – except the sign-ins and the used tickets
+  const made = new Set(); fs.readdirSync(path.join(root, 'sql')).filter(f => /^hr_step\d+_.*\.sql$/.test(f)).forEach(f => { const s = fs.readFileSync(path.join(root, 'sql', f), 'utf8'), re = /create table if not exists public\.(hr_[a-z_]+)/g; let m; while ((m = re.exec(s))) made.add(m[1]); });
+  assert.ok(made.size > 40, 'the steps were read: ' + made.size);
+  assert.deepStrictEqual([...made].filter(t => !T[t]).sort(), ['hr_sessions', 'hr_tickets'], 'a new table must be put in api/backup-export.js');
+  assert.deepStrictEqual(Object.keys(T).filter(t => !made.has(t)), [], 'no table that does not exist');
+  assert.deepStrictEqual(Object.keys(T).filter(t => T[t].since).sort(), ['hr_audit', 'hr_day_entries', 'hr_device_tries', 'hr_face_tries', 'hr_leave_adjust', 'hr_leave_credits', 'hr_punch_reviews', 'hr_punches']);
+  assert.deepStrictEqual(Object.keys(T).filter(t => T[t].hide || T[t].cols), ['hr_faces']); assert.deepStrictEqual(T.hr_faces.hide, ['descriptors']);
+  assert.ok(Object.keys(T).every(t => T[t].title && T[t].title.length <= 60 && /^[a-z_]+(,[a-z_]+)*$/.test(T[t].key)));
+  assert.strictEqual(new Set(Object.keys(T).map(t => T[t].title)).size, Object.keys(T).length, 'every tab has its own name');
+});
