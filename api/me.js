@@ -5,7 +5,9 @@ const portal = require('../lib/portal');
 const ses = require('../lib/session');
 const { band } = require('../lib/preview');
 module.exports = handler(async (req, res) => {
-  const s = await ses.read(req);
+  let s = await ses.read(req);
   if (!s) return send(res, 200, { signedIn: false, portal: portal.url(), ...band() });
+  // (14-11-2026) "All sites": the page of ONE of his other sites asks who he is there (GET /api/me?as=<site>)
+  const as = new URL(req.url, 'http://x').searchParams.get('as'); if (as) s = ses.as(s, as);
   send(res, 200, { signedIn: true, ...band(), user: { email: s.email, name: s.name, role: s.role }, site: s.site, siteName: s.info.siteName || s.site, mods: s.info.mods || [], sites: s.info.sites || [], portal: portal.url() });
 });

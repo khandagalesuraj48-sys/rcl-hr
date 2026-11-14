@@ -273,6 +273,17 @@ html:not(.embed) .sd-foot{background:#F6F7F9;color:#6B7280;border:1px solid #ECE
 @keyframes sdIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
 html:not(.embed) body.nav-opening .sd #tabs .tab,html:not(.embed) body.nav-opening .sd-grp{animation:sdIn .42s cubic-bezier(.22,.8,.2,1) both;animation-delay:calc(var(--i,0)*22ms + 60ms)}
 #tabs .tab svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;margin-right:6px}
+/* (14-11-2026) "ALL SITES": every site's own page, one under the other (allsites.js); and that page inside (html.as): no menu, no bar */
+body.all .mn > section{display:none!important}#all_box{margin-top:6px}.all-note{font-size:14.5px;color:#4A5365;margin:0 0 12px}
+.all-site{background:#fff;border:1px solid #E8EAEE;border-radius:18px;margin:0 0 18px;overflow:hidden;box-shadow:0 6px 18px rgba(27,33,48,.05)}
+.all-h{display:flex;align-items:baseline;gap:12px;padding:12px 18px;background:linear-gradient(90deg,#FFF1F2,#fff 60%);border-bottom:1px solid #F0E4E6}.all-h b{font-size:18px;font-weight:800;color:#0E1116}.all-h span{font-size:13.5px;color:#4A5365}
+.all-f{display:block;width:100%;border:0;height:160px;background:#F6F7F9}
+html.as .sd,html.as .bar{display:none!important}html.as body.in #app{display:block!important;min-height:0!important}html.as body.in{background:#F6F7F9}html.as .mn{padding:10px 14px 14px!important}
+html.as #p_head h2,html.as #p_sub{display:none}html.as #p_head{margin:0 0 8px}html.as #all_box{display:none}
+/* a window (an employee's page, a form) and the message of a site's part stand in the part of it that is ON THE SCREEN – the page
+   around it says where that is (--vt: from its top, --vh: how high; allsites.js) – not in the middle of a long list out of sight */
+html.as .dlg,html.as body.in .dlg.pg{top:var(--vt,0px)!important;bottom:auto!important;left:0!important;height:var(--vh,100vh)!important}
+html.as #toast{bottom:auto;top:calc(var(--vt,0px) + var(--vh,100vh) - 76px)}html.as #hsb{display:none!important}
 /* (14-11-2026) "‹ Back": one step back – a window open is closed, else the page of before */
 .nav-back{height:42px;flex:none;display:inline-flex;align-items:center;gap:4px;border:1px solid #E8EAEE;background:#fff;border-radius:12px;padding:0 14px 0 9px;font:inherit;font-size:15px;font-weight:600;color:#1B2130;cursor:pointer;transition:background .18s,opacity .18s}.nav-back:hover:not(:disabled){background:#F4F5F7}.nav-back:disabled{opacity:.38;cursor:default}.nav-back:focus-visible{outline:2px solid #D2001A;outline-offset:2px}.embed .nav-back{display:none}
 /* the three lines */
@@ -408,6 +419,7 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
   <div class="nav-shade" id="nav_shade"></div>
   <div class="bar"><button class="nav-tog" id="nav_tog" type="button" aria-label="Menu" aria-controls="side" aria-expanded="true"><i></i><i></i><i></i></button><button class="nav-back" id="nav_back" type="button" title="One step back (Alt + ←)" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Back</button><button class="fd-open" id="find_open" type="button" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Search a page, an employee, an action…</span><kbd>Ctrl K</kbd></button><select id="site_pick" class="dz-pill" aria-label="Site" hidden></select><span class="who2" id="who2"></span><button class="top-b" id="go_erp" type="button" title="Back to the ERP of the site – Machinery, Store, Engineering, Purchase" hidden>‹ ERP</button><button class="top-b" id="go_portal" type="button" title="Back to the Portal – the other modules and sites" hidden>‹ Portal</button><button class="top-b out" id="log_out" type="button" title="Sign out of the ERP on this computer" hidden>Log out</button></div>
   <div class="dz-top" id="p_head"><div><h2 id="p_title"></h2><small id="p_sub"></small></div><div class="dz-pills"><span id="p_tools" style="display:contents"></span></div></div>
+  <div id="all_box" hidden></div>
   <section id="p_emp">
     <div class="chips" id="chips"></div>
     <div class="tools">
@@ -645,6 +657,7 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
 <script src="payroll.js"></script>
 <script src="att.js"></script>
 <script src="mus.js"></script>
+<script src="allsites.js"></script>
 <script src="hr.js"></script>
 <script src="hsb.js"></script>
 <script>
@@ -652,7 +665,13 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var BASE = location.pathname.endsWith('/') ? location.pathname : location.pathname + '/';
-  var EMBED = /[?&]embed=1(&|$)/.test(location.search) && (function () { try { return window.parent !== window && !!window.parent.document; } catch (e) { return false; } })();
+  /* (14-11-2026) "ALL SITES" (allsites.js): this page opened INSIDE the HR page itself for ONE of the person's other sites
+   * (…/?as=<SITE>). It is that site's page – every request names the site (the server checks it is his, with his role there);
+   * no menu, no bar; it never asks for a ticket, never signs in or out (the page around it does). Only inside HR's own page. */
+  var AS = (/[?&]as=([A-Z0-9]{1,12})(?:&|$)/.exec(location.search) || [])[1] || '';
+  if (AS && !(function () { try { return window.parent !== window && window.parent.location.origin === location.origin && !!window.parent.HRALL; } catch (e) { return false; } })()) AS = '';
+  if (AS) { document.documentElement.classList.add('as'); window.HRINNER = true; }
+  var EMBED = !AS && /[?&]embed=1(&|$)/.test(location.search) && (function () { try { return window.parent !== window && !!window.parent.document; } catch (e) { return false; } })();
   /* (13-11-2026, asked: "hr portal kuthun pn open houde asach disla pahije ani ethun portal madhe back ani site madhe back jata ale
    * pahije") ONE LOOK, WHEREVER HR IS OPENED FROM: when the ERP SHOWS HR in its screen, HR takes the whole window instead – its
    * own menu on the left, "‹ ERP" and "‹ Portal" on top to go back. The site, the page and the person the ERP named go along in
@@ -669,6 +688,7 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
   var S = { me: null }, PORTAL = '';
   var BUILT = 'Signed in. The pages of HR are being built. · Sign-in झाले. HR ची pages बनवली जात आहेत. · Sign-in हो गया। HR के pages बनाए जा रहे हैं।';
   function api(path, body) {
+    if (AS) { if (body !== undefined) body = Object.assign({}, body, { as_site: AS }); else if (path === 'api/me') path = 'api/me?as=' + encodeURIComponent(AS); }      // "All sites": for which site
     return fetch(BASE + path, body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-RCL': '1' }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().catch(function () { return { error: 'HR did not answer properly (' + r.status + ').' }; }).then(function (j) { if (!r.ok || j.error) { var e = new Error(j.error || ('Error ' + r.status)); e.code = j.code; throw e; } return j; }); });
   }
@@ -683,13 +703,15 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
   }
   var ROLE = { super: 'Super Admin', admin: 'HR Admin', user: 'HR User' };
   function show(me) {
-    S.me = me; PORTAL = me.portal || PORTAL; try { localStorage.setItem('rcl_hr_site', me.site); sessionStorage.removeItem('rcl_hr_hops'); } catch (e) { /* asked again next time */ }
+    S.me = me; PORTAL = me.portal || PORTAL; if (!AS) try { localStorage.setItem('rcl_hr_site', me.site); sessionStorage.removeItem('rcl_hr_hops'); } catch (e) { /* asked again next time */ }
     $('bad').hidden = true; $('go').hidden = true; $('state').hidden = false; $('state').textContent = BUILT;
     sitePick(me);
     if (window.HR) { $('start').hidden = true; document.body.classList.add('in'); $('who2').textContent = me.user.name + ' · ' + (me.siteName || me.site) + ' · ' + (ROLE[me.user.role] || me.user.role); var sf = $('sd_foot'); sf.textContent = ''; var sb = document.createElement('b'); sb.textContent = me.siteName || me.site; sf.appendChild(sb); sf.appendChild(document.createTextNode(me.user.name + ' · ' + (ROLE[me.user.role] || me.user.role))); window.HR.open(me, hashArg('page')); }
     outButtons();
     var w = $('who'); w.textContent = ''; var b = document.createElement('b'); b.textContent = me.user.name; w.appendChild(b);
     w.appendChild(document.createTextNode(' · ' + (me.siteName || me.site) + ' · ' + (ROLE[me.user.role] || me.user.role))); w.hidden = false;
+    if (AS) return;      // ("All sites") the page around this one keeps the sign-in fresh
+    if (window.HRALL) window.HRALL.start(hashArg('page') || 'dashboard');
     renewStart();
   }
   /* THE SITE IS CHOSEN HERE TOO (12-11-2026: "HR MADHE PN SITE SELECT KARAYCHA OPTION DE"): the sites are the Portal's (VTR, HO,
@@ -699,8 +721,14 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
     var sel = $('site_pick'), list = (me.sites || []).slice(); if (!list.some(function (x) { return x.code === me.site; })) list.unshift({ code: me.site, name: me.siteName || me.site });
     sel.textContent = ''; list.forEach(function (x) { var o = document.createElement('option'); o.value = x.code; o.textContent = (x.name || x.code) + (x.name && x.name !== x.code ? ' (' + x.code + ')' : ''); sel.appendChild(o); });
     sel.value = me.site; sel.hidden = list.length < 2;
+    if (AS) { sel.hidden = true; return; }
+    // (14-11-2026) "All sites": every site of his at once (allsites.js) – offered when the Portal gave him two or more with a role
+    var ALL = window.HRALL; if (ALL) { ALL.set(me); if (ALL.can()) { var oa = document.createElement('option'); oa.value = '*'; oa.textContent = 'All sites · सर्व sites'; sel.insertBefore(oa, sel.firstChild); if (ALL.on()) sel.value = '*'; } }
     sel.onchange = function () {
-      var code = sel.value; if (!code || !S.me || code === S.me.site) return; sel.disabled = true;
+      var code = sel.value; if (!code || !S.me) return;
+      if (ALL && code === '*') { ALL.enter(); return; }
+      if (ALL && ALL.on()) { ALL.leave(); if (code === S.me.site) return; }
+      if (code === S.me.site) return; sel.disabled = true;
       var back = function (t) { sel.disabled = false; sel.value = S.me ? S.me.site : code; var e = $('toast'); if (e) { e.textContent = t; e.className = 'bad'; e.hidden = false; setTimeout(function () { e.hidden = true; }, 8000); } };
       ticketFor(code, false).then(function (x) {
         if (!x.ok || !x.j.ticket) return back(x.j.code === 'noaccess' ? NOACC[0] : x.j.code === 'signin' ? ENDED[0] : (x.j.error || 'This site could not be opened.'));
@@ -804,6 +832,8 @@ body.in .ep-do .danger{background:#FDECEE;border-color:#F9D0D5;color:#B20018;bor
         function () { throw new Error('The Portal could not be reached from this address – open HR from the ERP\'s own address.'); });
   };
   function start() {
+    // 0. ("All sites") one of his other sites inside HR's own page: the sign-in there is, as that site – nothing else is tried
+    if (AS) return api('api/me').then(function (me) { PORTAL = me.portal || ''; if (me.signedIn) return show(me); msg('The sign-in ended – open HR again.', 'Sign-in संपले – HR परत उघडा.', 'Sign-in खत्म हुआ – HR फिर खोलें।', false); }, function (e) { msg(e.message, '', '', false); });
     // 1. the Portal sent the person here with a ticket after "#sso=" (it never reaches a server log): taken out of the address at once
     var m = /(?:^#|&)sso=([A-Za-z0-9_.-]+)/.exec(location.hash);
     if (m) {
