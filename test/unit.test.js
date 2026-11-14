@@ -1012,3 +1012,26 @@ test('the language of the HR web (14-11-2026): English until the person chooses;
   assert.strictEqual(win.HRLANG.as('Suresh Patil'), 'Suresh Patil', 'a name stays as it was typed'); assert.strictEqual(win.HRLANG.as('RCL001'), 'RCL001');
   win.HRLANG._use(hi); assert.strictEqual(win.HRLANG.as('Present'), 'उपस्थित'); assert.strictEqual(win.HRLANG.as('Yesterday: 4'), 'कल: 4');
 });
+
+test('the Rule Book\'s simpler form (14-11-2026): every number is chosen from a list; the suggestions are policies the server accepts; the sites are ticked', () => {
+  const js = fs.readFileSync(path.join(root, 'public', 'book.js'), 'utf8'), RB = require('../lib/rulebook.js');
+  const a = js.indexOf('  var UNIT = {'), b = js.indexOf('  function pickIn(list, v) {'); assert.ok(a > -1 && b > a);
+  const X = new Function(js.slice(a, b) + '; return { UNIT: UNIT, USUAL: USUAL, IDEAS: IDEAS };')();
+  // every number of a policy has its list of usual values, with a unit the page can say
+  const numbers = ['full_hours', 'half_hours', 'grace_min', 'early_min', 'free', 'half_after_min', 'half_before_min', 'per_month', 'exit_max', 'after_min', 'round_min', 'rate'];
+  assert.deepStrictEqual(Object.keys(X.USUAL).sort(), numbers.slice().sort());
+  for (const k of numbers) { assert.ok(X.USUAL[k][0].length >= 3 && typeof X.UNIT[X.USUAL[k][1]] === 'function', k); assert.match(js, new RegExp("N\\('" + k + "', '"), k + ' is asked with a list'); }
+  assert.ok(!/field\(f, label, numIn\(/.test(js), 'no number of a policy is a bare typing box any more');
+  assert.match(js, /add\('', 'Not applied'\);/); assert.match(js, /add\('other', 'Other – type it'\);/);
+  // the suggestions: for each of the six kinds, and each one is a policy the server takes as it is
+  assert.deepStrictEqual(Object.keys(X.IDEAS), ['attendance', 'late', 'weekoff', 'leave', 'compoff', 'overtime']);
+  for (const kind of Object.keys(X.IDEAS)) for (const [name, v] of X.IDEAS[kind]) {
+    const typed = kind === 'weekoff' ? { days: v.w, nth: v.nth } : v, r = RB.body(kind, typed);
+    assert.deepStrictEqual(r.errors, [], kind + ' – ' + name); assert.ok(name.length <= 80);
+    if (kind !== 'weekoff') Object.keys(v).forEach(k => { if (numbers.indexOf(k) > -1) assert.strictEqual(r.body[k], v[k], kind + ' – ' + name + ': ' + k); });
+  }
+  assert.match(js, /if \(!p && IDEAS\[kind\]\)/, 'a suggestion is offered for a NEW policy only');
+  // the sites are ticked – none ticked is refused on the page; "Every site" sends an empty list as before
+  assert.match(js, /pickIn\(\[\['all', 'Every site'\], \['some', 'Only the sites ticked'\]\]/); assert.match(js, /if \(sAll\.value === 'some' && !sites\.list\(\)\.length\) \{ d\.err\(/); assert.match(js, /sites: sites\.list\(\), body: body,/);
+  assert.match(js, /plain\.appendChild\(el\('b', '', 'In plain words'\)\)/);
+});

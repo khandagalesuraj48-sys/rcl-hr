@@ -139,31 +139,74 @@
     return { body: body, acts: acts, close: close, err: function (t) { err.textContent = t || ''; err.hidden = !t; } };
   }
   function numIn(v, ph) { var i = el('input'); i.type = 'number'; i.step = 'any'; i.min = '0'; if (v !== undefined && v !== null) i.value = v; i.placeholder = ph || 'leave empty = not applied'; return i; }
+  /* (14-11-2026, asked: "rule book madhe nkki kay takaych he samjat nahi he simplify kr suggestion de drop down de") A NUMBER IS CHOSEN,
+   * not typed: the usual values with their unit, "Not applied" (the rule is left out), or "Other" – then it is typed. */
+  function numPick(v, list, unit) {
+    var w = el('div', 'rb-num'), sel = el('select'), inp = numIn(undefined, 'type the number'), has = v !== undefined && v !== null && v !== '';
+    var add = function (val, text) { var o = el('option', '', text); o.value = val; sel.appendChild(o); };
+    add('', 'Not applied'); list.forEach(function (n) { add(String(n), UNIT[unit](n)); }); add('other', 'Other – type it');
+    var show = function () { inp.hidden = sel.value !== 'other'; };
+    var set = function (x) { var t = x === undefined || x === null || x === '' ? '' : String(Number(x)); if (t === '' || list.map(String).indexOf(t) > -1) { sel.value = t; inp.value = ''; } else { sel.value = 'other'; inp.value = t; } show(); };
+    sel.onchange = function () { show(); if (sel.value === 'other') inp.focus(); }; inp.setAttribute('aria-label', 'The number');
+    w.appendChild(sel); w.appendChild(inp); set(has ? v : '');
+    return { el: w, get: function () { return sel.value === 'other' ? inp.value : sel.value; }, set: set };
+  }
+  var UNIT = { hours: function (n) { return n + ' hours'; }, minutes: function (n) { return n + ' minutes'; }, days: function (n) { return n + ' days'; }, month: function (n) { return n + ' a month'; }, times: function (n) { return n + ' times'; } };
+  var USUAL = { full_hours: [[8, 8.5, 9, 10, 12], 'hours'], half_hours: [[4, 4.5, 5, 6], 'hours'], grace_min: [[0, 5, 10, 15, 20, 30], 'minutes'], early_min: [[0, 5, 10, 15, 20, 30], 'minutes'], free: [[0, 1, 2, 3, 4, 5], 'days'],
+    half_after_min: [[30, 60, 90, 120, 180, 240], 'minutes'], half_before_min: [[30, 60, 90, 120, 180, 240], 'minutes'], per_month: [[1, 1.5, 2, 2.5, 3, 4], 'month'], exit_max: [[15, 30, 45, 60, 90], 'days'],
+    after_min: [[15, 30, 45, 60], 'minutes'], round_min: [[15, 30, 60], 'minutes'], rate: [[1, 1.5, 2], 'times'] };
+  /* SUGGESTIONS – usual policies to start from. Choosing one only FILLS the form: nothing counts until it is saved, and every
+   * value can still be changed. w = the weekly off: days off every week, nth = { day: [weeks of the month] }. */
+  var IDEAS = {
+    attendance: [['Office – 8 hours a full day, 4 hours a half day', { full_hours: 8, half_hours: 4, once: false }], ['Site – 9 hours a full day, 4.5 hours a half day', { full_hours: 9, half_hours: 4.5, once: false }], ['Site, long shift – 12 hours a full day, 6 hours a half day', { full_hours: 12, half_hours: 6, once: false }]],
+    late: [['Usual – late after 15 minutes, 3 days a month allowed', { grace_min: 15, early_min: 15, free: 3 }], ['Strict – late after 5 minutes, none allowed', { grace_min: 5, early_min: 5, free: 0 }], ['With a half day – late after 15 minutes, half day after 2 hours', { grace_min: 15, early_min: 15, free: 3, half_after_min: 120, half_before_min: 120 }]],
+    weekoff: [['Every Sunday', { w: [0], nth: {} }], ['Every Sunday + the 2nd and 4th Saturday', { w: [0], nth: { 6: [2, 4] } }], ['Every Saturday and Sunday', { w: [0, 6], nth: {} }], ['No weekly off (a road site)', { w: [], nth: {} }]],
+    leave: [['1.5 leaves every month, carried on', { earn: 'month', per_month: 1.5, carry: true, auto_absent: false }], ['1 leave every month, carried on', { earn: 'month', per_month: 1, carry: true, auto_absent: false }], ['One leave for each Sunday worked, at most 4 a month (a road site)', { earn: 'sunday', per_month: 4, carry: true, auto_absent: false }]],
+    compoff: [['A day in the Comp-off balance – for a whole shift', { result: 'leave', full_shift: true }], ['Pay for an extra day – for a whole shift', { result: 'pay', full_shift: true }], ['Nothing', { result: 'none', full_shift: true }]],
+    overtime: [['Pay at the plain rate – after 30 minutes, in steps of 30', { after_min: 30, round_min: 30, result: 'pay', rate: 1 }], ['Pay at double rate – after 60 minutes, in steps of 30', { after_min: 60, round_min: 30, result: 'pay', rate: 2 }], ['Leave – after 60 minutes, in steps of 60', { after_min: 60, round_min: 60, result: 'leave' }]] };
   function pickIn(list, v) { var s = el('select'); list.forEach(function (x) { var o = el('option', '', x[1]); o.value = x[0]; s.appendChild(o); }); if (v !== undefined) s.value = String(v); return s; }
   function form(p) {
     var r = V.data, kind = p ? p.kind : V.kind, b = (p && (p.body || (p.versions[0] || {}).body)) || {}, au = (p && (p.auth || (p.versions[0] || {}).auth)) || { verify: [], approve: [] }, kn = (r.kinds.filter(function (k) { return k.key === kind; })[0] || {}).name;
-    var d = sheet(p ? 'Change "' + p.name + '" from a date' : 'New policy · ' + kn, p ? 'What is saved here counts FROM THE DATE below. The days before it keep the version they had.' : HINT[kind] + ' Anything left empty is not applied.');
+    var d = sheet(p ? 'Change "' + p.name + '" from a date' : 'New policy · ' + kn, p ? 'What is saved here counts FROM THE DATE below. The days before it keep the version they had.' : HINT[kind] + ' Choose from the lists – "Not applied" leaves a rule out.');
     var g = el('div', 'grid g3'), name = el('input'); name.maxLength = 60; name.value = p ? p.name : ''; var from = el('input'); from.type = 'date'; from.value = today();
-    var sites = el('input'); sites.value = p ? p.sites.join(', ') : ''; sites.placeholder = 'empty = every site';
-    field(g, 'Name *', name); field(g, 'Counts from *', from); field(g, 'Open for these sites', sites, 'site codes with a comma – e.g. ' + r.site); d.body.appendChild(g);
+    // for which sites: every site, or the ones ticked (his sites; a site the policy already has stays in the list)
+    var known = ((V.me && V.me.sites) || []).map(function (x) { return { code: x.code, name: x.name || x.code }; }); if (!known.some(function (x) { return x.code === r.site; })) known.unshift({ code: r.site, name: (V.me && V.me.siteName) || r.site });
+    ((p && p.sites) || []).forEach(function (c) { if (!known.some(function (x) { return x.code === c; })) known.push({ code: c, name: c }); });
+    var sw = el('div', 'rb-sites'), sAll = pickIn([['all', 'Every site'], ['some', 'Only the sites ticked']], p && p.sites.length ? 'some' : 'all'), sBox = el('div', 'rb-sitelist'), sOn = {}; ((p && p.sites) || []).forEach(function (c) { sOn[c] = true; });
+    known.forEach(function (x) { var l = el('label'), c = el('input'); c.type = 'checkbox'; c.checked = !!sOn[x.code]; c.onchange = function () { sOn[x.code] = c.checked; }; l.appendChild(c); l.appendChild(document.createTextNode(' ' + x.name + (x.name !== x.code ? ' (' + x.code + ')' : ''))); sBox.appendChild(l); });
+    var sShow = function () { sBox.hidden = sAll.value !== 'some'; }; sAll.onchange = sShow; sShow(); sw.appendChild(sAll); sw.appendChild(sBox);
+    var sites = { list: function () { return sAll.value === 'some' ? known.filter(function (x) { return sOn[x.code]; }).map(function (x) { return x.code; }) : []; } };
+    field(g, 'Name *', name); field(g, 'Counts from *', from); field(g, 'For which sites', sw); d.body.appendChild(g);
     d.body.appendChild(el('p', 'fs', 'What it says'));
-    var f = el('div', 'grid g3'), get = {}; d.body.appendChild(f);
-    var N = function (key, label, hint) { var i = field(f, label, numIn(b[key]), hint); get[key] = function () { return i.value; }; }, P = function (key, label, list, hint) { var s = field(f, label, pickIn(list, b[key]), hint); get[key] = function () { return s.value; }; }, Y = function (key, label, def) { var s = field(f, label, pickIn([['yes', 'Yes'], ['no', 'No']], (b[key] === undefined ? def : b[key]) ? 'yes' : 'no')); get[key] = function () { return s.value === 'yes'; }; };
+    // a suggestion to start from (a new policy only): it fills the form, nothing more
+    var idea = null; if (!p && IDEAS[kind]) { idea = pickIn([['', 'Choose a usual policy to fill the form…']].concat(IDEAS[kind].map(function (x, i) { return [String(i), x[0]]; }))); var ib = el('div', 'rb-idea'); ib.appendChild(el('label', '', 'Start from a suggestion')); ib.appendChild(idea); ib.appendChild(el('small', 'rb-hint', 'It only fills the form below – change anything, then Save.')); d.body.insertBefore(ib, d.body.lastChild); }
+    var f = el('div', 'grid g3'), get = {}, put = {}; d.body.appendChild(f);
+    var N = function (key, label, hint) { var u = USUAL[key], n = numPick(b[key], u[0], u[1]); field(f, label, n.el, hint); get[key] = n.get; put[key] = n.set; }, P = function (key, label, list, hint) { var s = field(f, label, pickIn(list, b[key]), hint); get[key] = function () { return s.value; }; put[key] = function (v) { s.value = v === undefined ? list[0][0] : String(v); }; }, Y = function (key, label, def) { var s = field(f, label, pickIn([['yes', 'Yes'], ['no', 'No']], (b[key] === undefined ? def : b[key]) ? 'yes' : 'no')); get[key] = function () { return s.value === 'yes'; }; put[key] = function (v) { s.value = (v === undefined ? def : v) ? 'yes' : 'no'; }; };
     if (kind === 'attendance') { N('full_hours', 'Hours for a full day'); N('half_hours', 'Hours for a half day', 'less than this is absent'); Y('once', 'One IN and one OUT a day', false); }
     else if (kind === 'late') { N('grace_min', 'Late after (minutes)', 'after the shift starts'); N('early_min', 'Early before (minutes)', 'before the shift ends'); N('free', 'Late / early days allowed in a month', 'every one after them is a half day'); N('half_after_min', 'Half day when later than (minutes)'); N('half_before_min', 'Half day when gone earlier than (minutes)'); }
     else if (kind === 'weekoff') {
       var grid = el('div', 'rb-wo'), state = {}; WD.forEach(function (w, i) {
         var row = el('div'), nth = (b.nth || {})[i] || (b.nth || {})[String(i)] || [], every = (b.days || []).indexOf(i) > -1; state[i] = every ? [1, 2, 3, 4, 5] : nth.slice(); row.appendChild(el('b', '', w));
-        NTH.forEach(function (n, k) { var l = el('label'), c = el('input'); c.type = 'checkbox'; c.checked = state[i].indexOf(k + 1) > -1; c.onchange = function () { state[i] = state[i].filter(function (x) { return x !== k + 1; }); if (c.checked) state[i].push(k + 1); }; l.appendChild(c); l.appendChild(document.createTextNode(' ' + n)); row.appendChild(l); });
+        NTH.forEach(function (n, k) { var l = el('label'), c = el('input'); c.type = 'checkbox'; c.checked = state[i].indexOf(k + 1) > -1; c.setAttribute('data-wo', i + ':' + (k + 1)); c.onchange = function () { state[i] = state[i].filter(function (x) { return x !== k + 1; }); if (c.checked) state[i].push(k + 1); }; l.appendChild(c); l.appendChild(document.createTextNode(' ' + n)); row.appendChild(l); });
         grid.appendChild(row);
       });
       f.className = ''; f.appendChild(el('p', 'rb-hint', 'Tick the weeks of the month in which the day is off. All five ticked = every week. Nothing ticked anywhere = no weekly off (a road site).')); f.appendChild(grid);
+      put.w = function (days, nth) { WD.forEach(function (w, i) { state[i] = (days || []).indexOf(i) > -1 ? [1, 2, 3, 4, 5] : ((nth || {})[i] || []).slice(); }); grid.querySelectorAll('input[data-wo]').forEach(function (c) { var a = c.getAttribute('data-wo').split(':'); c.checked = state[a[0]].indexOf(Number(a[1])) > -1; }); };
       get.days = function () { return Object.keys(state).filter(function (k) { return state[k].length === 5; }).map(Number); }; get.nth = function () { var o = {}; Object.keys(state).forEach(function (k) { if (state[k].length && state[k].length < 5) o[k] = state[k].slice().sort(); }); return o; };
     } else if (kind === 'leave') { P('earn', 'How leave is earned *', [['month', 'So many at the start of every month'], ['sunday', 'One for each Sunday worked']]); N('per_month', 'Leaves a month *', 'by a Sunday worked: at most so many'); Y('carry', 'Unused leave goes on to the next month', true); Y('auto_absent', 'An absent day takes one leave by itself', false); P('exit', 'Unused leave when he is relieved', [['', '– not decided –'], ['pay', 'It is paid'], ['none', 'It is not paid']]); N('exit_max', 'Relieving: at most so many days are paid'); }
     else if (kind === 'compoff') { P('result', 'Work on a day off gives *', [['leave', 'A day in the Comp-off balance'], ['pay', 'Pay for an extra day'], ['none', 'Nothing']]); Y('full_shift', 'Only when he worked a whole shift', true); }
     else if (kind === 'overtime') { N('after_min', 'Counted when later than the shift\'s end by (minutes)'); N('round_min', 'Counted in steps of (minutes)', '30 = 50 minutes count as 30'); P('result', 'Overtime gives *', [['pay', 'Pay'], ['leave', 'Leave (a shift\'s hours = one day)'], ['none', 'Nothing']]); N('rate', 'Pay: times the hourly rate', '1 = the plain rate'); }
+    // IN PLAIN WORDS – what the form says now (the same lines as on the policy's card), drawn again at every change
+    var body = function () { var o = {}; Object.keys(get).forEach(function (k) { var v = get[k](); if (USUAL[k]) { if (v !== '' && isFinite(Number(v))) o[k] = Number(v); } else if (v !== '' || k !== 'exit') o[k] = v; }); return o; };
+    var plain = el('div', 'rb-plain'), say = function () { plain.textContent = ''; plain.appendChild(el('b', '', 'In plain words')); var bd = body(), L = kind === 'leave' && bd.per_month === undefined ? [] : lines(kind, bd); if (!L.length) plain.appendChild(el('p', 'muted', kind === 'leave' ? 'Choose "Leaves a month" – a leave policy needs it.' : 'Nothing is chosen yet – nothing would be applied.'));
+      L.forEach(function (x) { var row = el('p'); row.appendChild(el('span', '', x[0])); row.appendChild(document.createTextNode(x[1])); plain.appendChild(row); }); };
+    d.body.appendChild(plain); f.addEventListener('change', say); f.addEventListener('input', say); say();
+    if (idea) idea.onchange = function () { var x = IDEAS[kind][Number(idea.value)]; if (idea.value === '' || !x) return; var v = x[1];
+      if (kind === 'weekoff') put.w(v.w, v.nth); else Object.keys(put).forEach(function (k) { put[k](v[k]); });
+      if (!name.value.trim()) name.value = x[0].split(' – ')[0].slice(0, 60); say(); };
     // who verifies, who approves
     d.body.appendChild(el('p', 'fs', 'Who verifies and who approves'));
+    d.body.appendChild(el('p', 'rb-hint', 'Verify = the first check (it may be left empty). Approve = the final yes – choose at least one. Choose a role from the list, or type one person\'s e-mail and press Add.'));
     var ag = el('div', 'grid'), step = function (label, list, hint) {
       var box = el('div', 'rb-step'), picked = (list || []).map(function (x) { return Object.assign({}, x); }), chips = el('div', 'rb-chips'), add = el('div', 'rb-add');
       var paint = function () { chips.textContent = ''; picked.forEach(function (x, i) { var c = el('span', 'rb-chip', x.role ? roleName(x.role) : x.email + (x.stand_in ? ' (or ' + x.stand_in + ')' : '')); var rm = btn('', '×', function () { picked.splice(i, 1); paint(); }); rm.setAttribute('aria-label', 'Remove'); c.appendChild(rm); chips.appendChild(c); }); if (!picked.length) chips.appendChild(el('small', 'muted', hint)); };
@@ -176,8 +219,9 @@
     d.acts.appendChild(btn('sec', 'Cancel', d.close));
     var ok = btn('pri', p ? 'Save the new version' : 'Save', function () {
       var body = {}; Object.keys(get).forEach(function (k) { body[k] = get[k](); });
-      ok.disabled = true; var t0 = ok.textContent; ok.textContent = 'Saving…';
-      api('rbSave', { id: p ? p.id : undefined, kind: kind, name: name.value, valid_from: from.value, sites: sites.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean), body: body, auth: { verify: ver(), approve: app() } }).then(function () { d.close(); done('Saved', name.value + ' · from ' + dmy(from.value)); V.kind = kind; load(); }, function (e) { ok.disabled = false; ok.textContent = t0; d.err(e.message); });
+      if (sAll.value === 'some' && !sites.list().length) { d.err('Tick at least one site – or choose "Every site".'); return; }
+      d.err(''); ok.disabled = true; var t0 = ok.textContent; ok.textContent = 'Saving…';
+      api('rbSave', { id: p ? p.id : undefined, kind: kind, name: name.value, valid_from: from.value, sites: sites.list(), body: body, auth: { verify: ver(), approve: app() } }).then(function () { d.close(); done('Saved', name.value + ' · from ' + dmy(from.value)); V.kind = kind; load(); }, function (e) { ok.disabled = false; ok.textContent = t0; d.err(e.message); });
     }); d.acts.appendChild(ok); name.focus();
   }
 
